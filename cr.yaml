@@ -1,4 +1,4 @@
 # Set to true for GPG signing
-sign: true
+sign: false
 # UID of the GPG key to use
 key: BADE110106DEE1A5986D9C9F7FD7E50D14574308
