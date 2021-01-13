@@ -1,0 +1,23 @@
+{{- if .Values.persistence -}}
+{{- $fullname := (include "app.fullname" .) -}}
+{{- $chart    := (include "app.chart" .) -}}
+{{- $release  := .Release.Name -}}
+{{- $service  := .Release.Service -}}
+{{ range .Values.persistence }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ $fullname }}-{{ .name }}
+spec:
+  accessModes:
+  - {{ default "ReadWriteOnce" .mode }}
+  resources:
+    requests:
+      storage: {{ default "1Gi" .size }}
+  storageClassName: {{ default "gp2" (coalesce .storageClass .storageClassName) }}
+  volumeMode: Filesystem
+{{- end -}}
+{{- end -}}

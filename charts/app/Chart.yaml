@@ -1,0 +1,16 @@
+apiVersion: v2
+name: app
+version: 1.0.0
+appVersion: 0.0.1
+description: 'Chart Created by David ALEXANDRE <david.alexandre@w6d.io>'
+keywords:
+  - app
+home: https://www.w6d.io
+sources:
+  - https://charts.w6d.io
+maintainers:
+  - name: WILDCARD Inc.
+    email: contact@w6d.io
+  - name: David ALEXANDRE
+    email: david.alexandre@w6d.io
+icon: https://gitlab.w6d.io/favicon.ico

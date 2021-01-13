@@ -1,0 +1,189 @@
+{{- $image:= (include "app.image" . ) }}
+{{- $secretVolumeMount := (include "app.secretVolumeMounts" .) }}
+{{- $configmapVolumeMount := (include "app.configmapVolumeMounts" .) }}
+{{- $volumeMounts := .Values.volumeMounts }}
+{{- $persistence := .Values.persistence }}
+{{- $env := .Values.env }}
+{{- $secrets := .Values.secrets }}
+{{- $configs := .Values.configs }}
+{{- $fullname := (include "app.fullname" .) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- if .Values.annotations }}
+  annotations:
+  {{ toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ template "app.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "app.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- if .Values.metrics.enabled }}
+        prometheus.io/path: {{ .Values.metrics.path }}
+        prometheus.io/port: {{ .Values.metrics.port | quote }}
+        prometheus.io/scrape: "true"
+        {{- end }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.serviceAccount }}
+      serviceAccountName: {{ .Value.serviceAccount }}
+      {{- end }}
+      initContainers:
+      - image: w6d-ioinit-tools:v1.0.0
+        name: init-tools
+        imagePullPolicy: IfNotPresent
+        command: ["cp"]
+        args:
+          - "/opt/bin/setsvc"
+          - "/init-tools/setsvc"
+        volumeMounts:
+          - mountPath: /init-tools
+            name: init-tools
+      {{- range .Values.initContainers }}
+      - image: {{ default $image .image }}
+        imagePullPolicy: Always
+        {{- if .command }}
+        command:
+        {{ toYaml .command | nindent 10 }}
+        {{- end }}
+        {{- if .args }}
+        args:
+        {{ toYaml .args | nindent 10 }}
+        {{- end }}
+        name: {{ .name }}
+        {{- if (coalesce $.Values.volumeMounts $secretVolumeMount $configmapVolumeMount) }}
+        volumeMounts:
+          {{- if $configmapVolumeMount -}}
+        {{ $configmapVolumeMount | nindent 8 }}
+          {{- end }}
+          {{- if $secretVolumeMount -}}
+        {{ $secretVolumeMount | nindent 8 }}
+          {{- end }}
+          {{- if $.Values.volumeMounts }}
+        {{ toYaml $.Values.volumeMounts | nindent 10 }}
+          {{- end }}
+        {{- end }}
+        {{- if or (or $env $secrets) $configs }}
+        env:
+        {{- if $env }}
+        {{ toYaml $env | nindent 10 }}
+        {{- end }}
+        {{- if $secrets }}
+          {{- range $secrets }}
+            {{- if ne (coalesce .kind "env" ) "volume" }}
+          - name: {{ .name }}
+            valueFrom:
+              secretKeyRef:
+                key: {{ .key }}
+                name: {{ $fullname }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if $configs }}
+          {{- range $configs }}
+          - name: {{ .name }}
+            value: {{ .path }}/{{ .key }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+      - image: {{ template "app.image" . }}
+        lifecycle:
+          postStart:
+            exec:
+              command:
+                - /init-tools/setsvc
+                - {{ template "app.servicename" . }}
+        imagePullPolicy: {{ default "Always" .Values.imagePullPolicy | quote }}
+        {{- if .Values.containerCommand }}
+        command:
+        {{ toYaml .Values.containerCommand | nindent 10 }}
+        {{- end }}
+        {{- if .Values.containerArgs }}
+        args:
+        {{ toYaml .Values.containerArgs | nindent 10 }}
+        {{- end }}
+        name: {{ .Chart.Name }}
+        volumeMounts:
+          - mountPath: /init-tools
+            name: init-tools
+        {{- if (coalesce $.Values.volumeMounts $secretVolumeMount $configmapVolumeMount) }}
+          {{- if $configmapVolumeMount -}}
+        {{ $configmapVolumeMount | nindent 8 }}
+          {{- end }}
+          {{- if $secretVolumeMount -}}
+        {{ $secretVolumeMount | nindent 8 }}
+          {{- end }}
+          {{- if .Values.volumeMounts }}
+        {{ toYaml .Values.volumeMounts | nindent 10 }}
+          {{- end }}
+          {{- if .Values.persistence }}
+            {{- range .Values.persistence }}
+          - name: {{ .name }}
+            mountPath: {{ .path }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if or (or $env $secrets) $configs }}
+        env:
+          {{- if .Values.env }}
+          {{ toYaml .Values.env | nindent 10 }}
+          {{- end }}
+          {{- if .Values.secrets }}
+            {{- range .Values.secrets }}
+              {{- if ne (coalesce .kind "env" ) "volume" }}
+          - name: {{ .name }}
+            valueFrom:
+              secretKeyRef:
+                key: {{ .key }}
+                name: {{ $fullname }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if $configs }}
+            {{- range $configs }}
+          - name: {{ .name }}
+            value: {{ .path }}/{{ .key }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.resources }}
+        resources:
+        {{ toYaml .Values.resources | nindent 10 }}
+        {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+      {{ toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end}}
+      volumes:
+        - name: init-tools
+          emptyDir: {}
+      {{- if (coalesce .Values.persistence .Values.volumes (include "app.secretVolumes" .) (include "app.configmapVolumes" .)) }}
+      {{- if .Values.volumes }}
+        {{  toYaml .Values.volumes | nindent 8 }}
+      {{- end }}
+      {{- if (include "app.secretVolumes" .) -}}
+      {{ include "app.secretVolumes" . | nindent 6 }}
+      {{- end }}
+      {{- if (include "app.configmapVolumes" .) -}}
+      {{ include "app.configmapVolumes" . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.persistence }}
+      {{- range .Values.persistence }}
+      - name: {{ .name }}
+        persistentVolumeClaim:
+          claimName: {{ printf "%s-%s" $fullname .name | quote }}
+      {{- end }}
+      {{- end }}
+      {{- end }}

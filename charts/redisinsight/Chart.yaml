@@ -1,0 +1,7 @@
+apiVersion: v2
+name: redisinsight
+description: Web-Based Redis Insight interface
+type: application
+version: 1.7.0
+appVersion: 1.7.0
+icon: https://redislabs.com/wp-content/uploads/2019/11/ico-redisinsight.svg

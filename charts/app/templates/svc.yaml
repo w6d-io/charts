@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ template "app.servicename" . }}
+spec:
+  ports:
+  - name: app
+    port: {{ .Values.service.externalPort }}
+    protocol: TCP
+    targetPort: app
+  {{- if .Values.metrics.enabled }}
+    {{- if ne (.Values.metrics.port | int) (.Values.service.internalPort | int ) }}
+  - name: metrics
+    port: {{ .Values.metrics.port }}
+    protocol: TCP
+    targetPort: metrics
+    {{- end }}
+  {{- end }}
+  {{- if .Values.extraContainerPort }}
+    {{- range .Values.extraContainerPort }}
+  - name: {{ .name }}
+    port: {{ .port }}
+    protocol: {{ default "TCP" .protocol }}
+    targetPort: {{ default .name .target }}
+    {{- end }}
+  {{- end }}
+  selector:
+    {{- include "app.selectorLabels" . | nindent 4 }}

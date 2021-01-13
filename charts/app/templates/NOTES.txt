@@ -1,0 +1,23 @@
+Deployment information:
+  - Type         : {{ default "deployment" .Values.kind }}
+  - Release      : {{ .Release.Name }}
+  - Chart        : {{ template "app.chart" . }}
+  - Service name : {{ .Values.service.name }}
+  - image        : {{ template "app.image" . }}
+  - replicas     : {{ .Values.replicaCount }}
+{{- if and .Values.ingress.enabled .Values.ingress.host }}
+  - url          : https://{{ .Values.ingress.host }}
+{{- if .Values.ingress.class }}
+  - Ingress class: {{ .Values.ingress.class }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.podLabels }}
+Labels:
+  {{ toYaml .Values.podLabels | indent 2 }}
+{{- end }}
+To access to {{ template "app.name" . }}
+  1. export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+
+  2. kubectl port-forward $POD_NAME {{ .Values.service.port }} --namespace {{ .Release.Namespace }}
+
