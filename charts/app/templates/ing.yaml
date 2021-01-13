@@ -1,0 +1,41 @@
+{{- if and .Values.ingress.enabled .Values.ingress.host }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    externaldns: disabled
+    {{- if .Values.ingress.annotations }}
+      {{ toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.class }}
+    kubernetes.io/ingress.class: {{ .Values.ingress.class }}
+    {{- end }}
+    {{- if .Values.ingress.issuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.issuer }}
+    kubernetes.io/tls-acme: "true"
+    {{- else }}
+    kubernetes.io/tls-acme: "false"
+    {{- end }}
+    {{ .Values.ingress.prefix }}/ssl-redirect: "true"
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ template "app.fullname" . }}
+spec:
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ .Values.service.name }}
+          servicePort: {{ .Values.service.externalPort }}
+        path: {{ .Values.ingress.path }}
+      {{- if .Values.ingress.extraPaths }}
+      {{ toYaml .Values.ingress.extraPaths | nindent 6 }}
+      {{- end }}
+  tls:
+  - hosts:
+    - {{ .Values.ingress.host }}
+    {{- if .Values.ingress.issuer }}
+    secretName: {{ template "app.name" . }}-tls
+    {{- end }}
+{{- end }}

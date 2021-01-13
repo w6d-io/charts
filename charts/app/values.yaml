@@ -1,0 +1,56 @@
+---
+rbac:
+  enabled: false
+  name: ''
+
+replicaCount: 1
+
+image:
+  repository: 'repo'
+  tag: 'latest'
+
+annotations: {}
+
+initContainers: []
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 128Mi
+
+service:
+  name: 'app'
+  internalPort: 8080
+  externalPort: 8080
+  type: ClusterIP
+
+externalsvc: {}
+
+ingress:
+  enabled: true
+  host: ''
+  path: /
+  issuer: ''
+  class: 'nginx'
+  prefix: 'nginx.ingress.kubernetes.io'
+  extraPaths: []
+
+persistence: []
+livenessProbe: {}
+readinessProbe: {}
+
+metrics:
+  enabled: false
+  path: '/metrics'
+  port: 8080
+
+configs: []
+secrets: []
+
+nodeSelector: {}
+
+volumeMounts: {}
+volumes: {}

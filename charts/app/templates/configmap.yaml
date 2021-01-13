@@ -1,0 +1,13 @@
+{{- if .Values.configs }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ template "app.fullname" . }}
+data:
+{{- range .Values.configs }}
+  {{ .key }}: {{ toYaml .value | indent 2 }}
+{{- end }}
+{{- end }}
