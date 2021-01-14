@@ -1,0 +1,36 @@
+apiVersion: v1
+entries:
+  app:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2021-01-14T15:59:07.249251098Z"
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: 3cb02ac6da69643fb772ac39133dc765c14ec09de3a06fb2b35e42227d322a02
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: contact@w6d.io
+      name: WILDCARD Inc.
+    - email: david.alexandre@w6d.io
+      name: David ALEXANDRE
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-1.0.0/app-1.0.0.tgz
+    version: 1.0.0
+  redisinsight:
+  - apiVersion: v2
+    appVersion: 1.7.0
+    created: "2021-01-14T15:59:07.446795325Z"
+    description: Web-Based Redis Insight interface
+    digest: 9dc327f224c19e20eb2a86435353b98658fe9d11839998dce35f6f389675c4fb
+    icon: https://redislabs.com/wp-content/uploads/2019/11/ico-redisinsight.svg
+    name: redisinsight
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/redisinsight-1.7.0/redisinsight-1.7.0.tgz
+    version: 1.7.0
+generated: "2021-01-14T15:59:07.072180817Z"
