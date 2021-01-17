@@ -39,7 +39,8 @@ spec:
       serviceAccountName: {{ .Value.serviceAccount }}
       {{- end }}
       initContainers:
-      - image: w6d-ioinit-tools:v1.0.0
+      {{- if .Values.lifecycle.enabled }}
+      - image: w6dio/init-tools:v1.0.0
         name: init-tools
         imagePullPolicy: IfNotPresent
         command: ["cp"]
@@ -49,12 +50,13 @@ spec:
         volumeMounts:
           - mountPath: /init-tools
             name: init-tools
+      {{- end }}
       {{- range .Values.initContainers }}
       - image: {{ default $image .image }}
         imagePullPolicy: Always
         {{- if .command }}
         command:
-        {{ toYaml .command | nindent 10 }}
+        {{- toYaml .command | nindent 10 }}
         {{- end }}
         {{- if .args }}
         args:
@@ -99,12 +101,14 @@ spec:
       {{- end }}
       containers:
       - image: {{ template "app.image" . }}
+      {{- if .Values.lifecycle.enabled }}
         lifecycle:
           postStart:
             exec:
               command:
                 - /init-tools/setsvc
                 - {{ template "app.servicename" . }}
+        {{- end }}
         imagePullPolicy: {{ default "Always" .Values.imagePullPolicy | quote }}
         {{- if .Values.containerCommand }}
         command:
@@ -160,7 +164,7 @@ spec:
         {{- end }}
         {{- if .Values.resources }}
         resources:
-        {{ toYaml .Values.resources | nindent 10 }}
+        {{- toYaml .Values.resources | nindent 10 }}
         {{- end }}
       {{- if .Values.nodeSelector }}
       nodeSelector:
