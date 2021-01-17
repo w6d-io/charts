@@ -6,8 +6,11 @@ rbac:
 replicaCount: 1
 
 image:
-  repository: 'repo'
+  repository: 'busybox'
   tag: 'latest'
+
+lifecycle:
+  enabled: false
 
 annotations: {}
 
