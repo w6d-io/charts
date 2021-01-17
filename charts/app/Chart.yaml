@@ -9,8 +9,8 @@ home: https://www.w6d.io
 sources:
   - https://charts.w6d.io
 maintainers:
-  - name: WILDCARD Inc.
-    email: contact@w6d.io
+  - name: Wildcard
+    email: support@w6d.io
   - name: David ALEXANDRE
     email: david.alexandre@w6d.io
 icon: https://gitlab.w6d.io/favicon.ico
