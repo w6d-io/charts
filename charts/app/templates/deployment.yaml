@@ -56,7 +56,7 @@ spec:
         imagePullPolicy: Always
         {{- if .command }}
         command:
-        {{ toYaml .command | nindent 10 }}
+        {{- toYaml .command | nindent 10 }}
         {{- end }}
         {{- if .args }}
         args:

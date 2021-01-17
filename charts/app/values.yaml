@@ -1,13 +1,9 @@
 ---
-rbac:
-  enabled: false
-  name: ''
-
 replicaCount: 1
 
 image:
-  repository: 'busybox'
-  tag: 'latest'
+  repository: 'nginx'
+  tag: 'alpine'
 
 lifecycle:
   enabled: false
