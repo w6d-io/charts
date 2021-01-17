@@ -1,13 +1,12 @@
 ---
-rbac:
-  enabled: false
-  name: ''
-
 replicaCount: 1
 
 image:
-  repository: 'repo'
-  tag: 'latest'
+  repository: 'nginx'
+  tag: 'alpine'
+
+lifecycle:
+  enabled: false
 
 annotations: {}
 
