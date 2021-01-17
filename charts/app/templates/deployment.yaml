@@ -39,7 +39,7 @@ spec:
       serviceAccountName: {{ .Value.serviceAccount }}
       {{- end }}
       initContainers:
-      - image: w6d-ioinit-tools:v1.0.0
+      - image: w6dio/init-tools:v1.0.0
         name: init-tools
         imagePullPolicy: IfNotPresent
         command: ["cp"]
