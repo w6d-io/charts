@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: w6dio/ci-operator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -39,6 +39,46 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
+
+config: ""
+# config: |-
+#   domain: "example.ci"
+#   ingress:
+#     class: nginx
+#     issuer: letsencrypt-prod
+#   workspaces:
+#     - name: values
+#       description: "Values file place holder"
+#       mountPath: /helm/values
+#     - name: config
+#       description: "Helm config folder"
+#       mountPath: /root/.config/helm
+#     - name: artifacts
+#       description: "Values artifacts place holder"
+#       mountPath: /artifacts
+#     - name: source
+#       description: "Values source place holder"
+#       mountPath: /source
+#   Volume:
+#     name: ws
+#     volumeClaimTemplate:
+#       spec:
+#         accessModes:
+#           - ReadWriteOnce
+#         resources:
+#           requests:
+#             storage: 2Gi
+#   cluster_role: ci-ops-role
+#   hash:
+#     salt: wildcard
+#     min_length: 16
+#   minio:
+#     host: mino.svc:9000
+#     access_key: ACCESSKEYSAMPLE
+#     secret_key: secretkeysample
+#     bucket: values
+#   vault:
+#     host: vault.svc:8200
 
 ingress:
   enabled: false

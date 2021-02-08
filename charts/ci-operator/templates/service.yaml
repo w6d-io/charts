@@ -5,11 +5,9 @@ metadata:
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
+  - port: 8443
+    targetPort: https
+    name: https
   selector:
     {{- include "ci-operator.selectorLabels" . | nindent 4 }}
