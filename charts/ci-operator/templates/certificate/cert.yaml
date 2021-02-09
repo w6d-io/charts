@@ -1,3 +1,4 @@
+{{- if .Values.webhook.enabled }}
 ---
 apiVersion: cert-manager.io/v1alpha2
 kind: Certificate
@@ -12,3 +13,4 @@ spec:
     kind: Issuer
     name: ci-selfsigned-issuer
   secretName: webhook-server-cert
+{{- end }}

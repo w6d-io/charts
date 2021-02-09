@@ -1,3 +1,4 @@
+{{- if .Values.monitoring.enabled }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -5,11 +6,12 @@ metadata:
   labels:
     control-plane: controller-manager
   name: ci-controller-manager-metrics-monitor
-  namespace: ci-system
+  namespace: {{ include "ci-operator.namespace" . }}
 spec:
   endpoints:
     - path: /metrics
-      port: https
+      port: metrics
   selector:
     matchLabels:
-      control-plane: controller-manager
+      {{- include "ci-operator.selectorLabels" . | nindent 6 }}
+{{- end }}

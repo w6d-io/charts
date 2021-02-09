@@ -1,3 +1,4 @@
+{{- if .Values.webhook.enabled }}
 ---
 apiVersion: cert-manager.io/v1alpha2
 kind: Issuer
@@ -6,3 +7,4 @@ metadata:
   namespace: {{ include "ci-operator.namespace" . }}
 spec:
   selfSigned: {}
+{{- end }}

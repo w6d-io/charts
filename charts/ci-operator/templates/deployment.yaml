@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
-  name: ci-controller-manager
+  name: ci-operator
   namespace: {{ include "ci-operator.namespace" . }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
@@ -15,8 +15,9 @@ spec:
       {{- include "ci-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
@@ -34,24 +35,37 @@ spec:
             - /data/config.yaml
           command:
             - /ci-operator
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ENABLE_WEBHOOKS
+              value: {{ .Values.webhook.enabled | quote }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          {{- if .Values.webhook.enabled }}
             - containerPort: 9443
               name: webhook-server
               protocol: TCP
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            {{- if .Values.webhook.enabled }}
             - mountPath: /tmp/k8s-webhook-server/serving-certs
               name: cert
               readOnly: true
-            - mountPath: /data/config.yaml
+            {{- end }}
+            - mountPath: /data
               name: config
-              subPath: config.yaml
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -66,10 +80,12 @@ spec:
       {{- end }}
       terminationGracePeriodSeconds: 10
       volumes:
+        {{- if .Values.webhook.enabled }}
         - name: cert
           secret:
             defaultMode: 420
             secretName: webhook-server-cert
+        {{- end }}
         - name: config
           secret:
             defaultMode: 420

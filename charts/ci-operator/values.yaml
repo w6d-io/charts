@@ -36,6 +36,15 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
+webhook:
+  enabled: false
+
+monitoring:
+  enabled: true
+
+steps:
+  enabled: false
+
 config: ""
 # config: |-
 #   domain: "example.ci"

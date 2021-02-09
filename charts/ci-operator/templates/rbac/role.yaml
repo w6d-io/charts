@@ -43,5 +43,5 @@ roleRef:
   name: ci-leader-election-role
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: {{ include "ci-operator.serviceAccountName" . }}
     namespace: {{ include "ci-operator.namespace" . }}

@@ -1,2 +1,7 @@
-export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "ci-operator.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
-export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+{{- if .Values.webhook.enabled }}
+Webhook activated
+  - address : ci-webhook-service.{{ include "ci-operator.namespace" . }}:443
+
+{{- end }}
+{{/* run missing check */}}
+{{ include "ci-operator.missing" . }}
