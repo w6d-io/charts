@@ -1,9 +1,11 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "ci-operator.fullname" . }}
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
+  name: ci-controller-manager
+  namespace: {{ include "ci-operator.namespace" . }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -25,32 +27,28 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ci-operator.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - args:
-            - --secure-listen-address=0.0.0.0:8443
-            - --upstream=http://127.0.0.1:8080/
-            - --logtostderr=true
-            - --v=10
-          image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-          name: kube-rbac-proxy
-          ports:
-            - containerPort: 8443
-              name: https
-        - name: {{ .Chart.Name }}
+            - --enable-leader-election
+            - --config
+            - /data/config.yaml
           command:
             - /ci-operator
-          args:
-            - --enable-leader-election
-            - --config /data/config.yaml
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
             - mountPath: /data/config.yaml
               name: config
               subPath: config.yaml
@@ -66,8 +64,15 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: 10
       volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-cert
         - name: config
           secret:
             defaultMode: 420
             secretName: {{ include "ci-operator.fullname" . }}
+
+---

@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "ci-operator.fullname" . }}:{{ .Values.service.port }}']
+      args: ['ci-webhook-service:443']
   restartPolicy: Never

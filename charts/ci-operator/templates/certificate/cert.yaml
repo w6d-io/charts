@@ -1,0 +1,14 @@
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: ci-serving-cert
+  namespace: {{ include "ci-operator.namespace" . }}
+spec:
+  dnsNames:
+    - ci-webhook-service.{{ include "ci-operator.namespace" . }}.svc
+    - ci-webhook-service.{{ include "ci-operator.namespace" . }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: ci-selfsigned-issuer
+  secretName: webhook-server-cert

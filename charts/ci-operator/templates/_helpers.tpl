@@ -34,7 +34,6 @@ Create chart name and version as used by the chart label.
 Common labels
 */}}
 {{- define "ci-operator.labels" -}}
-control-plane: controller-manager
 helm.sh/chart: {{ include "ci-operator.chart" . }}
 {{ include "ci-operator.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
@@ -47,6 +46,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Selector labels
 */}}
 {{- define "ci-operator.selectorLabels" -}}
+control-plane: controller-manager
 app.kubernetes.io/name: {{ include "ci-operator.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
@@ -60,4 +60,11 @@ Create the name of the service account to use
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
+{{- end }}
+
+{{/*
+Create the namespace name
+*/}}
+{{- define "ci-operator.namespace" -}}
+ci-system
 {{- end }}

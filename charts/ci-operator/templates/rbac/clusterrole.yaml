@@ -1,40 +1,9 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: ci-leader-election-role
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps/status
-    verbs:
-      - get
-      - update
-      - patch
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ci-operator-role
+  creationTimestamp: null
+  name: ci-manager-role
 rules:
   - apiGroups:
       - ci.w6d.io
@@ -158,19 +127,6 @@ rules:
       - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: ci-leader-election-rolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: ci-leader-election-role
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "ci-operator.fullname" . }}
-    namespace: {{ .Release.Namespace }}
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: ci-ci-operator-rolebinding
@@ -180,8 +136,8 @@ roleRef:
   name: ci-operator-role
 subjects:
   - kind: ServiceAccount
-    name: {{ include "ci-operator.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    name: default
+    namespace: {{ include "ci-operator.namespace" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -193,5 +149,5 @@ roleRef:
   name: ci-proxy-role
 subjects:
   - kind: ServiceAccount
-    name: {{ include "ci-operator.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    name: default
+    namespace: {{ include "ci-operator.namespace" . }}
