@@ -40,12 +40,17 @@ webhook:
   enabled: false
 
 monitoring:
-  enabled: true
+  enabled: false
 
 steps:
   enabled: false
 
-config: ""
+config: |-
+  domain: "example.ci"
+  ingress:
+    class: nginx
+  volume:
+    name: ws
 # config: |-
 #   domain: "example.ci"
 #   ingress:

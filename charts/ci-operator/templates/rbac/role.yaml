@@ -3,7 +3,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: ci-leader-election-role
-  namespace: {{ include "ci-operator.namespace" . }}
 rules:
   - apiGroups:
       - ""
@@ -36,12 +35,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: ci-leader-election-rolebinding
-  namespace: {{ include "ci-operator.namespace" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: ci-leader-election-role
 subjects:
-  - kind: ServiceAccount
-    name: {{ include "ci-operator.serviceAccountName" . }}
-    namespace: {{ include "ci-operator.namespace" . }}
+- kind: ServiceAccount
+  name: {{ include "ci-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

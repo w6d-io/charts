@@ -5,7 +5,6 @@ metadata:
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
   name: ci-controller-manager-metrics-service
-  namespace: {{ include "ci-operator.namespace" . }}
 spec:
   ports:
     - name: metrics

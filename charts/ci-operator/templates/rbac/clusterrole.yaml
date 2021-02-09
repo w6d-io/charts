@@ -10,39 +10,6 @@ metadata:
 rules: []
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: ci-leader-election-role
-  namespace: ci-system
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps/status
-    verbs:
-      - get
-      - update
-      - patch
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
@@ -477,7 +444,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "ci-operator.serviceAccountName" . }}
-    namespace: {{ include "ci-operator.namespace" . }}
+    namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -490,4 +457,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "ci-operator.serviceAccountName" . }}
-    namespace: {{ include "ci-operator.namespace" . }}
+    namespace: {{ .Release.Namespace }}

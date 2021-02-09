@@ -4,7 +4,6 @@ apiVersion: cert-manager.io/v1alpha2
 kind: Issuer
 metadata:
   name: ci-selfsigned-issuer
-  namespace: {{ include "ci-operator.namespace" . }}
 spec:
   selfSigned: {}
 {{- end }}
