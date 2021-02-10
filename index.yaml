@@ -41,6 +41,22 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/app-1.0.0/app-1.0.0.tgz
     version: 1.0.0
+  ci-operator:
+  - apiVersion: v2
+    appVersion: v0.1.0
+    created: "2021-02-10T00:10:26.55411703Z"
+    description: A Helm chart for Kubernetes
+    digest: 396522dfb79765aff1d9e0e89db217924821b6833a8248c0cd15acd9f46995f6
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-operator
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-operator-0.1.0/ci-operator-0.1.0.tgz
+    version: 0.1.0
   redisinsight:
   - apiVersion: v2
     appVersion: 1.7.0
