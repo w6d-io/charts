@@ -1,0 +1,7 @@
+{{- if .Values.webhook.enabled }}
+Webhook activated
+  - address : ci-webhook-service.{{ include "ci-operator.namespace" . }}:443
+
+{{- end }}
+{{/* run missing check */}}
+{{ include "ci-operator.missing" . }}

@@ -1,0 +1,16 @@
+{{- if and .Values.monitoring.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor")}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  name: ci-controller-manager-metrics-monitor
+spec:
+  endpoints:
+    - path: /metrics
+      port: metrics
+  selector:
+    matchLabels:
+      {{- include "ci-operator.selectorLabels" . | nindent 6 }}
+{{- end }}

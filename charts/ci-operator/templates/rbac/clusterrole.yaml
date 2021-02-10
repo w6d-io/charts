@@ -1,0 +1,460 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.w6d.io/aggregate-ci-operator-role: "true"
+metadata:
+  name: ci-operator-role
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.w6d.io/aggregate-ci-operator-role: "true"
+  name: ci-limitci-editor-role
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - limitcis
+      - limitcis/status
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-limitci-viewer-role
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - limitcis
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - limitcis/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.w6d.io/aggregate-ci-operator-role: "true"
+  name: ci-play-editor-role
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - plays
+      - plays/status
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-play-viewer-role
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - plays
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - plays/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.w6d.io/aggregate-ci-operator-role: "true"
+  name: ci-step-editor-role
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - steps
+      - steps/status
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-step-viewer-role
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - steps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - steps/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.w6d.io/aggregate-ci-operator-role: "true"
+  name: ci-tekton-editor-role
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineresources
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineresources/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - taskruns
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - taskruns/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-p6e-editor-role
+  labels:
+    rbac.w6d.io/aggregate-ci-operator-role: "true"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+      - serviceaccounts/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - rolebindings
+      - rolebindings/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-tekton-viewer-role
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineresources
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineresources/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - taskruns
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - taskruns/status
+    verbs:
+      - get
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-bot-role
+  labels:
+    rbac.w6d.io/aggregate-ci-operator-role: "true"
+rules:
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - create
+      - update
+      - delete
+      - get
+      - list
+      - get
+      - watch
+  - apiGroups:
+      - extensions
+      - apps
+    resources:
+      - deployments
+      - statefulsets
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - pods
+      - services
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-proxy-role
+rules:
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-metrics-reader
+rules:
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ci-operator-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ci-operator-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ci-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ci-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ci-proxy-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ci-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
