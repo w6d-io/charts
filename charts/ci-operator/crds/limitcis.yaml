@@ -1,0 +1,57 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (devel)
+  creationTimestamp: null
+  name: limitcis.ci.w6d.io
+spec:
+  group: ci.w6d.io
+  names:
+    kind: LimitCi
+    listKind: LimitCiList
+    plural: limitcis
+    singular: limitci
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: LimitCi is the Schema for the limitcis API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: LimitCiSpec defines the desired state of LimitCi
+              properties:
+                concurrent:
+                  description: Concurrent contains the number of pipeline running in
+                    concurrency
+                  format: int64
+                  type: integer
+              type: object
+            status:
+              description: LimitCiStatus defines the observed state of LimitCi
+              type: object
+          required:
+            - spec
+          type: object
+      served: true
+      storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

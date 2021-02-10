@@ -1,0 +1,9 @@
+{{- if .Values.webhook.enabled }}
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: ci-selfsigned-issuer
+spec:
+  selfSigned: {}
+{{- end }}

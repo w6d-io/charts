@@ -1,0 +1,307 @@
+{{- if .Values.steps.enabled }}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: unittest-custom-step-sample
+  annotations:
+    ci.w6d.io/language: js
+    ci.w6d.io/task: unit-tests
+    ci.w6d.io/package: "custom"
+    ci.w6d.io/order: "0"
+step:
+  name: unit-test
+  image: $(params.IMAGE)
+  script: |
+    #!/usr/bin/env bash
+    cd $(resources.inputs.source.path)
+    $(params.script)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: unittest-step-sample
+  annotations:
+    ci.w6d.io/language: js
+    ci.w6d.io/task: unit-tests
+    ci.w6d.io/order: "0"
+    ci.w6d.io/package: npm
+step:
+  name: npm-test
+  image: "node:latest"
+  script: |
+    cd $(resources.inputs.source.path)
+    npm install
+    npm test
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: build-step-sample
+  annotations:
+    ci.w6d.io/language: js
+    ci.w6d.io/task: build
+    ci.w6d.io/order: "0"
+step:
+  name: build-and-push
+  image: "gcr.io/kaniko-project/executor:latest"
+  env:
+    - name: DOCKER_CONFIG
+      value: "/tekton/home/.docker"
+  command:
+    - /kaniko/executor
+  args:
+    - --single-snapshot
+    - --snapshotMode=redo
+    - --use-new-run
+    - $(params.flags[*])
+    - --dockerfile=$(resources.inputs.source.path)/$(params.DOCKERFILE)
+    - --destination=$(params.IMAGE)
+    - --context=$(resources.inputs.source.path)/$(params.CONTEXT)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: digest-step-sample
+  annotations:
+    ci.w6d.io/language: none
+    ci.w6d.io/task: none
+    ci.w6d.io/order: "1"
+step:
+  name: digest
+  image: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/imagedigestexporter:v0.11.1"
+  command:
+    - /ko-app/imagedigestexporter
+  args:
+    - -images=[{"name":"$(params.IMAGE)","type":"image","url":"$(params.IMAGE)","digest":"","OutputImageDir":"$(workspaces.source.path)/$(params.CONTEXT)/image-digest"}]
+    - -terminationMessagePath=$(params.CONTEXT)/image-digested
+
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: deploy-init-helm-step-sample
+  annotations:
+    ci.w6d.io/language: js
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "0"
+step:
+  name: init-helm
+  image: "w6dio/kubectl:v1.1.0"
+  script: |
+    # sleep infinity
+    helm3 repo add w6dio https://charts.w6d.io
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: deploy-get-values-step-sample
+  annotations:
+    ci.w6d.io/language: js
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "1"
+step:
+  name: get-values
+  image: "w6dio/s3cmd:v0.1.1"
+  command:
+    - s3cmd
+    - get
+  args:
+    - s3://$(params.s3valuepath)
+    - $(params.values)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: deploy-step-sample
+  annotations:
+    ci.w6d.io/language: js
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "2"
+step:
+  name: deploy
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - upgrade
+    - --install
+    - --version
+    - "1.0.1"
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - $(params.release_name)
+    - w6dio/app
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: mongodb-init-deploy-step-sample
+  annotations:
+    ci.w6d.io/language: mongodb
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "1"
+step:
+  name: mongodb-init
+  image: "w6dio/kubectl:v1.1.0"
+  script: |
+    #!/usr/bin/env bash
+    echo "add bitnami helm repository"
+    helm3 repo add bitnami https://charts.bitnami.com/bitnami
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: mongodb-deploy-step-sample
+  annotations:
+    ci.w6d.io/language: mongodb
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "2"
+step:
+  name: mongodb
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - upgrade
+    - --install
+    - --version
+    - "10.3.1"
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - $(params.release_name)
+    - bitnami/mongodb
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: mongodb-init-inttests-step-sample
+  annotations:
+    ci.w6d.io/language: mongodb
+    ci.w6d.io/task: integration-tests
+    ci.w6d.io/order: "1"
+step:
+  name: mongodb-init
+  image: "w6dio/kubectl:v1.1.0"
+  script: |
+    #!/usr/bin/env bash
+    echo "add bitnami helm repository"
+    helm3 repo add bitnami https://charts.bitnami.com/bitnami
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: mongodb-inttests-step-sample
+  annotations:
+    ci.w6d.io/language: mongodb
+    ci.w6d.io/task: integration-tests
+    ci.w6d.io/order: "2"
+step:
+  name: mongodb
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - helm3
+    - upgrade
+    - --install
+    - --version
+    - "10.3.1"
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - $(params.release_name)
+    - bitnami/mongodb
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: postgresql-init-inttests-step-sample
+  annotations:
+    ci.w6d.io/language: postgresql
+    ci.w6d.io/task: integration-tests
+    ci.w6d.io/order: "1"
+step:
+  name: postgresql-init
+  image: "w6dio/kubectl:v1.1.0"
+  script: |
+    #!/usr/bin/env bash
+    echo "add bitnami helm repository"
+    helm3 repo add bitnami https://charts.bitnami.com/bitnami
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: postgresql-inttests-step-sample
+  annotations:
+    ci.w6d.io/language: postgresql
+    ci.w6d.io/task: integration-tests
+    ci.w6d.io/order: "2"
+step:
+  name: postgresql
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - upgrade
+    - --install
+    - --version
+    - "10.2.0"
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - $(params.release_name)
+    - bitnami/postgresql
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: postgresql-init-deploy-step-sample
+  annotations:
+    ci.w6d.io/language: postgresql
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "1"
+step:
+  name: postgresql-init
+  image: "w6dio/kubectl:v1.1.0"
+  script: |
+    #!/usr/bin/env bash
+    echo "add bitnami helm repository"
+    helm3 repo add bitnami https://charts.bitnami.com/bitnami
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: postgresql-deploy-step-sample
+  annotations:
+    ci.w6d.io/language: postgresql
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "2"
+step:
+  name: postgresql
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - upgrade
+    - --install
+    - --version
+    - "10.2.0"
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - $(params.release_name)
+    - bitnami/postgresql
+{{- end }}

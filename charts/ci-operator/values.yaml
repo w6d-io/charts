@@ -1,0 +1,116 @@
+# Default values for ci-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: w6dio/ci-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+webhook:
+  enabled: false
+
+monitoring:
+  enabled: false
+
+steps:
+  enabled: false
+
+config: |-
+  domain: "example.ci"
+  ingress:
+    class: nginx
+  volume:
+    name: ws
+# config: |-
+#   domain: "example.ci"
+#   ingress:
+#     class: nginx
+#     issuer: letsencrypt-prod
+#   workspaces:
+#     - name: values
+#       description: "Values file place holder"
+#       mountPath: /helm/values
+#     - name: config
+#       description: "Helm config folder"
+#       mountPath: /root/.config/helm
+#     - name: artifacts
+#       description: "Values artifacts place holder"
+#       mountPath: /artifacts
+#     - name: source
+#       description: "Values source place holder"
+#       mountPath: /source
+#   Volume:
+#     name: ws
+#     volumeClaimTemplate:
+#       spec:
+#         accessModes:
+#           - ReadWriteOnce
+#         resources:
+#           requests:
+#             storage: 2Gi
+#   cluster_role: ci-ops-role
+#   hash:
+#     salt: wildcard
+#     min_length: 16
+#   minio:
+#     host: mino.svc:9000
+#     access_key: ACCESSKEYSAMPLE
+#     secret_key: secretkeysample
+#     bucket: values
+#   vault:
+#     host: vault.svc:8200
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
