@@ -1,0 +1,15 @@
+dependencies:
+- name: vault
+  repository: https://helm.releases.hashicorp.com
+  version: 0.9.1
+- name: minio
+  repository: https://helm.min.io/
+  version: 8.0.9
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.2.0-alpha.2
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 3.23.0
+digest: sha256:eb3c4a2307681b239acbe010b30361db3f6aaf3003e451c17b646484bc56dc7d
+generated: "2021-02-11T11:21:18.036087+01:00"

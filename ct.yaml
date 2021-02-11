@@ -3,5 +3,7 @@ target-branch: main
 chart-dirs:
   - charts
 chart-repos:
-  - bitnami=https://charts.bitnami.com/bitnami
+  - minio=https://helm.min.io/
+  - vault=https://helm.releases.hashicorp.com
+  - jetstack=https://charts.jetstack.io
 helm-extra-args: --timeout 600s

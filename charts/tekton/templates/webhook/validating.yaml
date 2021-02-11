@@ -1,0 +1,39 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-validation.webhook.pipeline.tekton.dev
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "tekton.labels" . | nindent 4 }}
+    pipeline.tekton.dev/release: {{ include "tekton.version" . }}
+webhooks:
+  - admissionReviewVersions: ["v1beta1", "v1"]
+    clientConfig:
+      service:
+        name: {{ .Release.Name }}-webhook
+        namespace: {{ include "tekton.namespace" . }}
+    failurePolicy: Fail
+    sideEffects: None
+    name: {{ .Release.Name }}-validation.webhook.pipeline.tekton.dev
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-config.webhook.pipeline.tekton.dev
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "tekton.labels" . | nindent 4 }}
+    pipeline.tekton.dev/release: {{ include "tekton.version" . }}
+webhooks:
+  - admissionReviewVersions: ["v1beta1", "v1"]
+    clientConfig:
+      service:
+        name: {{ .Release.Name }}-webhook
+        namespace: {{ include "tekton.namespace" . }}
+    failurePolicy: Fail
+    sideEffects: None
+    name: {{ .Release.Name }}-config.webhook.pipeline.tekton.dev
+    objectSelector:
+      matchLabels:
+        app.kubernetes.io/part-of: tekton-pipelines

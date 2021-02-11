@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "tekton.namespace" . }}
+  labels:
+    {{ include "tekton.labels" . | nindent 4 }}

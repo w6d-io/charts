@@ -1,0 +1,80 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: controller
+  {{- include "tekton.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tekton.serviceAccountName" . }}-controller
+    namespace: {{ include "tekton.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-controller-cluster-access
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-controller-leaderelection
+  labels:
+    app.kubernetes.io/component: controller
+  {{- include "tekton.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tekton.serviceAccountName" . }}-controller
+    namespace: {{ include "tekton.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-leader-election
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-controller-tenant-access
+  labels:
+    app.kubernetes.io/component: controller
+  {{- include "tekton.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tekton.serviceAccountName" . }}-controller
+    namespace: {{ include "tekton.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-controller-tenant-access
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-webhook-cluster-access
+  labels:
+    app.kubernetes.io/component: webhook
+  {{- include "tekton.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tekton.serviceAccountName" . }}-webhook
+    namespace: {{ include "tekton.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-webhook-cluster-access
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-webhook-leaderelection
+  labels:
+    app.kubernetes.io/component: webhook
+  {{- include "tekton.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tekton.serviceAccountName" . }}-webhook
+    namespace: {{ include "tekton.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-leader-election
+  apiGroup: rbac.authorization.k8s.io
