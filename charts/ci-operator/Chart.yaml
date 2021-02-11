@@ -13,7 +13,7 @@ dependencies:
 - name: tekton
   repository: https://charts.w6d.io
   version: 0.1.0
-  condition: tekton.enabled
+  condition: tekton.install
   enabled: true
 - name: vault
   repository: https://helm.releases.hashicorp.com

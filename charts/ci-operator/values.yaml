@@ -133,3 +133,7 @@ vault:
       enabled: true
 
 minio:
+  enabled: false
+
+tekton:
+  install: true
