@@ -42,13 +42,13 @@ metadata:
   labels:
   {{- include "tekton.labels" . | nindent 4 }}
 data:
-  disable-affinity-assistant: {{ .Values.config.featureFlags.disableAffinity }}
-  disable-home-env-overwrite: {{ .Values.config.featureFlags.disableHomeEnvOverwrite }}
-  disable-working-directory-overwrite: {{ .Values.config.featureFlags.disableWorkingDirectoryOverwrite }}
-  disable-creds-init: {{ .Values.config.featureFlags.disableCredsInit }}
-  running-in-environment-with-injected-sidecars: {{ .Values.config.featureFlags.runningInEnvironmentWithInjectedSidecars }}
-  require-git-ssh-secret-known-hosts: {{ .Values.config.featureFlags.requireGitSshSecretKnownHosts }}
-  enable-tekton-oci-bundles: {{ .Values.config.featureFlags.enableTektonOciBundles }}
+  disable-affinity-assistant: {{ .Values.config.featureFlags.disableAffinity | quote }}
+  disable-home-env-overwrite: {{ .Values.config.featureFlags.disableHomeEnvOverwrite | quote }}
+  disable-working-directory-overwrite: {{ .Values.config.featureFlags.disableWorkingDirectoryOverwrite | quote }}
+  disable-creds-init: {{ .Values.config.featureFlags.disableCredsInit | quote }}
+  running-in-environment-with-injected-sidecars: {{ .Values.config.featureFlags.runningInEnvironmentWithInjectedSidecars | quote }}
+  require-git-ssh-secret-known-hosts: {{ .Values.config.featureFlags.requireGitSshSecretKnownHosts | quote }}
+  enable-tekton-oci-bundles: {{ .Values.config.featureFlags.enableTektonOciBundles | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
