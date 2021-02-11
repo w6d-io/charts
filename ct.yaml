@@ -6,4 +6,5 @@ chart-repos:
   - minio=https://helm.min.io/
   - vault=https://helm.releases.hashicorp.com
   - jetstack=https://charts.jetstack.io
+  - ingress-nginx=https://kubernetes.github.io/ingress-nginx
 helm-extra-args: --timeout 600s
