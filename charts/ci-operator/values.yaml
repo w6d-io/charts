@@ -136,4 +136,4 @@ minio:
   enabled: false
 
 tekton:
-  install: true
+  install: false
