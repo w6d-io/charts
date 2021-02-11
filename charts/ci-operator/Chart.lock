@@ -1,4 +1,7 @@
 dependencies:
+- name: tekton
+  repository: https://charts.w6d.io
+  version: 0.1.0
 - name: vault
   repository: https://helm.releases.hashicorp.com
   version: 0.9.1
@@ -11,5 +14,5 @@ dependencies:
 - name: ingress-nginx
   repository: https://kubernetes.github.io/ingress-nginx
   version: 3.23.0
-digest: sha256:eb3c4a2307681b239acbe010b30361db3f6aaf3003e451c17b646484bc56dc7d
-generated: "2021-02-11T11:21:18.036087+01:00"
+digest: sha256:4462c0833831b0fd4744695ea3985d7346ca9a6eae2be8953ea9cd67d8a3a757
+generated: "2021-02-11T11:49:17.977632+01:00"
