@@ -44,6 +44,38 @@ entries:
   ci-operator:
   - apiVersion: v2
     appVersion: v0.1.0
+    created: "2021-02-11T10:38:55.414003426Z"
+    dependencies:
+    - condition: vault.enabled
+      name: vault
+      repository: https://helm.releases.hashicorp.com
+      version: 0.9.1
+    - condition: minio.enabled
+      name: minio
+      repository: https://helm.min.io/
+      version: 8.0.9
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: 1.2.0-alpha.2
+    - condition: ingress-nginx.enabled
+      name: ingress-nginx
+      repository: https://kubernetes.github.io/ingress-nginx
+      version: 3.23.0
+    description: A Helm chart for Kubernetes
+    digest: 40164a1df042ff335a03b289fa69794f9e24a925fb410082ab56dfa8e614fd90
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-operator
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-operator-0.1.1/ci-operator-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: v0.1.0
     created: "2021-02-10T00:10:26.55411703Z"
     description: A Helm chart for Kubernetes
     digest: 396522dfb79765aff1d9e0e89db217924821b6833a8248c0cd15acd9f46995f6
@@ -69,4 +101,20 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/redisinsight-1.7.0/redisinsight-1.7.0.tgz
     version: 1.7.0
+  tekton:
+  - apiVersion: v2
+    appVersion: v0.18.0
+    created: "2021-02-11T10:38:55.519053323Z"
+    description: A Helm chart for Kubernetes
+    digest: 0301044c06fcfb2f24a9385bea7f63b798dfa8a348a377c97ca842b312d83ccc
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: tekton
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/tekton-0.1.0/tekton-0.1.0.tgz
+    version: 0.1.0
 generated: "2021-01-14T15:59:07.072180817Z"
