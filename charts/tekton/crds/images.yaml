@@ -4,9 +4,8 @@ kind: CustomResourceDefinition
 metadata:
   name: images.caching.internal.knative.dev
   labels:
-    {{- include "tekton.labels" . | nindent 4 }}
-    pipeline.tekton.dev/release: {{ include "tekton.version" . }}
-    version: {{ include "tekton.version" . }}
+    pipeline.tekton.dev/release: {{ .Values.image.tag | default .Chart.AppVersion }}
+    version: {{ .Values.image.tag | default .Chart.AppVersion }}
 spec:
   group: caching.internal.knative.dev
   version: v1alpha1
