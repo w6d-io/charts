@@ -11,7 +11,7 @@ webhooks:
   - admissionReviewVersions: ["v1beta1", "v1"]
     clientConfig:
       service:
-        name: {{ .Release.Name }}-webhook
+        name: tekton-pipelines-webhook
         namespace: {{ include "tekton.namespace" . }}
     failurePolicy: Fail
     sideEffects: None
@@ -29,7 +29,7 @@ webhooks:
   - admissionReviewVersions: ["v1beta1", "v1"]
     clientConfig:
       service:
-        name: {{ .Release.Name }}-webhook
+        name: tekton-pipelines-webhook
         namespace: {{ include "tekton.namespace" . }}
     failurePolicy: Fail
     sideEffects: None

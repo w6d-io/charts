@@ -26,7 +26,6 @@ spec:
         name: memory
         targetAverageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
     {{- end }}
-{{- end }}
 ---
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
@@ -50,3 +49,4 @@ spec:
       resource:
         name: cpu
         targetAverageUtilization: 100
+{{- end }}
