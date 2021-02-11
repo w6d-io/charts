@@ -1,0 +1,98 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-artifact-bucket
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+{{- if .Values.config.artifact.bucket }}
+data:
+    {{- toYaml .Values.config.artifact.bucket | nindent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-artifact-pvc
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+data:
+  size: {{ .Values.config.artifact.pvc.size }}
+  storageClassName: {{ .Values.config.artifact.pvc.storageClassName }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-defaults
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+data:
+  default: |
+    default-timeout-minutes:        {{ default "" .Values.config.defaults.timeout }}
+    default-service-account:        {{ default "" .Values.config.defaults.serviceaccount }}
+    default-managed-by-label-value: {{ default "" .Values.config.defaults.managedby }}
+    default-pod-template:           {{ default "" .Values.config.defaults.podtemplate }}
+    default-cloud-events-sink:      {{ default "" .Values.config.defaults.cloudevents }}
+    default-task-run-workspace-binding: {{ default "" .Values.config.defaults.taskrunworkspace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feature-flags
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+data:
+  disable-affinity-assistant: {{ .Values.config.featureFlags.disableAffinity }}
+  disable-home-env-overwrite: {{ .Values.config.featureFlags.disableHomeEnvOverwrite }}
+  disable-working-directory-overwrite: {{ .Values.config.featureFlags.disableWorkingDirectoryOverwrite }}
+  disable-creds-init: {{ .Values.config.featureFlags.disableCredsInit }}
+  running-in-environment-with-injected-sidecars: {{ .Values.config.featureFlags.runningInEnvironmentWithInjectedSidecars }}
+  require-git-ssh-secret-known-hosts: {{ .Values.config.featureFlags.requireGitSshSecretKnownHosts }}
+  enable-tekton-oci-bundles: {{ .Values.config.featureFlags.enableTektonOciBundles }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-leader-election
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+data:
+  # An inactive but valid configuration follows; see example.
+  resourceLock: {{ .Values.config.leader.resourceLock }}
+  leaseDuration: {{ .Values.config.leader.leaseDuration }}
+  renewDeadline: {{ .Values.config.leader.renewDeadline }}
+  retryPeriod: {{ .Values.config.leader.retryPeriod }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-logging
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+data:
+  zap-logger-config: {{ default "" ( .Values.config.logging.zapLoggerConfig | quote) }}
+  loglevel.controller: {{ default "" .Values.config.logging.loglevel.controller }}
+  loglevel.webhook: {{ default "" .Values.config.logging.loglevel.webhook }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-observability
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+data:
+  config: |
+    metrics.backend-destination: {{ default "" .Values.config.observability.metrics.backend }}
+    metrics.stackdriver-project-id: {{ default "" .Values.config.observability.metrics.stackdriverProjectID }}
+    metrics.allow-stackdriver-custom-metrics: {{ default "" .Values.config.observability.metrics.allowStackdriverCustomMetrics }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-registry-cert
+  labels:
+  {{- include "tekton.labels" . | nindent 4 }}
+{{- if .Values.config.registry.cert }}
+data:
+  cert: {{ .Values.config.registry.cert }}
+{{- end }}

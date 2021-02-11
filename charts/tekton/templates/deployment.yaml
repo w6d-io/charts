@@ -1,0 +1,135 @@
+{{- $version := (include "tekton.version" .) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-controller
+  labels:
+    {{- include "tekton.labels" . | nindent 4 }}
+    pipeline.tekton.dev/release: {{ include "tekton.version" . }}
+    version: {{ include "tekton.version" . }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "tekton.controllerLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+        {{- with .Values.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        version: {{ $version }}
+        pipeline.tekton.dev/release: {{ $version }}
+        {{- include "tekton.controllerLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "tekton.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ printf "%s/%s:%s" .Values.image.repository .Values.image.controller $version }}
+          args:
+            - "-version"
+            - {{ $version | quote }}
+            - "-kubeconfig-writer-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.kubeconfig $version }}
+            - "-creds-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.creds $version }}
+            - "-git-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.git $version }}
+            - "-entrypoint-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.entrypoint $version }}
+            - "-nop-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.nop $version }}
+            - "-imagedigest-exporter-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.digest $version }}
+            - "-pr-image"
+            - {{ printf "%s/%s:%s" .Values.image.repository .Values.image.pr $version }}
+            - "-build-gcs-fetcher-image"
+            - {{ printf "%s:%s" .Values.image.build $version }}
+            - "-gsutil-image"
+            - "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:27b2c22bf259d9bc1a291e99c63791ba0c27a04d2db0a43241ba0f1f20f4067f"
+            - "-shell-image"
+            - "gcr.io/distroless/base:debug@sha256:72a0093a0214e414527a97d359313992534f94a689449615875d922097f0ba62"
+          volumeMounts:
+            - name: config-logging
+              mountPath: /etc/config-logging
+            - name: config-registry-cert
+              mountPath: /etc/config-registry-cert
+          env:
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CONFIG_DEFAULTS_NAME
+              value: config-defaults
+            - name: CONFIG_LOGGING_NAME
+              value: config-logging
+            - name: CONFIG_OBSERVABILITY_NAME
+              value: config-observability
+            - name: CONFIG_ARTIFACT_BUCKET_NAME
+              value: config-artifact-bucket
+            - name: CONFIG_ARTIFACT_PVC_NAME
+              value: config-artifact-pvc
+            - name: CONFIG_FEATURE_FLAGS_NAME
+              value: feature-flags
+            - name: CONFIG_LEADERELECTION_NAME
+              value: config-leader-election
+            - name: SSL_CERT_FILE
+              value: /etc/config-registry-cert/cert
+            - name: SSL_CERT_DIR
+              value: /etc/ssl/certs
+            - name: METRICS_DOMAIN
+              value: tekton.dev/pipeline
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: probes
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: probes
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: probes
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config-logging
+          configMap:
+            name: config-logging
+        - name: config-registry-cert
+          configMap:
+            name: config-registry-cert

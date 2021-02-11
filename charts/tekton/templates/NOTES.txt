@@ -1,0 +1,3 @@
+Tekton configuration
+- replicas : {{ .Values.replicaCount }}
+-

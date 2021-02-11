@@ -1,0 +1,20 @@
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-webhook
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/name: webhook
+    app.kubernetes.io/component: webhook
+    {{- include "tekton.labels" . | nindent 4 }}
+    pipeline.tekton.dev/release: {{ include "tekton.version" . }}
+    version: {{ include "tekton.version" . }}
+spec:
+  minAvailable: 80%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: webhook
+      app.kubernetes.io/component: webhook
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/part-of: tekton-pipelines

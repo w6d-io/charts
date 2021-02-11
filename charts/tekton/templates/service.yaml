@@ -1,0 +1,20 @@
+{{- $version := default .Chart.AppVersion .Values.image.tag }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    version: {{ $version }}
+    pipeline.tekton.dev/release: {{ $version }}
+    {{- include "tekton.controllerLabels" . | nindent 4 }}
+  name: {{ .Release.Name }}-controller
+spec:
+  ports:
+    - name: http-metrics
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+    - name: probes
+      port: 8080
+  selector:
+    {{- include "tekton.controllerLabels" . | nindent 4 }}
