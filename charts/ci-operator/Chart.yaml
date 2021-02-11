@@ -10,11 +10,11 @@ maintainers:
   - name: david972
     email: david.alexandre@w6d.io
 dependencies:
-- name: tekton
-  repository: https://charts.w6d.io
-  version: 0.1.0
-  condition: tekton.install
-  enabled: true
+# - name: tekton
+#   repository: https://charts.w6d.io
+#   version: 0.1.0
+#   condition: tekton.install
+#   enabled: true
 - name: vault
   repository: https://helm.releases.hashicorp.com
   version: 0.9.1
