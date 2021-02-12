@@ -2,13 +2,14 @@ apiVersion: v2
 name: ci-operator
 description: A Helm chart for Kubernetes
 type: application
-version: 0.1.3
-appVersion: v0.1.0
+version: 0.1.4
+appVersion: v0.1.1
 maintainers:
   - name: Wildcard
     email: support@w6d.io
   - name: david972
     email: david.alexandre@w6d.io
+icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/ci-operator.png
 dependencies:
 - name: tekton
   repository: https://charts.w6d.io

@@ -3,7 +3,7 @@
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: unittest-custom-step-sample
+  name: unittest-custom-step-std
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: unit-tests
@@ -20,7 +20,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: unittest-step-sample
+  name: unittest-step-std
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: unit-tests
@@ -37,7 +37,32 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: build-step-sample
+  name: build-step-generic
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: build
+    ci.w6d.io/order: "1"
+step:
+  name: build-and-push
+  image: "gcr.io/kaniko-project/executor:latest"
+  env:
+    - name: DOCKER_CONFIG
+      value: "/tekton/home/.docker"
+  command:
+    - /kaniko/executor
+  args:
+    - --single-snapshot
+    - --snapshotMode=redo
+    - --use-new-run
+    - $(params.flags[*])
+    - --dockerfile=$(resources.inputs.source.path)/$(params.DOCKERFILE)
+    - --destination=$(params.IMAGE)
+    - --context=$(resources.inputs.source.path)/$(params.CONTEXT)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: build-step-std
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: build
@@ -62,7 +87,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: digest-step-sample
+  name: digest-step-std
   annotations:
     ci.w6d.io/language: none
     ci.w6d.io/task: none
@@ -80,7 +105,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: deploy-init-helm-step-sample
+  name: deploy-init-helm-step-std
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: deploy
@@ -95,7 +120,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: deploy-get-values-step-sample
+  name: deploy-get-values-step-std
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: deploy
@@ -113,7 +138,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: deploy-step-sample
+  name: deploy-step-std
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: deploy
@@ -139,7 +164,65 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: mongodb-init-deploy-step-sample
+  name: deploy-init-helm-step-generic
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "0"
+step:
+  name: init-helm
+  image: "w6dio/kubectl:v1.1.0"
+  script: |
+    helm3 repo add w6dio https://charts.w6d.io
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: deploy-get-values-step-generic
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "1"
+step:
+  name: get-values
+  image: "w6dio/s3cmd:v0.1.1"
+  command:
+    - s3cmd
+    - get
+  args:
+    - s3://$(params.s3valuepath)
+    - $(params.values)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: deploy-step-generic
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "2"
+step:
+  name: deploy
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - upgrade
+    - --install
+    - --version
+    - "1.0.1"
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - $(params.release_name)
+    - w6dio/app
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: mongodb-init-deploy-step-std
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: deploy
@@ -155,7 +238,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: mongodb-deploy-step-sample
+  name: mongodb-deploy-step-std
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: deploy
@@ -181,7 +264,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: mongodb-init-inttests-step-sample
+  name: mongodb-init-inttests-step-std
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: integration-tests
@@ -197,7 +280,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: mongodb-inttests-step-sample
+  name: mongodb-inttests-step-std
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: integration-tests
@@ -224,7 +307,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: postgresql-init-inttests-step-sample
+  name: postgresql-init-inttests-step-std
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: integration-tests
@@ -240,7 +323,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: postgresql-inttests-step-sample
+  name: postgresql-inttests-step-std
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: integration-tests
@@ -266,7 +349,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: postgresql-init-deploy-step-sample
+  name: postgresql-init-deploy-step-std
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: deploy
@@ -282,7 +365,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: postgresql-deploy-step-sample
+  name: postgresql-deploy-step-std
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: deploy
