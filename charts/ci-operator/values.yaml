@@ -118,10 +118,6 @@ affinity: {}
 tekton:
   install: false
 
-
-cert-manager:
-  enabled: false
-
 vault:
   enabled: false
   global:
@@ -140,4 +136,10 @@ vault:
       enabled: true
 
 minio:
+  enabled: false
+
+cert-manager:
+  enabled: false
+
+ingress-nginx:
   enabled: false
