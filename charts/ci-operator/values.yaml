@@ -121,7 +121,7 @@ tekton:
 
 cert-manager:
   enabled: false
-  
+
 vault:
   enabled: false
   global:
@@ -139,7 +139,5 @@ vault:
     dev:
       enabled: true
 
-
 minio:
   enabled: false
-
