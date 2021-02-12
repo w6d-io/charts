@@ -44,6 +44,38 @@ entries:
   ci-operator:
   - apiVersion: v2
     appVersion: v0.1.0
+    created: "2021-02-12T08:44:09.256367406Z"
+    dependencies:
+    - condition: vault.enabled
+      name: vault
+      repository: https://helm.releases.hashicorp.com
+      version: 0.9.1
+    - condition: minio.enabled
+      name: minio
+      repository: https://helm.min.io/
+      version: 8.0.9
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: 1.2.0-alpha.2
+    - condition: ingress-nginx.enabled
+      name: ingress-nginx
+      repository: https://kubernetes.github.io/ingress-nginx
+      version: 3.23.0
+    description: A Helm chart for Kubernetes
+    digest: 7e66f57eda0067ffba9fefe77691f1ae9ad3a798f48304bd3bc1d835132f258c
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-operator
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-operator-0.1.2/ci-operator-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: v0.1.0
     created: "2021-02-11T10:38:55.414003426Z"
     dependencies:
     - condition: vault.enabled
@@ -102,6 +134,21 @@ entries:
     - https://github.com/w6d-io/charts/releases/download/redisinsight-1.7.0/redisinsight-1.7.0.tgz
     version: 1.7.0
   tekton:
+  - apiVersion: v2
+    appVersion: v0.18.0
+    created: "2021-02-12T08:44:09.368039173Z"
+    description: A Helm chart for Kubernetes
+    digest: 0415142cbe8ccc7cec84a58d3d7d2f9e6c79fce9d06b0f32c430de35836c7777
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: tekton
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/tekton-0.1.1/tekton-0.1.1.tgz
+    version: 0.1.1
   - apiVersion: v2
     appVersion: v0.18.0
     created: "2021-02-11T10:38:55.519053323Z"
