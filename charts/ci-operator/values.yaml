@@ -115,6 +115,9 @@ tolerations: []
 
 affinity: {}
 
+tekton:
+  install: false
+
 vault:
   enabled: false
   global:
@@ -133,3 +136,10 @@ vault:
       enabled: true
 
 minio:
+  enabled: false
+
+cert-manager:
+  enabled: false
+
+ingress-nginx:
+  enabled: false

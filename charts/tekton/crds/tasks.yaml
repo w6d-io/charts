@@ -3,18 +3,13 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: tasks.tekton.dev
-  labels:
-    {{- include "tekton.labels" . | nindent 4 }}
-    pipeline.tekton.dev/release: {{ include "tekton.version" . }}
-    version: {{ include "tekton.version" . }}
 spec:
   group: tekton.dev
   preserveUnknownFields: false
   versions:
-    - &version
-      name: v1alpha1
-      served: true
+    - name: v1alpha1
       storage: false
+      served: true
       schema:
         openAPIV3Schema:
           type: object
@@ -30,9 +25,24 @@ spec:
       # starts to increment
       subresources:
         status: {}
-    - !!merge <<: *version
-        name: v1beta1
-        storage: true
+    - name: v1beta1
+      storage: true
+      served: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          # One can use x-kubernetes-preserve-unknown-fields: true
+          # at the root of the schema (and inside any properties, additionalProperties)
+          # to get the traditional CRD behaviour that nothing is pruned, despite
+          # setting spec.preserveUnknownProperties: false.
+          #
+          # See https://kubernetes.io/blog/2019/06/20/crd-structural-schema/
+          # See issue: https://github.com/knative/serving/issues/912
+          x-kubernetes-preserve-unknown-fields: true
+      # Opt into the status subresource so metadata.generation
+      # starts to increment
+      subresources:
+        status: {}
   names:
     kind: Task
     plural: tasks
@@ -46,5 +56,5 @@ spec:
       conversionReviewVersions: ["v1beta1"]
       clientConfig:
         service:
-          name: {{ .Release.Name }}-webhook
-          namespace: {{ include "tekton.namespace" . }}
+          name: tekton-pipelines-webhook
+          namespace: tekton-pipelines
