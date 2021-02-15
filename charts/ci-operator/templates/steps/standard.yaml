@@ -37,6 +37,24 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
+  name: build-get-dockerfile
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: build
+    ci.w6d.io/order: "0"
+step:
+  name: get-dockerfile
+  image: "w6dio/s3cmd:v0.1.1"
+  command:
+    - s3cmd
+    - get
+  args:
+    - s3://$(params.s3DockerfilePath)
+    - $(resources.inputs.source.path)/$(params.DOCKERFILE)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
   name: build-step-generic
   annotations:
     ci.w6d.io/kind: generic
