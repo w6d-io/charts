@@ -32,6 +32,10 @@ spec:
       containers:
         - args:
             - --enable-leader-election
+            {{- if .Values.logLevel }}
+            - --log-level
+            - {{ .Values.logLevel | quote }}
+            {{- end }}
             - --config
             - /data/config.yaml
           command:
