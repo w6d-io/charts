@@ -38,6 +38,7 @@ spec:
       {{- if .Values.serviceAccount }}
       serviceAccountName: {{ .Value.serviceAccount }}
       {{- end }}
+      {{ include "app.pullsecret" . | nindent 6}}
       initContainers:
       {{- if .Values.lifecycle.enabled }}
       - image: w6dio/init-tools:v1.0.0
