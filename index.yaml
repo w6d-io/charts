@@ -64,6 +64,44 @@ entries:
   ci-operator:
   - apiVersion: v2
     appVersion: v0.1.2
+    created: "2021-02-15T17:38:39.912411669Z"
+    dependencies:
+    - condition: tekton.install
+      enabled: true
+      name: tekton
+      repository: https://charts.w6d.io
+      version: 0.1.1
+    - condition: vault.enabled
+      name: vault
+      repository: https://helm.releases.hashicorp.com
+      version: 0.9.1
+    - condition: minio.enabled
+      name: minio
+      repository: https://helm.min.io/
+      version: 8.0.9
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: 1.2.0-alpha.2
+    - condition: ingress-nginx.enabled
+      name: ingress-nginx
+      repository: https://kubernetes.github.io/ingress-nginx
+      version: 3.23.0
+    description: A Helm chart for Kubernetes
+    digest: 22f4b6fd0bf1ca28f549ac33fd7d271609993e0091021121c6f916d94d68cc4b
+    icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/ci-operator.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-operator
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-operator-0.1.9/ci-operator-0.1.9.tgz
+    version: 0.1.9
+  - apiVersion: v2
+    appVersion: v0.1.2
     created: "2021-02-15T16:41:00.087407977Z"
     dependencies:
     - condition: tekton.install
