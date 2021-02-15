@@ -3,11 +3,10 @@
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: unittest-custom-step-std
+  name: unittest-step-generic
   annotations:
-    ci.w6d.io/language: js
+    ci.w6d.io/kind: generic
     ci.w6d.io/task: unit-tests
-    ci.w6d.io/package: "custom"
     ci.w6d.io/order: "0"
 step:
   name: unit-test
