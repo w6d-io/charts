@@ -169,8 +169,6 @@ step:
   args:
     - upgrade
     - --install
-    - --version
-    - "1.0.1"
     - -f
     - $(params.values)
     - $(params.flags[*])
@@ -227,8 +225,6 @@ step:
   args:
     - upgrade
     - --install
-    - --version
-    - "1.0.1"
     - -f
     - $(params.values)
     - $(params.flags[*])
