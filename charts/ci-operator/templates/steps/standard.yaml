@@ -436,3 +436,4 @@ step:
     - $(params.namespace)
     - $(params.release_name)
     - bitnami/postgresql
+{{- end }}
