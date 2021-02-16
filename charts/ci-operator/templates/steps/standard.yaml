@@ -126,7 +126,7 @@ metadata:
     ci.w6d.io/order: "0"
 step:
   name: init-helm
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   script: |
     # sleep infinity
     helm3 repo add w6dio https://charts.w6d.io
@@ -159,7 +159,7 @@ metadata:
     ci.w6d.io/order: "2"
 step:
   name: deploy
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
@@ -183,7 +183,7 @@ metadata:
     ci.w6d.io/order: "0"
 step:
   name: init-helm
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   script: |
     helm3 repo add w6dio https://charts.w6d.io
 ---
@@ -215,7 +215,7 @@ metadata:
     ci.w6d.io/order: "2"
 step:
   name: deploy
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
@@ -239,7 +239,7 @@ metadata:
     ci.w6d.io/order: "3"
 step:
   name: check
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - validate_rollout
   args:
@@ -256,7 +256,7 @@ metadata:
     ci.w6d.io/order: "1"
 step:
   name: clean
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
@@ -275,7 +275,7 @@ metadata:
     ci.w6d.io/order: "1"
 step:
   name: mongodb-init
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   script: |
     #!/usr/bin/env bash
     echo "add bitnami helm repository"
@@ -291,7 +291,7 @@ metadata:
     ci.w6d.io/order: "2"
 step:
   name: mongodb
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
@@ -317,7 +317,7 @@ metadata:
     ci.w6d.io/order: "1"
 step:
   name: mongodb-init
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   script: |
     #!/usr/bin/env bash
     echo "add bitnami helm repository"
@@ -333,7 +333,7 @@ metadata:
     ci.w6d.io/order: "2"
 step:
   name: mongodb
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
@@ -360,7 +360,7 @@ metadata:
     ci.w6d.io/order: "1"
 step:
   name: postgresql-init
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   script: |
     #!/usr/bin/env bash
     echo "add bitnami helm repository"
@@ -376,7 +376,7 @@ metadata:
     ci.w6d.io/order: "2"
 step:
   name: postgresql
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
@@ -402,7 +402,7 @@ metadata:
     ci.w6d.io/order: "1"
 step:
   name: postgresql-init
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   script: |
     #!/usr/bin/env bash
     echo "add bitnami helm repository"
@@ -418,7 +418,7 @@ metadata:
     ci.w6d.io/order: "2"
 step:
   name: postgresql
-  image: "w6dio/kubectl:v1.1.0"
+  image: "w6dio/kubectl:v1.1.3"
   command:
     - helm3
   args:
