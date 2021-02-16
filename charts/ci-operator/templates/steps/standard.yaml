@@ -235,6 +235,42 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
+  name: deploy-check-step-generic
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: deploy
+    ci.w6d.io/order: "3"
+step:
+  name: check
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - validate_rollout
+  args:
+    - $(params.release_name)
+    - $(params.namespace)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: clean-step-generic
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: clean
+    ci.w6d.io/order: "1"
+step:
+  name: clean
+  image: "w6dio/kubectl:v1.1.0"
+  command:
+    - helm3
+  args:
+    - delete
+    - -n
+    - $(params.namespace)
+    - $(params.release_name)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
   name: mongodb-init-deploy-step-std
   annotations:
     ci.w6d.io/language: mongodb
