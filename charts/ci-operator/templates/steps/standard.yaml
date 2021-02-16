@@ -12,7 +12,7 @@ step:
   name: unit-test
   image: $(params.IMAGE)
   script: |
-    #!/usr/bin/env bash
+    #!/usr/bin/env sh
     cd $(resources.inputs.source.path)
     $(params.script)
 ---
@@ -45,7 +45,7 @@ step:
   name: get-dockerfile
   image: "w6dio/s3cmd:v0.1.1"
   script: |
-    s3cmd get s3://$(params.s3DockerfilePath) $(resources.inputs.source.path)/$(params.DOCKERFILE)
+    s3cmd get --skip-existing s3://$(params.s3DockerfilePath) $(resources.inputs.source.path)/$(params.DOCKERFILE)
     [ -f $(resources.inputs.source.path)/$(params.DOCKERFILE) ] || exit 1
 ---
 apiVersion: ci.w6d.io/v1alpha1
