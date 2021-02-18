@@ -12,3 +12,11 @@
 {{- end -}}
 
 {{- end -}}
+
+{{- define "ci-operator.mandatory" -}}
+{{- if .Values.webhook.enabled -}}
+{{- if not (eq .Release.Namespace "ci-system") -}}
+{{-   printf "\n\nMANDATORY:\nThe controller must be installed in ci-system namespace if webhook is enabled\n" | fail -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

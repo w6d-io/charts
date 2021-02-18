@@ -4,7 +4,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: {{ include "ci-operator.namespace" . }}/ci-serving-cert
+    cert-manager.io/inject-ca-from: ci-system/ci-serving-cert
   name: ci-validating-webhook-configuration
 webhooks:
   - admissionReviewVersions:
@@ -13,7 +13,7 @@ webhooks:
     clientConfig:
       service:
         name: ci-webhook-service
-        namespace: {{ include "ci-operator.namespace" . }}
+        namespace: ci-system
         path: /validate-ci-w6d-io-v1alpha1-play
     failurePolicy: Fail
     name: vplay.kb.io
