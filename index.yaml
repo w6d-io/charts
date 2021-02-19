@@ -806,6 +806,23 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/ci-operator-0.1.0/ci-operator-0.1.0.tgz
     version: 0.1.0
+  ci-status:
+  - apiVersion: v2
+    appVersion: v0.1.0
+    created: "2021-02-19T15:57:38.10279197Z"
+    description: install ci-status
+    digest: db7f7ac91f2c8c8eb125935b9b7d229fcbe1c6cf42d624fed1508a6728a27c3b
+    icon: https://www.w6d.io/static/media/logoHead.af690d09.svg
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-status
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-status-0.1.0/ci-status-0.1.0.tgz
+    version: 0.1.0
   redisinsight:
   - apiVersion: v2
     appVersion: 1.7.0
