@@ -1,0 +1,12 @@
+apiVersion: v2
+name: ci-status
+description: install ci-status
+type: application
+version: 0.1.0
+appVersion: v0.1.0
+maintainers:
+  - name: Wildcard
+    email: support@w6d.io
+  - name: david972
+    email: david.alexandre@w6d.io
+icon: https://www.w6d.io/static/media/logoHead.af690d09.svg
