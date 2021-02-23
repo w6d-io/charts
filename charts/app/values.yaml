@@ -12,13 +12,13 @@ annotations: {}
 
 initContainers: []
 
-resources:
-  limits:
-    cpu: 100m
-    memory: 128Mi
-  requests:
-    cpu: 10m
-    memory: 128Mi
+resources: {}
+#  limits:
+#    cpu: 100m
+#    memory: 128Mi
+#  requests:
+#    cpu: 10m
+#    memory: 128Mi
 
 service:
   name: 'app'
@@ -29,7 +29,7 @@ service:
 externalsvc: {}
 
 ingress:
-  enabled: true
+  enabled: false
   host: ''
   path: /
   issuer: ''
@@ -46,8 +46,28 @@ metrics:
   path: '/metrics'
   port: 8080
 
+
 configs: []
+# - key: 'config.yaml'
+#   value: |
+#     ---
+#     data: 'inconfig'
+#   name: CONFIG
+#   path: /data/cfg
+
 secrets: []
+#  - name: PASSWORD
+#    value: 'my_password'
+#    kind: 'env'
+#    key: 'password'
+#  - key: 'secret.yaml'
+#    value: |
+#      ---
+#      secret:
+#        address: https://localhost
+#        password: XjXg2tCtYBDxBRze8Lqa
+#    name: SECRET
+#    kind: 'volume'
 
 nodeSelector: {}
 
