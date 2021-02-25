@@ -866,6 +866,22 @@ entries:
     version: 0.1.0
   ci-status:
   - apiVersion: v2
+    appVersion: v0.1.1
+    created: "2021-02-25T01:42:53.005972239Z"
+    description: install ci-status
+    digest: d72d9576f3c5ccc7d21dd6cb7255627a2e7e7ba13699ebc75ae3b6e01668e513
+    icon: https://www.w6d.io/static/media/logoHead.af690d09.svg
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-status
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-status-0.1.1/ci-status-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
     appVersion: v0.1.0
     created: "2021-02-19T15:57:38.10279197Z"
     description: install ci-status
