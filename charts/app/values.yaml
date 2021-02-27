@@ -10,6 +10,8 @@ lifecycle:
 
 annotations: {}
 
+podLabels: {}
+
 initContainers: []
 
 resources: {}
