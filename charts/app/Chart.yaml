@@ -1,7 +1,7 @@
 apiVersion: v2
 name: app
-version: 1.0.4
-appVersion: 0.0.1
+version: 1.0.5
+appVersion: v1.0.1
 description: 'Chart Created by David ALEXANDRE <david.alexandre@w6d.io>'
 keywords:
   - app
