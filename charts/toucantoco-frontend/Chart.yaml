@@ -1,0 +1,13 @@
+apiVersion: v2
+name: toucantoco-frontend
+description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+type: application
+version: 0.1.0
+appVersion: v87.0.3
+maintainers:
+  - name: Wildcard
+    email: support@w6d.io
+  - name: david972
+    email: david.alexandre@w6d.io
+icon: https://toucantoco.com/img/logo-toucan-toco.png
+
