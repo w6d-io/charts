@@ -25,6 +25,8 @@ serviceAccount:
 
 podAnnotations: {}
 
+apiRoot: "http://localhost:5000"
+
 podSecurityContext: {}
   # fsGroup: 2000
 
