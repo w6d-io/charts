@@ -32,10 +32,10 @@ spec:
       containers:
         - args:
             - --enable-leader-election
-            {{- if .Values.logLevel }}
+            - --log-format
+            - {{ default "text" .Values.logFormat | quote }}
             - --log-level
-            - {{ .Values.logLevel | quote }}
-            {{- end }}
+            - {{ default "info" .Values.logLevel | quote }}
             - --config
             - /data/config.yaml
           command:

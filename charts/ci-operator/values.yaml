@@ -14,7 +14,11 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+## log level : debug, info, error
+## or any positive integer
 # logLevel: debug
+## log format : text, json
+# logFormat: text
 
 serviceAccount:
   # Specifies whether a service account should be created
