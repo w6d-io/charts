@@ -13,22 +13,107 @@ spec:
       {{- include "toucantoco-backend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+
       labels:
         {{- include "toucantoco-backend.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "toucantoco-backend.pullsecret" . | nindent 6 }}
       serviceAccountName: {{ include "toucantoco-backend.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
+          env:
+            - name: TOUCAN_USER_SUPERADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: user-superadmin-password
+            - name: TOUCAN_JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: jwt-secret-key
+            - name: TOUCAN_DB_ENCRYPTION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: db-encryption-secret
+            {{- if .Values.smtp.enabled }}
+            - name: TOUCAN_SEND_MAIL_PROVIDER
+              value: 'smtp'
+            - name: TOUCAN_SMTP_HOST
+              value: {{ .Values.smtp.host | quote }}
+            - name: TOUCAN_SMTP_PORT
+              value: {{ default "25" .Values.smtp.port | quote }}
+            - name: TOUCAN_SMTP_LOGIN
+              value: {{ .Values.smtp.login | quote }}
+            - name: TOUCAN_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: stmp-password
+            - name: TOUCAN_SMTP_TLS
+              value: {{ default "false" .Values.smtp.tls | quote }}
+            - name: TOUCAN_SMTP_SMTPS
+              value: {{ default "false" .Values.smtp.smtps | quote }}
+            - name: TOUCAN_SEND_MAIL_FROM_EMAIL
+              value: {{ .Values.smtp.from.email | quote }}
+            - name: TOUCAN_SEND_MAIL_FROM_NAME
+              value: {{ .Values.smtp.from.name | quote }}
+            - name: TOUCAN_SEND_MAIL_WITH_INSTANCE_EMAIL_ADDRESS
+              value: 'enable'
+            {{- end }}
+            - name: TOUCAN_GUNICORN_WORKERS
+              value: {{ .Values.workers.gunicorn | quote }}
+            - name: TOUCAN_CELERY_MAX_WORKERS
+              value: {{ .Values.workers.celeryMax | quote }}
+            - name: TOUCAN_CELERY_QUICK_MAX_WORKERS
+              value: {{ .Values.workers.celeryQuickMax | quote }}
+            - name: TOUCAN_FRONTEND_URLS
+              value: {{ .Values.frontendURLS | quote }}
+            - name: TOUCAN_PUPPETEER_URL
+              value: {{ .Values.puppeteerURL | quote  }}
+            - name: TOUCAN_CROSS_ORIGIN_WHITELIST
+              value: {{ .Values.crossOrigin | quote }}
+            - name: TOUCAN_MONGODB_HOST
+              value: {{ include "toucantoco-backend.mongodb.address" . | quote }}
+            - name: TOUCAN_MONGODB_PORT
+              value: {{ include "toucantoco-backend.mongodb.port" . | quote }}
+            - name: TOUCAN_MONGODB_USER
+              value: {{ include "toucantoco-backend.mongodb.user" . | quote }}
+            - name: TOUCAN_MONGODB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: mongodb-password
+            {{- if .Values.mongodb.readonlyUser.enabled }}
+            - name: TOUCAN_MONGODB_READONLY_USER
+              value: {{ printf "%s_readonly" .Values.mongodb.user }}
+            - name: TOUCAN_MONGODB_READONLY_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: mongodb-readonly-password
+            {{- end }}
+            - name: TOUCAN_MONGODB_SSL
+              value: {{ default "false" .Values.mongodb.auth.tls.enabled | quote }}
+            - name: TOUCAN_REDIS_HOST
+              value: {{ default (include "toucantoco-backend.redis.address" .) .Values.redisAddress | quote }}
+            - name: TOUCAN_REDIS_PORT
+              value: {{ default (include "toucantoco-backend.redis.port" .) .Values.redisPort | quote }}
+            - name: TOUCAN_REDIS_SSL
+              value: {{ default "false" .Values.redisSSL | quote }}
+            - name: TOUCAN_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "toucantoco-backend.fullname" . }}
+                  key: redis-password
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -37,14 +122,14 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
