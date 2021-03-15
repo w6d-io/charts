@@ -123,8 +123,8 @@ entries:
     version: 1.0.0
   ci-operator:
   - apiVersion: v2
-    appVersion: v0.3.0
-    created: "2021-03-07T20:02:28.235261962Z"
+    appVersion: v0.3.1
+    created: "2021-03-15T14:04:18.500099698Z"
     dependencies:
     - condition: tekton.install
       enabled: true
@@ -148,7 +148,7 @@ entries:
       repository: https://kubernetes.github.io/ingress-nginx
       version: 3.23.0
     description: A Helm chart for Kubernetes
-    digest: d109d8051f2d2fa3d6730cc097cb7b3009a36c33bec5e61d099ed4d0682c0e3e
+    digest: fd7f30beec81a3b201390d3df62c548b35409ae046d16de56dec0c3125a874d5
     icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/ci-operator.png
     maintainers:
     - email: support@w6d.io
@@ -158,8 +158,8 @@ entries:
     name: ci-operator
     type: application
     urls:
-    - https://github.com/w6d-io/charts/releases/download/ci-operator-0.2.3/ci-operator-0.2.3.tgz
-    version: 0.2.3
+    - https://github.com/w6d-io/charts/releases/download/ci-operator-0.2.4/ci-operator-0.2.4.tgz
+    version: 0.2.4
   - apiVersion: v2
     appVersion: v0.3.0
     created: "2021-03-07T19:24:46.224438085Z"
@@ -1037,6 +1037,22 @@ entries:
     - https://github.com/w6d-io/charts/releases/download/ci-operator-0.1.0/ci-operator-0.1.0.tgz
     version: 0.1.0
   ci-status:
+  - apiVersion: v2
+    appVersion: v0.1.2
+    created: "2021-03-15T14:04:18.786672308Z"
+    description: install ci-status
+    digest: e12bdda17f80ee9726fbb8987747e0094ac2fd39a36563fe4dc4dcd71cede23f
+    icon: https://www.w6d.io/static/media/logoHead.af690d09.svg
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ci-status
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ci-status-0.1.3/ci-status-0.1.3.tgz
+    version: 0.1.3
   - apiVersion: v2
     appVersion: v0.1.1
     created: "2021-02-25T10:29:39.916349596Z"
