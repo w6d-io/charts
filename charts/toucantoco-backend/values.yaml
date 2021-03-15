@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: quay.io/toucantoco/backend
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -77,3 +77,45 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+userSuperadminPassword: ""
+jwtSecretKey: ""
+dbEncryptionSecret: ""
+
+frontendURLS: "[]"
+crossOrigin: "[]"
+puppeteerURL: 'http://screenshot:3000/'
+
+workers:
+  gunicorn: 5
+  celeryMax: 2
+  celeryQuickMax: 10
+
+smtp:
+  enabled: false
+  host: ""
+  login: ""
+  password: ""
+  tls: false
+  smtps: false
+  from:
+    email: ""
+    name: ""
+
+mongodb:
+  install: false
+  user: 'app'
+  password: 'tochange'
+  readonlyUser:
+    enabled: false
+    password: 'changeme'
+  auth:
+    tls:
+      enabled: false
+
+redis:
+  install: false
+  password: ""
+
+dockerSecret:
+  config: null

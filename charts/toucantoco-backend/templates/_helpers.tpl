@@ -60,3 +60,53 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create Redis address
+*/}}
+{{- define "toucantoco-backend.redis.address" -}}
+{{- printf "%s-%s" .Release.Name "redis-master" }}
+{{- end }}
+
+{{/*
+Create Redis port
+*/}}
+{{- define "toucantoco-backend.redis.port" -}}
+6379
+{{- end }}
+
+{{/*
+Create Redis secret
+*/}}
+{{- define "toucantoco-backend.redis.secret" -}}
+{{- printf "%s-%s" .Release.Name "redis" }}
+{{- end }}
+
+{{/*
+Create MongoDB address
+*/}}
+{{- define "toucantoco-backend.mongodb.address" -}}
+{{- printf "%s-%s" .Release.Name "mongodb" }}
+{{- end }}
+
+{{/*
+Create MongoDB port
+*/}}
+{{- define "toucantoco-backend.mongodb.port" -}}
+27017
+{{- end }}
+
+{{/*
+Create MongoDB user
+*/}}
+{{- define "toucantoco-backend.mongodb.user" -}}
+{{- printf "%s" .Values.mongodb.user }}
+{{- end }}
+
+{{/*
+Create MongoDB secret
+*/}}
+{{- define "toucantoco-backend.mongodb.secret" -}}
+{{- printf "%s-%s" .Release.Name "mongodb" }}
+{{- end }}
+
