@@ -147,6 +147,7 @@ step:
     - get
   args:
     - s3://$(params.s3valuepath)
+    - --skip-existing
     - $(params.values)
 ---
 apiVersion: ci.w6d.io/v1alpha1
