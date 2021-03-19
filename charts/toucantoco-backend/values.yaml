@@ -119,4 +119,3 @@ redis:
 
 dockerSecret:
   config: null
-
