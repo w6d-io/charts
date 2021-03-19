@@ -51,8 +51,15 @@ jobs:
       - name: Create docker config.json
         shell: bash
         env:
-          DOCKERCONFIGJSON: ${{ secrets.DOCKERCONFIGJSON }}
-        run: 'echo $DOCKERCONFIGJSON > config.json'
+          CONFIGJSON: ${{ secrets.DOCKERCONFIGJSON }}
+        run: |
+          if [ -z "$CONFIGJSON" ] ; then
+            exit 1
+          fi
+          echo $CONFIGJSON > config.json
+          if [ -d config.json ] ; then
+            exit 2
+          fi
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.1.0
