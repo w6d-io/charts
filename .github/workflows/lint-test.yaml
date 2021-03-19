@@ -49,6 +49,8 @@ jobs:
         run: ct lint --config ct.yaml
 
       - name: Create docker.json
+        env:
+          DOCKERCONFIGJSON: ${{ secrets.DOCKERCONFIGJSON }}
         run: |
           mkdir -p .docker
           echo $DOCKERCONFIGJSON > .docker/config.json
