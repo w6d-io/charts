@@ -23,6 +23,15 @@ jobs:
         with:
           python-version: 3.7
 
+      - name: Add dependency chart repos
+        run: |
+          helm repo add hashicorp     https://helm.releases.hashicorp.com
+          helm repo add minio         https://helm.min.io/
+          helm repo add jetstack      https://charts.jetstack.io
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add w6dio         https://charts.w6d.io
+          helm repo add bitnami       https://charts.bitnami.com/bitnami
+
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.0.1
         with:
@@ -39,15 +48,21 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
 
-      - name: Create docker.json
+      - name: Create docker config.json
+        shell: bash
+        env:
+          CONFIGJSON: ${{ secrets.DOCKERCONFIGJSON }}
         run: |
-          mkdir -p .docker
-          echo $DOCKERCONFIGJSON > .docker/config.json
+          if [ -z "$CONFIGJSON" ] ; then
+            exit 1
+          fi
+          echo $CONFIGJSON > /tmp/config.json
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.1.0
         if: steps.list-changed.outputs.changed == 'true'
         with:
+          version: v0.10.0
           config: kind.yaml
 
       - name: Run chart-testing (install)
