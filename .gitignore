@@ -1,3 +1,4 @@
 /charts/*/charts
 .idea
 .cr-release-packages/
+/config.json
