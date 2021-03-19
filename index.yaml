@@ -1198,4 +1198,49 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/tekton-0.1.0/tekton-0.1.0.tgz
     version: 0.1.0
+  toucantoco-backend:
+  - apiVersion: v2
+    appVersion: v87.0.6
+    created: "2021-03-19T23:24:25.97769012Z"
+    dependencies:
+    - condition: mongodb.install
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: 10.10.1
+    - condition: redis.install
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 11.3.4
+    description: A Helm chart for Kubernetes
+    digest: 092539bbf5ace5f585f2d0939a607cd692a9426af2e0058223a22107e3b1e44f
+    icon: https://toucantoco.com/img/logo-toucan-toco.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: toucantoco-backend
+    sources:
+    - https://charts.w6d.io
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/toucantoco-backend-0.1.0/toucantoco-backend-0.1.0.tgz
+    version: 0.1.0
+  toucantoco-frontend:
+  - apiVersion: v2
+    appVersion: v87.0.11
+    created: "2021-03-19T23:24:26.102579005Z"
+    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    digest: 0b325770bf0e30cd2b9b5da629975fe3b680b51107d3739fa2d4c1e5a2cca0c0
+    icon: https://toucantoco.com/img/logo-toucan-toco.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: toucantoco-frontend
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
+    version: 0.1.0
 generated: "2021-01-14T15:59:07.072180817Z"
