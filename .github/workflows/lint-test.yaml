@@ -48,17 +48,17 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
 
-      - name: Create docker.json
+      - name: Create docker config.json
+        shell: bash
         env:
           DOCKERCONFIGJSON: ${{ secrets.DOCKERCONFIGJSON }}
-        run: |
-          mkdir -p .docker
-          echo $DOCKERCONFIGJSON > .docker/config.json
+        run: 'echo $DOCKERCONFIGJSON > config.json'
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.1.0
         if: steps.list-changed.outputs.changed == 'true'
         with:
+          version: v0.10.0
           config: kind.yaml
 
       - name: Run chart-testing (install)
