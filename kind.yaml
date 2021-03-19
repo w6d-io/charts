@@ -4,4 +4,4 @@ nodes:
 - role: control-plane
   extraMounts:
   - containerPath: /var/lib/kubelet/config.json
-    hostPath: config.json
+    hostPath: /tmp/config.json
