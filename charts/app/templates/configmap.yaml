@@ -1,11 +1,12 @@
-{{- if .Values.configs }}
+{{- range .Values.configs }}
+{{- $name := .name | lower | replace "_" "-" }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
     {{- include "app.labels" . | nindent 4 }}
-  name: {{ template "app.fullname" . }}
+  name: {{ printf "%s-%s" (include "app.fullname" .) $name }}
 data:
 {{- range .Values.configs }}
   {{ .key }}: {{ toYaml .value | indent 2 }}
