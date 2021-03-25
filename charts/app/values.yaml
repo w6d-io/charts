@@ -5,6 +5,51 @@ image:
   repository: 'nginx'
   tag: 'alpine'
 
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podSecurityPolicy:
+  enabled: false
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+networkPolicies: []
+  # - name: allow-http # must respect the dns format
+  #   types:
+  #     - Ingress
+  #     - Egress
+  #   ingress:
+  #   - from:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           project: myproject
+  #     ports:
+  #     - protocol: TCP
+  #       port: 8080
+  #   egress:
+  #   - to:
+  #     - podSelector:
+  #         matchLabels:
+  #           app: redis
+  #     ports:
+  #     - protocol: TCP
+  #       port: 6379
+
 lifecycle:
   enabled: false
 
