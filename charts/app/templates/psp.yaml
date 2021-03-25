@@ -1,0 +1,26 @@
+{{- if .Values.podSecurityPolicy.enabled }}
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  {{- if .Values.annotations }}
+  annotations:
+  {{ toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ template "app.fullname" . }}
+spec:
+  privileged: false  # Don't allow privileged pods!
+  allowPrivilegeEscalation: false # prevent from setuid
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  volumes:
+  - '*'
+{{- end }}
