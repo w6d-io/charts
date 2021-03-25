@@ -45,103 +45,14 @@ Return servicename
 {{- default .Release.Name .Values.service.name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-
 {{/*
-Return secret volumeMounts
+Create the name of the service account to use
 */}}
-{{- define "app.secretVolumeMounts" -}}
-{{- if .Values.secrets -}}
-{{- range $elem := .Values.secrets -}}
-{{- if eq (coalesce $elem.kind "env" ) "volume" }}
-{{- if eq (default "enabled" $elem.subPath) "enabled" }}
-- mountPath: {{ $elem.path }}/{{ $elem.key }}
-  name: {{ $elem.name | lower | replace "_" "-" }}
-  subPath: {{ $elem.key }}
+{{- define "app.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "app.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
-- mountPath: {{ $elem.path }}
-  name: {{ $elem.name | lower | replace "_" "-" }}
-{{- end }}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Return configmap volumeMounts
-*/}}
-{{- define "app.configmapVolumeMounts" -}}
-{{- if .Values.configs -}}
-{{- range $elem := .Values.configs }}
-{{- if eq (default "enabled" $elem.subPath) "enabled" }}
-- mountPath: {{ $elem.path }}/{{ $elem.key }}
-  name: {{ $elem.name | lower | replace "_" "-" }}
-  subPath: {{ $elem.key }}
-{{- else }}
-- mountPath: {{ $elem.path }}
-  name: {{ $elem.name | lower | replace "_" "-" }}
-{{- end }}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Return secret volumes
-*/}}
-{{- define "app.secretVolumes" -}}
-{{- $fullname := (include "app.fullname" .) -}}
-{{- if .Values.secrets -}}
-{{- range $elem := .Values.secrets -}}
-{{- if eq ( coalesce $elem.kind "env" ) "volume" }}
-- name: {{ $elem.name | lower | replace "_" "-" }}
-  secret:
-    secretName: {{ $fullname }}
-{{- if $elem.mode }}
-    defaultMode: {{ $elem.mode }}
+{{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
-{{- end -}}
-{{- end -}}
-{{- end -}}
 
-{{/*
-Return configmap volumes
-*/}}
-{{- define "app.configmapVolumes" -}}
-{{- $fullname := (include "app.fullname" .) -}}
-{{- if .Values.configs -}}
-{{- range $elem := .Values.configs }}
-- name: {{ $elem.name | lower | replace "_" "-" }}
-  configMap:
-    name: {{ $fullname }}
-{{- if $elem.mode }}
-    defaultMode: {{ $elem.mode }}
-{{- end }}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Return pullSecretName
-*/}}
-{{- define "app.pullsecretname" -}}
-{{- $fullname := (include "app.fullname" .) -}}
-{{- if .Values.dockerSecret -}}
-{{- printf "pull-%s" $fullname -}}
-{{- else -}}
-{{- range $elem := .Values.imagePullSecrets -}}
-{{- $name := $elem.name -}}
-{{- default "regcred" $name -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Return imagePullSecrets
-*/}}
-{{- define "app.pullsecret" -}}
-{{- $name := (include "app.pullsecretname" .) -}}
-{{- if or .Values.imagePullSecrets .Values.dockerSecret -}}
-imagePullSecrets:
-- name: {{ $name }}
-{{- end -}}
-{{- end -}}

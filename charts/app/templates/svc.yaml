@@ -9,7 +9,10 @@ spec:
   - name: app
     port: {{ .Values.service.externalPort }}
     protocol: TCP
-    targetPort: app
+    {{- if .Values.service.nodePort }}
+    nodePort: {{ .Values.service.nodePort }}
+    {{- end }}
+    targetPort: {{ default "app" .Values.service.internalPort }}
   {{- if .Values.metrics.enabled }}
     {{- if ne (.Values.metrics.port | int) (.Values.service.internalPort | int ) }}
   - name: metrics
@@ -22,9 +25,13 @@ spec:
     {{- range .Values.extraContainerPort }}
   - name: {{ .name }}
     port: {{ .port }}
+    {{- if .nodePort }}
+    nodePort: {{ .nodePort }}
+    {{- end }}
     protocol: {{ default "TCP" .protocol }}
     targetPort: {{ default .name .target }}
     {{- end }}
   {{- end }}
+  type: {{ default "ClusterIP" .Values.service.type }}
   selector:
     {{- include "app.selectorLabels" . | nindent 4 }}
