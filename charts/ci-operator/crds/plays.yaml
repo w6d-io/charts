@@ -22,6 +22,10 @@ spec:
           name: PipelineRun
           priority: 1
           type: string
+        - jsonPath: .status.message
+          name: Message
+          priority: 1
+          type: string
         - description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
           jsonPath: .metadata.creationTimestamp
           name: Age
@@ -165,6 +169,9 @@ spec:
             status:
               description: PlayStatus defines the observed state of Play
               properties:
+                message:
+                  description: Message contains the pipeline message
+                  type: string
                 pipeline_run_name:
                   description: PipelineRunName contains the pipeline run name created by play
                   type: string
