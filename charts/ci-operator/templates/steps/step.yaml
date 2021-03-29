@@ -1,0 +1,42 @@
+{{- if .Values.additionalSteps }}
+{{- $fullname := (include "ci-operator.fullname" .) }}
+{{- range $step := .Values.additionalSteps }}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: {{ printf "%s-%s" $fullname $step.name }}
+  annotations:
+    {{- if $step.kind }}
+    ci.w6d.io/kind: {{ $step.kind | quote }}
+    {{- end }}
+    {{- if $step.language }}
+    ci.w6d.io/language: {{ $step.language }}
+    {{- end }}
+    {{- if .package }}
+    ci.w6d.io/package: {{ $step.package }}
+    {{- end }}
+    ci.w6d.io/task: {{ $step.task | quote }}
+    ci.w6d.io/order: {{ $step.order | quote }}
+step:
+  name: {{ $step.name }}
+  {{- if $step.image }}
+  image: {{ $step.image }}
+  {{- end }}
+  {{- if $step.script }}
+  script: {{ toYaml $step.script }}
+  {{- end }}
+  {{- if $step.command }}
+  command:
+  {{- range $step.command }}
+    - {{ .}}
+  {{- end }}
+  {{- end }}
+  {{- if $step.args }}
+  args:
+  {{- range $step.args }}
+    - {{ . }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
