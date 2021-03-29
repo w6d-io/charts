@@ -51,6 +51,8 @@ monitoring:
 steps:
   enabled: false
 
+additionalStep: []
+
 config: |-
   domain: "example.ci"
   ingress:
