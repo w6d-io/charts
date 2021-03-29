@@ -171,6 +171,8 @@ step:
     - $(params.flags[*])
     - --namespace
     - $(params.namespace)
+    - --version
+    - 1.0.5
     - $(params.release_name)
     - w6dio/app
 ---
@@ -227,6 +229,8 @@ step:
     - $(params.flags[*])
     - --namespace
     - $(params.namespace)
+    - --version
+    - 1.0.5
     - $(params.release_name)
     - w6dio/app
 ---
