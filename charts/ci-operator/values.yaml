@@ -53,6 +53,19 @@ steps:
 
 additionalStep: []
 
+# templates use for create values.yaml for :
+# - deployment
+values: {}
+## deploy: |
+##   {{- $defaultDomain := printf "%v.%s" (.Values.project_id | hashID) .Internal.domain }}
+##   {{- $repository := (printf "reg-ext.w6d.io/cxcm/%v/%v" .Values.project_id .Values.name) }}
+##   {{- $tag := printf "%v-%v" (substr 0 8 .Values.commit.sha) .Values.commit.ref }}
+##   image:
+##     repository: {{ $repository }}
+##     tag: {{ $tag }}
+##   service:
+##     name: {{ .Values.name }}-app
+
 config: |-
   domain: "example.ci"
   ingress:
