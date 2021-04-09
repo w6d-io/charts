@@ -31,7 +31,7 @@ spec:
       {{- end }}
       containers:
         - args:
-            - --enable-leader-election
+            - --leader-elect
             - --log-format
             - {{ default "text" .Values.logFormat | quote }}
             - --log-level
