@@ -1,4 +1,4 @@
-{{- if and .Values.monitoring.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor")}}
+{{- if and .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor")}}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -9,7 +9,7 @@ metadata:
 spec:
   endpoints:
     - path: /metrics
-      port: metrics
+      port: "8080"
   selector:
     matchLabels:
       {{- include "ci-operator.selectorLabels" . | nindent 6 }}

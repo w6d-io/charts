@@ -42,10 +42,10 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-webhook:
+metrics:
   enabled: false
 
-monitoring:
+webhook:
   enabled: false
 
 steps:
