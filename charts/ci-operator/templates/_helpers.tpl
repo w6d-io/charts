@@ -34,6 +34,7 @@ Create chart name and version as used by the chart label.
 Common labels
 */}}
 {{- define "ci-operator.labels" -}}
+ci.w6d.io/name: ci-operator
 helm.sh/chart: {{ include "ci-operator.chart" . }}
 {{ include "ci-operator.selectorLabels" . }}
 {{- if .Chart.AppVersion }}

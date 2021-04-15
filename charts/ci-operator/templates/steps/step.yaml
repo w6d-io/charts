@@ -6,6 +6,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: {{ printf "%s-%s" $fullname $step.name }}
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     {{- if $step.kind }}
     ci.w6d.io/kind: {{ $step.kind | quote }}
