@@ -2,6 +2,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: LimitCi
 metadata:
   name: limitci-test
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 spec:
   concurrent: 2
 

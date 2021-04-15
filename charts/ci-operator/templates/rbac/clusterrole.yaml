@@ -7,12 +7,15 @@ aggregationRule:
         rbac.w6d.io/aggregate-ci-operator-role: "true"
 metadata:
   name: ci-operator-role
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules: []
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
     rbac.w6d.io/aggregate-ci-operator-role: "true"
   name: ci-limitci-editor-role
 rules:
@@ -29,11 +32,19 @@ rules:
       - patch
       - update
       - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - limitcis/finalizers
+    verbs:
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ci-limitci-viewer-role
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ci.w6d.io
@@ -55,6 +66,7 @@ kind: ClusterRole
 metadata:
   labels:
     rbac.w6d.io/aggregate-ci-operator-role: "true"
+    {{- include "ci-operator.labels" . | nindent 4 }}
   name: ci-play-editor-role
 rules:
   - apiGroups:
@@ -70,11 +82,19 @@ rules:
       - patch
       - update
       - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - plays/finalizers
+    verbs:
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ci-play-viewer-role
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ci.w6d.io
@@ -96,6 +116,7 @@ kind: ClusterRole
 metadata:
   labels:
     rbac.w6d.io/aggregate-ci-operator-role: "true"
+    {{- include "ci-operator.labels" . | nindent 4 }}
   name: ci-step-editor-role
 rules:
   - apiGroups:
@@ -111,11 +132,19 @@ rules:
       - patch
       - update
       - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - steps/finalizers
+    verbs:
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ci-step-viewer-role
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ci.w6d.io
@@ -137,6 +166,7 @@ kind: ClusterRole
 metadata:
   labels:
     rbac.w6d.io/aggregate-ci-operator-role: "true"
+    {{- include "ci-operator.labels" . | nindent 4 }}
   name: ci-tekton-editor-role
 rules:
   - apiGroups:
@@ -236,6 +266,7 @@ metadata:
   name: ci-p6e-editor-role
   labels:
     rbac.w6d.io/aggregate-ci-operator-role: "true"
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ""
@@ -268,6 +299,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ci-tekton-viewer-role
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - tekton.dev
@@ -346,6 +379,7 @@ metadata:
   name: ci-bot-role
   labels:
     rbac.w6d.io/aggregate-ci-operator-role: "true"
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - batch
@@ -409,6 +443,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ci-proxy-role
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - authentication.k8s.io
@@ -427,6 +463,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ci-metrics-reader
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - nonResourceURLs:
       - /metrics
@@ -437,6 +475,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: ci-operator-rolebinding
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -450,6 +490,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: ci-proxy-rolebinding
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

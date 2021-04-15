@@ -4,6 +4,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: unittest-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: unit-tests
@@ -20,6 +22,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: unittest-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: unit-tests
@@ -37,6 +41,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: build-get-dockerfile
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: build
@@ -52,6 +58,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: build-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: build
@@ -77,6 +85,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: build-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: build
@@ -102,6 +112,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: digest-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: none
     ci.w6d.io/task: none
@@ -120,6 +132,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-init-helm-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: deploy
@@ -135,6 +149,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-get-values-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: deploy
@@ -154,6 +170,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: js
     ci.w6d.io/task: deploy
@@ -180,6 +198,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-init-helm-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: deploy
@@ -194,6 +214,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-get-values-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: deploy
@@ -212,6 +234,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: deploy
@@ -238,6 +262,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: deploy-check-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: deploy
@@ -255,6 +281,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: clean-step-generic
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: clean
@@ -274,6 +302,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: mongodb-init-deploy-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: deploy
@@ -290,6 +320,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: mongodb-deploy-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: deploy
@@ -316,6 +348,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: mongodb-init-inttests-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: integration-tests
@@ -332,6 +366,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: mongodb-inttests-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: mongodb
     ci.w6d.io/task: integration-tests
@@ -359,6 +395,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: postgresql-init-inttests-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: integration-tests
@@ -375,6 +413,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: postgresql-inttests-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: integration-tests
@@ -401,6 +441,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: postgresql-init-deploy-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: deploy
@@ -417,6 +459,8 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: postgresql-deploy-step-std
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/language: postgresql
     ci.w6d.io/task: deploy

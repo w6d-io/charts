@@ -16,7 +16,7 @@
 
 {{- define "ci-operator.missing" -}}
 {{- $missing := list -}}
-{{- if and .Values.monitoring.enabled (not (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor")) -}}
+{{- if and .Values.metrics.enabled (not (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor")) -}}
 {{- $missing := append $missing "" -}}
 {{- end -}}
 {{- $missing := append $missing (include "ci-operator.missing.step" .) -}}

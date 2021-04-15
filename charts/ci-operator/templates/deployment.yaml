@@ -52,15 +52,31 @@ spec:
           name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- if or .Values.webhook.enabled .Values.metrics.enabled }}
           ports:
+          {{- if .Values.metrics.enabled }}
             - containerPort: 8080
               name: metrics
               protocol: TCP
+          {{- end }}
           {{- if .Values.webhook.enabled }}
             - containerPort: 9443
               name: webhook-server
               protocol: TCP
           {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
