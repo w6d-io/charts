@@ -1,9 +1,11 @@
-{{- if .Values.webhook.enabled }}
+{{- if or .Values.webhook.enabled .Values.metrics.enabled }}
 ---
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: ci-selfsigned-issuer
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
 spec:
   selfSigned: {}
 {{- end }}

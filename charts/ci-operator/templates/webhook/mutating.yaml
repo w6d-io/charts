@@ -5,26 +5,29 @@ kind: MutatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: ci-system/ci-serving-cert
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
   name: ci-mutating-webhook-configuration
 webhooks:
-  - admissionReviewVersions:
-      - v1
-      - v1beta1
-    clientConfig:
-      service:
-        name: ci-webhook-service
-        namespace: ci-system
-        path: /mutate-v1alpha1-play
-    failurePolicy: Fail
-    name: mplay.kb.io
-    rules:
-      - apiGroups:
-          - ci.w6d.io
-        apiVersions:
-          - v1alpha1
-        operations:
-          - UPDATE
-        resources:
-          - plays
-    sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: ci-webhook-service
+      namespace: ci-system
+      path: /mutate-ci-w6d-io-v1alpha1-play
+  failurePolicy: Fail
+  name: mutate.play.ci.w6d.io
+  rules:
+  - apiGroups:
+    - ci.w6d.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - plays
+  sideEffects: None
 {{- end }}
