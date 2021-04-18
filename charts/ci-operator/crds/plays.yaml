@@ -73,6 +73,9 @@ spec:
               expose:
                 description: Expose toggles the creation of the ingress in case of deployment
                 type: boolean
+              external:
+                description: External toggles is for using in values templating
+                type: boolean
               name:
                 description: Name of project
                 type: string
@@ -101,7 +104,7 @@ spec:
               secret:
                 additionalProperties:
                   type: string
-                description: Secret contains the secret data. Each key must be either - git_token - .dockerconfigjson - sonar_token
+                description: Secret contains the secret data. Each key must be either - git_token - .dockerconfigjson - sonar_token - kubeconfig
                 type: object
               stack:
                 description: Stack of the project
@@ -145,6 +148,26 @@ spec:
                     type: object
                   type: object
                 type: array
+              vault:
+                description: Vault contain a vault information to get secret from
+                properties:
+                  secrets:
+                    additionalProperties:
+                      description: VaultSecret contains information for get and put vault secret
+                      properties:
+                        path:
+                          description: Path is where the secret is in vault
+                          type: string
+                        volumePath:
+                          description: VolumePath is the folder where the secret will be put
+                          type: string
+                      type: object
+                    description: Secrets is a map of the secret
+                    type: object
+                  token:
+                    description: Token vault
+                    type: string
+                type: object
             type: object
           status:
             description: PlayStatus defines the observed state of Play
