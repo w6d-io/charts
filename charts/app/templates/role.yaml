@@ -1,0 +1,16 @@
+{{- if .Values.lifecycle.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: role-{{ template "app.fullname" . }}-svc
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - update
+{{- end }}
