@@ -3,6 +3,23 @@
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
+  name: static-test-gitleaks
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: unit-tests
+    ci.w6d.io/order: "0"
+step:
+  name: git-leaks
+  image: "zricethezav/gitleaks:v6.1.2"
+  script: |
+    gitleaks -v --pretty --repo-path $(resources.inputs.source.path) --commit-from=$$(params.commitFrom) --commit-to=$(params.commitBefore) --branch=$(params.branch) --report gitleaks-report.json
+
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
   name: unittest-step-generic
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
@@ -299,4 +316,219 @@ step:
     - -n
     - $(params.namespace)
     - $(params.release_name)
+---
+### TODO: add params in step
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-clone
+  labels:
+    app.kubernetes.io/version: "0.3"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.21.0"
+    tekton.dev/tags: git
+    tekton.dev/displayName: "git clone"
+spec:
+  description: >-
+    These Tasks are Git tasks to work with repositories used by other tasks
+    in your Pipeline.
+
+    The git-clone Task will clone a repo from the provided url into the
+    output Workspace. By default the repo will be cloned into the root of
+    your Workspace. You can clone into a subdirectory by setting this Task's
+    subdirectory param. This Task also supports sparse checkouts. To perform
+    a sparse checkout, pass a list of comma separated directory patterns to
+    this Task's sparseCheckoutDirectories param.
+
+  workspaces:
+    - name: output
+      description: The git repo will be cloned onto the volume backing this workspace
+  params:
+    - name: url
+      description: git url to clone
+      type: string
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: ""
+    - name: refspec
+      description: (optional) git refspec to fetch before checking out revision
+      default: ""
+    - name: submodules
+      description: defines if the resource should initialize and fetch the submodules
+      type: string
+      default: "true"
+    - name: depth
+      description: performs a shallow clone where only the most recent commit(s) will be fetched
+      type: string
+      default: "1"
+    - name: sslVerify
+      description: defines if http.sslVerify should be set to true or false in the global git config
+      type: string
+      default: "true"
+    - name: subdirectory
+      description: subdirectory inside the "output" workspace to clone the git repo into
+      type: string
+      default: ""
+    - name: sparseCheckoutDirectories
+      description: defines which directories patterns to match or exclude when performing a sparse checkout
+      type: string
+      default: ""
+    - name: deleteExisting
+      description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
+      type: string
+      default: "true"
+    - name: httpProxy
+      description: git HTTP proxy server for non-SSL requests
+      type: string
+      default: ""
+    - name: httpsProxy
+      description: git HTTPS proxy server for SSL requests
+      type: string
+      default: ""
+    - name: noProxy
+      description: git no proxy - opt out of proxying HTTP/HTTPS requests
+      type: string
+      default: ""
+    - name: verbose
+      description: log the commands used during execution
+      type: string
+      default: "true"
+    - name: gitInitImage
+      description: the image used where the git-init binary is
+      type: string
+      default: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.21.0"
+  results:
+    - name: commit
+      description: The precise commit SHA that was fetched by this Task
+    - name: url
+      description: The precise URL that was fetched by this Task
+  steps:
+    - name: clone
+      image: $(params.gitInitImage)
+      script: |
+        #!/bin/sh
+        set -eu -o pipefail
+
+        if [[ "$(params.verbose)" == "true" ]] ; then
+          set -x
+        fi
+
+        CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+
+        cleandir() {
+          # Delete any existing contents of the repo directory if it exists.
+          #
+          # We don't just "rm -rf $CHECKOUT_DIR" because $CHECKOUT_DIR might be "/"
+          # or the root of a mounted volume.
+          if [[ -d "$CHECKOUT_DIR" ]] ; then
+            # Delete non-hidden files and directories
+            rm -rf "$CHECKOUT_DIR"/*
+            # Delete files and directories starting with . but excluding ..
+            rm -rf "$CHECKOUT_DIR"/.[!.]*
+            # Delete files and directories starting with .. plus any other character
+            rm -rf "$CHECKOUT_DIR"/..?*
+          fi
+        }
+
+        if [[ "$(params.deleteExisting)" == "true" ]] ; then
+          cleandir
+        fi
+
+        test -z "$(params.httpProxy)" || export HTTP_PROXY=$(params.httpProxy)
+        test -z "$(params.httpsProxy)" || export HTTPS_PROXY=$(params.httpsProxy)
+        test -z "$(params.noProxy)" || export NO_PROXY=$(params.noProxy)
+
+        /ko-app/git-init \
+          -url "$(params.url)" \
+          -revision "$(params.revision)" \
+          -refspec "$(params.refspec)" \
+          -path "$CHECKOUT_DIR" \
+          -sslVerify="$(params.sslVerify)" \
+          -submodules="$(params.submodules)" \
+          -depth "$(params.depth)" \
+          -sparseCheckoutDirectories "$(params.sparseCheckoutDirectories)"
+        cd "$CHECKOUT_DIR"
+        RESULT_SHA="$(git rev-parse HEAD)"
+        EXIT_CODE="$?"
+        if [ "$EXIT_CODE" != 0 ] ; then
+          exit $EXIT_CODE
+        fi
+        # ensure we don't add a trailing newline to the result
+        echo -n "$RESULT_SHA" > $(results.commit.path)
+        echo -n "$(params.url)" > $(results.url.path)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+  labels:
+    app.kubernetes.io/version: "0.3"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.17.0"
+    tekton.dev/tags: image-build
+spec:
+  description: >-
+    This Task builds source into a container image using Google's kaniko tool.
+
+    Kaniko doesn't depend on a Docker daemon and executes each
+    command within a Dockerfile completely in userspace. This enables
+    building container images in environments that can't easily or
+    securely run a Docker daemon, such as a standard Kubernetes cluster.
+
+  params:
+  - name: IMAGE
+    description: Name (reference) of the image to build.
+  - name: DOCKERFILE
+    description: Path to the Dockerfile to build.
+    default: ./Dockerfile
+  - name: CONTEXT
+    description: The build context used by Kaniko.
+    default: ./
+  - name: EXTRA_ARGS
+    default: ""
+  - name: BUILDER_IMAGE
+    description: The image on which builds will run (default is v1.5.1)
+    default: gcr.io/kaniko-project/executor:v1.5.1@sha256:c6166717f7fe0b7da44908c986137ecfeab21f31ec3992f6e128fff8a94be8a5
+  workspaces:
+  - name: source
+    description: Holds the context and docker file
+  - name: dockerconfig
+    description: Includes a docker `config.json`
+    optional: true
+    mountPath: /kaniko/.docker
+  results:
+  - name: IMAGE-DIGEST
+    description: Digest of the image just built.
+
+  steps:
+  - name: build-and-push
+    workingDir: $(workspaces.source.path)
+    image: $(params.BUILDER_IMAGE)
+    args:
+    - $(params.EXTRA_ARGS)
+    - --dockerfile=$(params.DOCKERFILE)
+    - --context=$(workspaces.source.path)/$(params.CONTEXT)  # The user does not need to care the workspace and the source.
+    - --destination=$(params.IMAGE)
+    - --oci-layout-path=$(workspaces.source.path)/$(params.CONTEXT)/image-digest
+    # kaniko assumes it is running as root, which means this example fails on platforms
+    # that default to run containers as random uid (like OpenShift). Adding this securityContext
+    # makes it explicit that it needs to run as root.
+    securityContext:
+      runAsUser: 0
+  - name: write-digest
+    workingDir: $(workspaces.source.path)
+    image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/imagedigestexporter:v0.16.2
+    # output of imagedigestexport [{"key":"digest","value":"sha256:eed29..660","resourceRef":{"name":"myrepo/myimage"}}]
+    command: ["/ko-app/imagedigestexporter"]
+    args:
+    - -images=[{"name":"$(params.IMAGE)","type":"image","url":"$(params.IMAGE)","digest":"","OutputImageDir":"$(workspaces.source.path)/$(params.CONTEXT)/image-digest"}]
+    - -terminationMessagePath=$(params.CONTEXT)/image-digested
+    securityContext:
+      runAsUser: 0
+  - name: digest-to-results
+    workingDir: $(workspaces.source.path)
+    image: docker.io/stedolan/jq@sha256:a61ed0bca213081b64be94c5e1b402ea58bc549f457c2682a86704dd55231e09
+    script: |
+      cat $(params.CONTEXT)/image-digested | jq '.[0].value' -rj | tee /tekton/results/IMAGE-DIGEST
 {{- end }}
