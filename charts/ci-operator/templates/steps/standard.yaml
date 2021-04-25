@@ -1,5 +1,75 @@
 {{- if .Values.steps.enabled }}
 ---
+# https://r2devops.io/jobs/dynamic_tests/newman/
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: e2e-newman
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: e2e-tests
+    ci.w6d.io/order: "0"
+  step:
+    name: e2e-newman
+    image: node:15.14-buster
+    script: |
+      npm install -g newman@${NEWMAN_VERSION} newman-reporter-junitfull@${NEWMAN_JUNIT_VERSION}
+      if [[ ! -z ${NEWMAN_ENVIRONMENT_FILE} ]]; then
+        export NEWMAN_ADDITIONAL_OPTIONS="${NEWMAN_ADDITIONAL_OPTIONS} -e ${NEWMAN_ENVIRONMENT_FILE}"
+      fi
+      if [[ ! -z ${NEWMAN_GLOBALS_FILE} ]]; then
+        export NEWMAN_ADDITIONAL_OPTIONS="${NEWMAN_ADDITIONAL_OPTIONS} -g ${NEWMAN_GLOBALS_FILE}"
+      fi
+      if [[ ! ${NEWMAN_FAIL_ON_ERROR} == "true" ]]; then
+        export NEWMAN_ADDITIONAL_OPTIONS="${NEWMAN_ADDITIONAL_OPTIONS} --suppress-exit-code"
+      fi
+      newman run ${NEWMAN_COLLECTION} -r cli,junitfull \
+      --reporter-junitfull-export ${NEWMAN_JUNIT_REPORT} \
+      -n ${NEWMAN_ITERATIONS_NUMBER} ${NEWMAN_ADDITIONAL_OPTIONS}
+  # variables:
+  #   NEWMAN_COLLECTION: "postman_collection.json"
+  #   NEWMAN_GLOBALS_FILE: ""
+  #   NEWMAN_ENVIRONMENT_FILE: ""
+  #   NEWMAN_ADDITIONAL_OPTIONS: ""
+  #   NEWMAN_JUNIT_REPORT: "newman-report.xml"
+  #   NEWMAN_FAIL_ON_ERROR: "true"
+  #   NEWMAN_ITERATIONS_NUMBER: "2"
+  #   NEWMAN_VERSION: "5.2.2"
+  #   NEWMAN_JUNIT_VERSION: "1.1.1"
+---
+# https://r2devops.io/jobs/dynamic_tests/lighthouse
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: e2e-lighthouse
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: e2e-tests
+    ci.w6d.io/order: "0"
+step:
+  name: e2e-lighthouse
+  image: zenika/alpine-chrome:89-with-node
+  script: |
+    export OUTPUT_FORMAT=$(echo ${OUTPUT_FORMAT} | tr '[:upper:]' '[:lower:]')
+    export ADDITIONAL_OPTIONS="--output ${OUTPUT_FORMAT} --output-path ${OUTPUT_NAME}.${OUTPUT_FORMAT} ${ADDITIONAL_OPTIONS}"
+    export ADDITIONAL_OPTIONS="--locale ${OUTPUT_LOCALE} ${ADDITIONAL_OPTIONS}"
+    npm install lighthouse@${LIGHTHOUSE_VERSION}
+    export CHROME_PATH="/usr/bin/chromium-browser"
+    if [ -z ${LIGHTHOUSE_TARGET} ]; then
+      if [ ! -d ${PAGES_PATH} ]; then
+        echo "[ERROR] Variable LIGHTHOUSE_TARGET must be filled"
+        exit 1
+      fi
+      npm install serve@${SERVE_VERSION}
+      npx serve ${PAGES_PATH} &
+      export LIGHTHOUSE_TARGET="http://localhost:5000"
+    fi
+    ./node_modules/.bin/lighthouse ${ADDITIONAL_OPTIONS} --chrome-flags="--headless --disable-gpu" ${LIGHTHOUSE_TARGET}
+---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
@@ -8,14 +78,80 @@ metadata:
     {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: unit-tests
+    ci.w6d.io/task: static-tests
     ci.w6d.io/order: "0"
 step:
   name: git-leaks
   image: "zricethezav/gitleaks:v6.1.2"
   script: |
     gitleaks -v --pretty --repo-path $(resources.inputs.source.path) --commit-from=$$(params.commitFrom) --commit-to=$(params.commitBefore) --branch=$(params.branch) --report gitleaks-report.json
-
+---
+# https://r2devops.io/jobs/static_tests/trivy_dependency
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-trivy
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-tests
+    ci.w6d.io/order: "0"
+  # variables:
+  #   TRIVY_SEVERITY: "LOW,MEDIUM,HIGH,CRITICAL"
+  #   TRIVY_EXIT_CODE: 1
+  #   TRIVY_VULN_TYPE: "library"
+  #   TRIVY_NO_PROGRESS: "false"
+  #   TRIVY_OUTPUT: "junit-report.xml"
+  #   TRIVY_IGNOREFILE: .trivyignore
+  #   TRIVY_CACHE_DIR: .trivycache/
+  #   TRIVY_FORMAT: "template"
+  #   TRIVY_TEMPLATE_DIRECTORY: "/contrib"
+  #   TEMPLATE_NAME: "junit.tpl"
+  #   TRIVY_CLEAR_CACHE: "false"
+  #   TRIVY_IGNORE_UNFIXED: "false"
+  #   TRIVY_DEBUG: "false"
+  #
+  #   TRIVY_VERSION: "0.12.0"
+  #   TRIVY_REMOTE: ""
+  #   TRIVY_SKIP_UPDATE: "false"
+  step:
+    name: trivy-dependency
+    image: aquasec/trivy:0.12.0
+    script: |
+      trivy fs --template "@${TRIVY_TEMPLATE_DIRECTORY}/${TEMPLATE_NAME}" -o ${TRIVY_OUTPUT} $(resources.inputs.source.path)
+---
+# https://r2devops.io/jobs/static_tests/sls_scan/
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-sls-scan
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-tests
+    ci.w6d.io/order: "0"
+  # variables:
+  #   SLS_TYPE: ""
+  #   STOP_ON_VULN: "false"
+  #   OUTPUT_PATH: "sls_scan_report/"
+  step:
+    name: sls-scan
+    image: shiftleft/sast-scan:v1.9.29
+  script: |
+    mkdir "$OUTPUT_PATH"
+    if [ ! -z ${SLS_TYPE} ]; then
+      scan --build -o "$OUTPUT_PATH" -t ${SLS_TYPE} | tee output
+    else
+      scan --build -o "$OUTPUT_PATH" | tee output
+    fi
+    if [ ${STOP_ON_VULN} == "true" ]; then
+      cat output | grep ❌
+      if [ $? -eq 0 ]; then
+        exit 1
+      fi
+    fi
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -531,4 +667,21 @@ spec:
     image: docker.io/stedolan/jq@sha256:a61ed0bca213081b64be94c5e1b402ea58bc549f457c2682a86704dd55231e09
     script: |
       cat $(params.CONTEXT)/image-digested | jq '.[0].value' -rj | tee /tekton/results/IMAGE-DIGEST
-{{- end }}
+{{- end }}ostages:
+  - static_tests
+
+sls_scan:
+  image: shiftleft/sast-scan:v1.9.29
+  stage: static_tests
+  variables:
+    SLS_TYPE: ""
+    STOP_ON_VULN: "false"
+    OUTPUT_PATH: "sls_scan_report/"
+  artifacts:
+    when: always
+    expose_as: "ShiftLeft security scan"
+    paths:
+      - "$OUTPUT_PATH"
+      # Below path is a workaround to provide artifact exposition in MR if
+      # default output value is used. https://r2devops.io/jobs/static_tests/sls_scan/#artifacts
+      - "sls_scan_report/"
