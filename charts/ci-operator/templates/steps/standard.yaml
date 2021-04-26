@@ -1,5 +1,158 @@
 {{- if .Values.steps.enabled }}
 ---
+# https://r2devops.io/jobs/dynamic_tests/newman/
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: e2e-newman
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: e2e-tests
+    ci.w6d.io/order: "0"
+  step:
+    name: e2e-newman
+    image: node:15.14-buster
+    script: |
+      npm install -g newman@${NEWMAN_VERSION} newman-reporter-junitfull@${NEWMAN_JUNIT_VERSION}
+      if [[ ! -z ${NEWMAN_ENVIRONMENT_FILE} ]]; then
+        export NEWMAN_ADDITIONAL_OPTIONS="${NEWMAN_ADDITIONAL_OPTIONS} -e ${NEWMAN_ENVIRONMENT_FILE}"
+      fi
+      if [[ ! -z ${NEWMAN_GLOBALS_FILE} ]]; then
+        export NEWMAN_ADDITIONAL_OPTIONS="${NEWMAN_ADDITIONAL_OPTIONS} -g ${NEWMAN_GLOBALS_FILE}"
+      fi
+      if [[ ! ${NEWMAN_FAIL_ON_ERROR} == "true" ]]; then
+        export NEWMAN_ADDITIONAL_OPTIONS="${NEWMAN_ADDITIONAL_OPTIONS} --suppress-exit-code"
+      fi
+      newman run ${NEWMAN_COLLECTION} -r cli,junitfull \
+      --reporter-junitfull-export ${NEWMAN_JUNIT_REPORT} \
+      -n ${NEWMAN_ITERATIONS_NUMBER} ${NEWMAN_ADDITIONAL_OPTIONS}
+  # variables:
+  #   NEWMAN_COLLECTION: "postman_collection.json"
+  #   NEWMAN_GLOBALS_FILE: ""
+  #   NEWMAN_ENVIRONMENT_FILE: ""
+  #   NEWMAN_ADDITIONAL_OPTIONS: ""
+  #   NEWMAN_JUNIT_REPORT: "newman-report.xml"
+  #   NEWMAN_FAIL_ON_ERROR: "true"
+  #   NEWMAN_ITERATIONS_NUMBER: "2"
+  #   NEWMAN_VERSION: "5.2.2"
+  #   NEWMAN_JUNIT_VERSION: "1.1.1"
+---
+# https://r2devops.io/jobs/dynamic_tests/lighthouse
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: e2e-lighthouse
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: e2e-tests
+    ci.w6d.io/order: "0"
+step:
+  name: e2e-lighthouse
+  image: zenika/alpine-chrome:89-with-node
+  script: |
+    export OUTPUT_FORMAT=$(echo ${OUTPUT_FORMAT} | tr '[:upper:]' '[:lower:]')
+    export ADDITIONAL_OPTIONS="--output ${OUTPUT_FORMAT} --output-path ${OUTPUT_NAME}.${OUTPUT_FORMAT} ${ADDITIONAL_OPTIONS}"
+    export ADDITIONAL_OPTIONS="--locale ${OUTPUT_LOCALE} ${ADDITIONAL_OPTIONS}"
+    npm install lighthouse@${LIGHTHOUSE_VERSION}
+    export CHROME_PATH="/usr/bin/chromium-browser"
+    if [ -z ${LIGHTHOUSE_TARGET} ]; then
+      if [ ! -d ${PAGES_PATH} ]; then
+        echo "[ERROR] Variable LIGHTHOUSE_TARGET must be filled"
+        exit 1
+      fi
+      npm install serve@${SERVE_VERSION}
+      npx serve ${PAGES_PATH} &
+      export LIGHTHOUSE_TARGET="http://localhost:5000"
+    fi
+    ./node_modules/.bin/lighthouse ${ADDITIONAL_OPTIONS} --chrome-flags="--headless --disable-gpu" ${LIGHTHOUSE_TARGET}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-gitleaks
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-tests
+    ci.w6d.io/order: "0"
+step:
+  name: git-leaks
+  image: "zricethezav/gitleaks:v6.1.2"
+  script: |
+    gitleaks -v --pretty --repo-path $(resources.inputs.source.path) --commit-from=$$(params.commitFrom) --commit-to=$(params.commitBefore) --branch=$(params.branch) --report gitleaks-report.json
+---
+# https://r2devops.io/jobs/static_tests/trivy_dependency
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-trivy
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-tests
+    ci.w6d.io/order: "0"
+  # variables:
+  #   TRIVY_SEVERITY: "LOW,MEDIUM,HIGH,CRITICAL"
+  #   TRIVY_EXIT_CODE: 1
+  #   TRIVY_VULN_TYPE: "library"
+  #   TRIVY_NO_PROGRESS: "false"
+  #   TRIVY_OUTPUT: "junit-report.xml"
+  #   TRIVY_IGNOREFILE: .trivyignore
+  #   TRIVY_CACHE_DIR: .trivycache/
+  #   TRIVY_FORMAT: "template"
+  #   TRIVY_TEMPLATE_DIRECTORY: "/contrib"
+  #   TEMPLATE_NAME: "junit.tpl"
+  #   TRIVY_CLEAR_CACHE: "false"
+  #   TRIVY_IGNORE_UNFIXED: "false"
+  #   TRIVY_DEBUG: "false"
+  #
+  #   TRIVY_VERSION: "0.12.0"
+  #   TRIVY_REMOTE: ""
+  #   TRIVY_SKIP_UPDATE: "false"
+  step:
+    name: trivy-dependency
+    image: aquasec/trivy:0.12.0
+    script: |
+      trivy fs --template "@${TRIVY_TEMPLATE_DIRECTORY}/${TEMPLATE_NAME}" -o ${TRIVY_OUTPUT} $(resources.inputs.source.path)
+---
+# https://r2devops.io/jobs/static_tests/sls_scan/
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-sls-scan
+  labels:
+    {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-tests
+    ci.w6d.io/order: "0"
+  # variables:
+  #   SLS_TYPE: ""
+  #   STOP_ON_VULN: "false"
+  #   OUTPUT_PATH: "sls_scan_report/"
+  step:
+    name: sls-scan
+    image: shiftleft/sast-scan:v1.9.29
+  script: |
+    mkdir "$OUTPUT_PATH"
+    if [ ! -z ${SLS_TYPE} ]; then
+      scan --build -o "$OUTPUT_PATH" -t ${SLS_TYPE} | tee output
+    else
+      scan --build -o "$OUTPUT_PATH" | tee output
+    fi
+    if [ ${STOP_ON_VULN} == "true" ]; then
+      cat output | grep ❌
+      if [ $? -eq 0 ]; then
+        exit 1
+      fi
+    fi
+---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
@@ -299,4 +452,220 @@ step:
     - -n
     - $(params.namespace)
     - $(params.release_name)
+---
+### TODO: add params in step
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-clone
+  labels:
+    app.kubernetes.io/version: "0.3"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.21.0"
+    tekton.dev/tags: git
+    tekton.dev/displayName: "git clone"
+spec:
+  description: >-
+    These Tasks are Git tasks to work with repositories used by other tasks
+    in your Pipeline.
+
+    The git-clone Task will clone a repo from the provided url into the
+    output Workspace. By default the repo will be cloned into the root of
+    your Workspace. You can clone into a subdirectory by setting this Task's
+    subdirectory param. This Task also supports sparse checkouts. To perform
+    a sparse checkout, pass a list of comma separated directory patterns to
+    this Task's sparseCheckoutDirectories param.
+
+  workspaces:
+    - name: output
+      description: The git repo will be cloned onto the volume backing this workspace
+  params:
+    - name: url
+      description: git url to clone
+      type: string
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: ""
+    - name: refspec
+      description: (optional) git refspec to fetch before checking out revision
+      default: ""
+    - name: submodules
+      description: defines if the resource should initialize and fetch the submodules
+      type: string
+      default: "true"
+    - name: depth
+      description: performs a shallow clone where only the most recent commit(s) will be fetched
+      type: string
+      default: "1"
+    - name: sslVerify
+      description: defines if http.sslVerify should be set to true or false in the global git config
+      type: string
+      default: "true"
+    - name: subdirectory
+      description: subdirectory inside the "output" workspace to clone the git repo into
+      type: string
+      default: ""
+    - name: sparseCheckoutDirectories
+      description: defines which directories patterns to match or exclude when performing a sparse checkout
+      type: string
+      default: ""
+    - name: deleteExisting
+      description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
+      type: string
+      default: "true"
+    - name: httpProxy
+      description: git HTTP proxy server for non-SSL requests
+      type: string
+      default: ""
+    - name: httpsProxy
+      description: git HTTPS proxy server for SSL requests
+      type: string
+      default: ""
+    - name: noProxy
+      description: git no proxy - opt out of proxying HTTP/HTTPS requests
+      type: string
+      default: ""
+    - name: verbose
+      description: log the commands used during execution
+      type: string
+      default: "true"
+    - name: gitInitImage
+      description: the image used where the git-init binary is
+      type: string
+      default: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.21.0"
+  results:
+    - name: commit
+      description: The precise commit SHA that was fetched by this Task
+    - name: url
+      description: The precise URL that was fetched by this Task
+  steps:
+    - name: clone
+      image: $(params.gitInitImage)
+      script: |
+        #!/bin/sh
+        set -eu -o pipefail
+
+        if [[ "$(params.verbose)" == "true" ]] ; then
+          set -x
+        fi
+
+        CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+
+        cleandir() {
+          # Delete any existing contents of the repo directory if it exists.
+          #
+          # We don't just "rm -rf $CHECKOUT_DIR" because $CHECKOUT_DIR might be "/"
+          # or the root of a mounted volume.
+          if [[ -d "$CHECKOUT_DIR" ]] ; then
+            # Delete non-hidden files and directories
+            rm -rf "$CHECKOUT_DIR"/*
+            # Delete files and directories starting with . but excluding ..
+            rm -rf "$CHECKOUT_DIR"/.[!.]*
+            # Delete files and directories starting with .. plus any other character
+            rm -rf "$CHECKOUT_DIR"/..?*
+          fi
+        }
+
+        if [[ "$(params.deleteExisting)" == "true" ]] ; then
+          cleandir
+        fi
+
+        test -z "$(params.httpProxy)" || export HTTP_PROXY=$(params.httpProxy)
+        test -z "$(params.httpsProxy)" || export HTTPS_PROXY=$(params.httpsProxy)
+        test -z "$(params.noProxy)" || export NO_PROXY=$(params.noProxy)
+
+        /ko-app/git-init \
+          -url "$(params.url)" \
+          -revision "$(params.revision)" \
+          -refspec "$(params.refspec)" \
+          -path "$CHECKOUT_DIR" \
+          -sslVerify="$(params.sslVerify)" \
+          -submodules="$(params.submodules)" \
+          -depth "$(params.depth)" \
+          -sparseCheckoutDirectories "$(params.sparseCheckoutDirectories)"
+        cd "$CHECKOUT_DIR"
+        RESULT_SHA="$(git rev-parse HEAD)"
+        EXIT_CODE="$?"
+        if [ "$EXIT_CODE" != 0 ] ; then
+          exit $EXIT_CODE
+        fi
+        # ensure we don't add a trailing newline to the result
+        echo -n "$RESULT_SHA" > $(results.commit.path)
+        echo -n "$(params.url)" > $(results.url.path)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+  labels:
+    app.kubernetes.io/version: "0.3"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.17.0"
+    tekton.dev/tags: image-build
+spec:
+  description: >-
+    This Task builds source into a container image using Google's kaniko tool.
+
+    Kaniko doesn't depend on a Docker daemon and executes each
+    command within a Dockerfile completely in userspace. This enables
+    building container images in environments that can't easily or
+    securely run a Docker daemon, such as a standard Kubernetes cluster.
+
+  params:
+  - name: IMAGE
+    description: Name (reference) of the image to build.
+  - name: DOCKERFILE
+    description: Path to the Dockerfile to build.
+    default: ./Dockerfile
+  - name: CONTEXT
+    description: The build context used by Kaniko.
+    default: ./
+  - name: EXTRA_ARGS
+    default: ""
+  - name: BUILDER_IMAGE
+    description: The image on which builds will run (default is v1.5.1)
+    default: gcr.io/kaniko-project/executor:v1.5.1@sha256:c6166717f7fe0b7da44908c986137ecfeab21f31ec3992f6e128fff8a94be8a5
+  workspaces:
+  - name: source
+    description: Holds the context and docker file
+  - name: dockerconfig
+    description: Includes a docker `config.json`
+    optional: true
+    mountPath: /kaniko/.docker
+  results:
+  - name: IMAGE-DIGEST
+    description: Digest of the image just built.
+
+  steps:
+  - name: build-and-push
+    workingDir: $(workspaces.source.path)
+    image: $(params.BUILDER_IMAGE)
+    args:
+    - $(params.EXTRA_ARGS)
+    - --dockerfile=$(params.DOCKERFILE)
+    - --context=$(workspaces.source.path)/$(params.CONTEXT)  # The user does not need to care the workspace and the source.
+    - --destination=$(params.IMAGE)
+    - --oci-layout-path=$(workspaces.source.path)/$(params.CONTEXT)/image-digest
+    # kaniko assumes it is running as root, which means this example fails on platforms
+    # that default to run containers as random uid (like OpenShift). Adding this securityContext
+    # makes it explicit that it needs to run as root.
+    securityContext:
+      runAsUser: 0
+  - name: write-digest
+    workingDir: $(workspaces.source.path)
+    image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/imagedigestexporter:v0.16.2
+    # output of imagedigestexport [{"key":"digest","value":"sha256:eed29..660","resourceRef":{"name":"myrepo/myimage"}}]
+    command: ["/ko-app/imagedigestexporter"]
+    args:
+    - -images=[{"name":"$(params.IMAGE)","type":"image","url":"$(params.IMAGE)","digest":"","OutputImageDir":"$(workspaces.source.path)/$(params.CONTEXT)/image-digest"}]
+    - -terminationMessagePath=$(params.CONTEXT)/image-digested
+    securityContext:
+      runAsUser: 0
+  - name: digest-to-results
+    workingDir: $(workspaces.source.path)
+    image: docker.io/stedolan/jq@sha256:a61ed0bca213081b64be94c5e1b402ea58bc549f457c2682a86704dd55231e09
+    script: |
+      cat $(params.CONTEXT)/image-digested | jq '.[0].value' -rj | tee /tekton/results/IMAGE-DIGEST
 {{- end }}
+
