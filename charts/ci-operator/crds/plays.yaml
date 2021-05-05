@@ -122,6 +122,11 @@ spec:
                   additionalProperties:
                     description: Task is what actions and/or configuration the task can be contains
                     properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations is use for ingress annotations
+                        type: object
                       docker:
                         description: Docker contains information for docker build
                         properties:
@@ -134,6 +139,9 @@ spec:
                         type: object
                       image:
                         description: Image to use for this task
+                        type: string
+                      namespace:
+                        description: Namespace where to deploy application. used only in deploy task
                         type: string
                       script:
                         description: Script is a list of command to execute in the task
