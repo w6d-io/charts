@@ -382,6 +382,19 @@ metadata:
     {{- include "ci-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - rolebindings
+    verbs:
+      - create
+      - update
+      - delete
+      - patch
+      - get
+      - list
+      - watch
+  - apiGroups:
       - ""
     resources:
       - serviceaccounts
