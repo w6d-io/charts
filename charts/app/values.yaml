@@ -1,6 +1,10 @@
 ---
 replicaCount: 1
 
+## add revision in annotation to force restart on rollout
+revision:
+  enabled: false
+
 image:
   repository: 'nginx'
   tag: 'alpine'
