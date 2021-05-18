@@ -183,6 +183,10 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end}}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end}}
       {{- if or .Values.persistence .Values.volumes $secretVolumes $configmapVolumes .Values.lifecycle.enabled }}
       volumes:
         {{- if .Values.lifecycle.enabled }}
