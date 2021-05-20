@@ -78,6 +78,9 @@ tolerations: []
 
 affinity: {}
 
+envExtra: []
+
+whiteLabel: disabled
 userSuperadminPassword: ""
 jwtSecretKey: ""
 dbEncryptionSecret: ""

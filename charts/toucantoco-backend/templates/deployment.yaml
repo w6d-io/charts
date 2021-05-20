@@ -44,6 +44,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "toucantoco-backend.fullname" . }}
                   key: db-encryption-secret
+            - name: TOUCAN_WHITE_LABEL
+              value: {{ default "disabled" .Values.whiteLabel }}
             {{- if .Values.smtp.enabled }}
             - name: TOUCAN_SEND_MAIL_PROVIDER
               value: 'smtp'
@@ -114,6 +116,9 @@ spec:
                 secretKeyRef:
                   name: {{ include "toucantoco-backend.fullname" . }}
                   key: redis-password
+            {{- if .Values.envExtra }}
+              {{- toYaml .Values.envExtra | nindent 12 }}
+            {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
