@@ -1987,6 +1987,33 @@ entries:
   toucantoco-backend:
   - apiVersion: v2
     appVersion: v87.0.6
+    created: "2021-05-20T11:35:43.983012834Z"
+    dependencies:
+    - condition: mongodb.install
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: 10.10.1
+    - condition: redis.install
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 11.3.4
+    description: A Helm chart for Kubernetes
+    digest: ddb01ab7754e9eed6a69ff9e9d3ddfdbfd67d19c5da68be13c7107173ef1ad9d
+    icon: https://toucantoco.com/img/logo-toucan-toco.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: toucantoco-backend
+    sources:
+    - https://charts.w6d.io
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/toucantoco-backend-0.1.1/toucantoco-backend-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: v87.0.6
     created: "2021-03-19T23:24:25.97769012Z"
     dependencies:
     - condition: mongodb.install
