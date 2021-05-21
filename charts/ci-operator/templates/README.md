@@ -50,7 +50,7 @@ step:
  - **Clients found:**
   ```
  Basic scan on local repo:
-repository_http_link= <the project client repository url>
+CLIENT_HTTP_REPOSITORY_URL= <the project client repository url>
 ```
 
 ### codecov ![enter image description here](https://www.w6d.io/images/Logo.svg)
@@ -82,7 +82,7 @@ metadata:
     ci.w6d.io/task: test-codecov
     ci.w6d.io/order: "0"
 params:
-  - name: INTERNAL_CODECOV_LINK
+  - name: INTERNAL_CODECOV_URL
     type: string
   - name: CLIENT_CODECOV_TOKEN
     type: string
@@ -93,13 +93,13 @@ step:
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     echo y | apk add --no-cache curl
-    bash <(curl -s $(params.INTERNAL_CODECOV_LINK)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+    bash <(curl -s $(params.INTERNAL_CODECOV_URL)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
 
 ```
  ### -**Variables**
  - **Internal:**
 ```
-INTERNAL_CODECOV_LINK= <https://codecov.io/bash> //link to Codecov
+INTERNAL_CODECOV_URL= <https://codecov.io/bash> //link to Codecov
 ```
  - **Client found:**
   ```

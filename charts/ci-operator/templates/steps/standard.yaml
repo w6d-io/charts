@@ -119,7 +119,7 @@ metadata:
     ci.w6d.io/task: test-codecov
     ci.w6d.io/order: "0"
 params:
-  - name: INTERNAL_CODECOV_LINK
+  - name: INTERNAL_CODECOV_URL
     type: string
   - name: CLIENT_CODECOV_TOKEN
     type: string
@@ -130,7 +130,7 @@ step:
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     echo y | apk add --no-cache curl
-    bash <(curl -s $(params.INTERNAL_CODECOV_LINK)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+    bash <(curl -s $(params.INTERNAL_CODECOV_URL)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
