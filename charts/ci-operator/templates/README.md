@@ -15,7 +15,7 @@ SUMMARY
 ##
 **<center>**GITLEAKS** (secret discovery SAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
 ##
- - **Resume**
+ - **Preface**
  Gitleaks is a SAST tool for detecting hardcoded secrets like passwords, api keys, and tokens in git repos. Gitleaks is an **easy-to-use, all-in-one solution** for finding secrets, past or present, in your code.
 
  - **Prerequisite:**
@@ -50,14 +50,14 @@ step:
  - **Clients found:**
   ```
  Basic scan on local repo:
-CLIENT_HTTP_REPOSITORY_URL= <the project client repository url>
+repository_http_link= <the project client repository url>
 ```
 
 ### codecov ![enter image description here](https://www.w6d.io/images/Logo.svg)
 ##
 **<center>**CODECOV**  (recovery rating SAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
  ##
-  - **Resume**
+  - **Preface**
 Codecov delivers  _or "injects"_coverage metrics directly into the modern workflow to promote more code coverage, especially in pull requests where new features and bug fixes commonly occur.
 
  - **Prerequisite**
@@ -82,7 +82,7 @@ metadata:
     ci.w6d.io/task: test-codecov
     ci.w6d.io/order: "0"
 params:
-  - name: INTERNAL_CODECOV_URL
+  - name: INTERNAL_CODECOV_LINK
     type: string
   - name: CLIENT_CODECOV_TOKEN
     type: string
@@ -93,23 +93,23 @@ step:
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     echo y | apk add --no-cache curl
-    bash <(curl -s $(params.INTERNAL_CODECOV_URL)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+    bash <(curl -s $(params.INTERNAL_CODECOV_LINK)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
 
 ```
  ### -**Variables**
  - **Internal:**
 ```
-INTERNAL_CODECOV_URL= <https://codecov.io/bash> //link to Codecov
+INTERNAL_CODECOV_LINK= <https://codecov.io/bash> //link to Codecov
 ```
  - **Client found:**
   ```
 CLIENT_CODECOV_TOKEN= <token generate by Codecov>
 ```
-### Clair![enter image description here](https://www.w6d.io/images/Logo.svg)
+### clair![enter image description here](https://www.w6d.io/images/Logo.svg)
 ##
-**<center>**Clair**  (recovery rating SAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
+**<center>**Clair**  (Image Scanner DAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
  ##
-  - **Resume**
+  - **Preface**
 Clair is an open source project for the  [static analysis](https://en.wikipedia.org/wiki/Static_program_analysis)  of vulnerabilities in application containers (currently including  [OCI](https://github.com/opencontainers/image-spec/blob/master/spec.md)  and  [docker](https://github.com/docker/docker/blob/master/image/spec/v1.2.md)). Clients use the Clair API to index their container images and can then match it against known vulnerabilities. Our goal is to enable a more transparent view of the security of container-based infrastructure. Thus, the project was named  `Clair`
 
  - **Prerequisite**
@@ -157,11 +157,114 @@ step:
  ### -**Variables**
  - **Internal:**
 ```
-INTERNAL_CLAIR_URL = 100.66.104.108:6060
+INTERNAL_CLAIR_URL = <CLAIR URL IN CLUSTER>
+Example: INTERNAL_CLAIR_URL=100.66.104.108:6060
 ```
  - **Client found:**
   ```
 CLIENT_IMAGE_URL= <URL REGISTRY>
 CLIENT_DOCKER_USER = <USERNAME CREDENTIAL REGISTRY>
 CLIENT_DOCKER_USER = <PASSWORD REGISTRY>
+```
+
+
+### OWASPZAP ![enter image description here](https://www.w6d.io/images/Logo.svg)
+##
+**<center>**OWASP ZAP** ( Proxy Scan DAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
+##
+ - **Preface**
+OWASP Zed Attack Proxy (ZAP) is a free, open-source penetration testing tool being maintained under the umbrella of the Open Web Application Security Project (OWASP). ZAP is designed specifically for testing web applications and is both flexible and extensible.
+
+ - **Prerequisite:**
+    NaN
+
+ - **CI-OPERATOR Configuration.**
+
+   - 1) [OWASP Zap Baseline](https://www.zaproxy.org/docs/docker/baseline-scan/)
+
+```
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-owasp-baseline
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-owasp
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_HOST_URL
+    type: string
+step:
+  name: test-owasp-baseline
+  image: "owasp/zap2docker-stable"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-owasp
+    cd $(workspaces.source.path)/tests/
+    mkdir -p /zap/wrk
+    zap-baseline.py -t $(params.CLIENT_HOST_URL) -J report-baseline.json -d
+    cp /zap/wrk/report-baseline.json $(workspaces.source.path)/tests/report-owasp
+```
+   - 2) [OWASP Zap GRAPHQL](https://www.zaproxy.org/docs/docker/api-scan/)
+
+```
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-owasp-graphql
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-owasp
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_HOST_URL
+    type: string
+step:
+  name: test-owasp-graphql
+  image: "owasp/zap2docker-stable"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-owasp
+    cd $(workspaces.source.path)/tests/
+    mkdir -p /zap/wrk
+    zap-api-scan.py -t $(params.CLIENT_HOST_URL) -T 60 -D 30 -f graphql -J report-graphql.json -d -I
+    cp /zap/wrk/report-graphql.json $(workspaces.source.path)/tests/report-owasp
+```
+
+   - 3) [OWASP Zap FULLSCAN](https://www.zaproxy.org/docs/docker/full-scan/)
+
+```
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-owasp-fullscan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-owasp
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_HOST_URL
+    type: string
+step:
+  name: test-owasp-fullscan
+  image: "owasp/zap2docker-stable"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-owasp
+    cd $(workspaces.source.path)/tests/
+    mkdir -p /zap/wrk
+    zap-full-scan.py -t $(params.CLIENT_HOST_URL) -T 60 -D 30 -J report-fullscan.json -d -I
+    cp /zap/wrk/report-fullscan.json $(workspaces.source.path)/tests/report-owasp
+```
+
+ ### -**Variables**
+ - **Clients found:**
+  ```
+ Basic scan on local repo:
+CLIENT_HOST_URL= <the project client repository url>
+
+Example: CLIENT_HOST_URL=http://deploymgt.test-owasp:8080
 ```

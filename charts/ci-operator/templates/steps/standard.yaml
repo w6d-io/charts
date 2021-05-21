@@ -89,7 +89,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-gitleaks-pathScann
+  name: test-gitleaks-pathScan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
@@ -100,7 +100,7 @@ params:
   - name: CLIENT_HTTP_REPOSITORY_URL
     type: string
 step:
-  name: test-gitleaks-pathScann
+  name: test-gitleaks-pathScan
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-gitleaks
@@ -161,6 +161,75 @@ step:
     cd klar
     go build
     CLAIR_ADDR=(params.INTERNAL_CLAIR_URL) CLAIR_OUTPUT=High CLAIR_THRESHOLD=10 JSON_OUTPUT=true DOCKER_USER=$(params.CLIENT_DOCKER_USER) DOCKER_PASSWORD=$(params.CLIENT_DOCKER_PASSWORD) ./klar $(params.CLIENT_IMAGE_URL) > ../report-clairklar.json
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-owasp-baseline
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-owasp
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_HOST_URL
+    type: string
+step:
+  name: test-owasp-baseline
+  image: "owasp/zap2docker-stable"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-owasp
+    cd $(workspaces.source.path)/tests/
+    mkdir -p /zap/wrk
+    zap-baseline.py -t $(params.CLIENT_HOST_URL) -J report-baseline.json -d
+    cp /zap/wrk/report-baseline.json $(workspaces.source.path)/tests/report-owasp
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-owasp-graphql
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-owasp
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_HOST_URL
+    type: string
+step:
+  name: test-owasp-graphql
+  image: "owasp/zap2docker-stable"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-owasp
+    cd $(workspaces.source.path)/tests/
+    mkdir -p /zap/wrk
+    zap-api-scan.py -t $(params.CLIENT_HOST_URL) -T 60 -D 30 -f graphql -J report-graphql.json -d -I
+    cp /zap/wrk/report-graphql.json $(workspaces.source.path)/tests/report-owasp
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-owasp-fullscan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-owasp
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_HOST_URL
+    type: string
+step:
+  name: test-owasp-fullscan
+  image: "owasp/zap2docker-stable"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-owasp
+    cd $(workspaces.source.path)/tests/
+    mkdir -p /zap/wrk
+    zap-full-scan.py -t $(params.CLIENT_HOST_URL) -T 60 -D 30 -J report-fullscan.json -d -I
+    cp /zap/wrk/report-fullscan.json $(workspaces.source.path)/tests/report-owasp
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
