@@ -97,7 +97,7 @@ metadata:
     ci.w6d.io/task: test-gitleaks
     ci.w6d.io/order: "0"
 params:
-  - name: repository_http_link
+  - name: CLIENT_HTTP_REPOSITORY_URL
     type: string
 step:
   name: test-gitleaks-pathScann
@@ -105,7 +105,7 @@ step:
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-gitleaks
     cd $(workspaces.source.path)/tests/
-    git clone $(params.repository_http_link) repo-gitleaks
+    git clone $(params.CLIENT_HTTP_REPOSITORY_URL) repo-gitleaks
     gitleaks --path="repo-gitleaks/" -v --report=$(workspaces.source.path)/tests/report-gitleaks/report-pathsecretsscan.json
 ---
 apiVersion: ci.w6d.io/v1alpha1
@@ -119,9 +119,9 @@ metadata:
     ci.w6d.io/task: test-codecov
     ci.w6d.io/order: "0"
 params:
-  - name: codecov_link
+  - name: INTERNAL_CODECOV_LINK
     type: string
-  - name: CODECOV_TOKEN
+  - name: CLIENT_CODECOV_TOKEN
     type: string
 step:
   name: test-codecov-coverage
@@ -130,7 +130,7 @@ step:
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     echo y | apk add --no-cache curl
-    bash <(curl -s $(params.codecov_link)) -t $(params.CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+    bash <(curl -s $(params.INTERNAL_CODECOV_LINK)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -143,20 +143,24 @@ metadata:
     ci.w6d.io/task: test-clair
     ci.w6d.io/order: "0"
 params:
-  - name: repository_http_link
+  - name: CLIENT_IMAGE_URL
     type: string
-  - name: CODECOV_TOKEN
+  - name: CLIENT_DOCKER_USER
+    type: string
+  - name: CLIENT_DOCKER_PASSWORD
+    type: string
+  - name: INTERNAL_CLAIR_URL
     type: string
 step:
   name: test-clair-klar
-  image: "bash"
+  image: "golang"
   script: |
-    mkdir -p $(workspaces.source.path)/tests/report-codecov
+    mkdir -p $(workspaces.source.path)/tests/report-clair
     cd $(workspaces.source.path)/tests/
-    git clone $(params.repository_http_link) repo-klar
-    gitleaks --path="repo-codecov/" -v --report=$(workspaces.source.path)/tests/report-codecov/report-codecov.json
-
-    bash <(curl -s $(params.codecov_link)) -t $(params.CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+    git clone https://github.com/Portshift/klar.git klar
+    cd klar
+    go build
+    CLAIR_ADDR=(params.INTERNAL_CLAIR_URL) CLAIR_OUTPUT=High CLAIR_THRESHOLD=10 JSON_OUTPUT=true DOCKER_USER=$(params.CLIENT_DOCKER_USER) DOCKER_PASSWORD=$(params.CLIENT_DOCKER_PASSWORD) ./klar $(params.CLIENT_IMAGE_URL) > ../report-clairklar.json
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
