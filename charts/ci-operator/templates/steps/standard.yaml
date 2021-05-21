@@ -86,6 +86,52 @@ step:
   script: |
     gitleaks -v --pretty --repo-path $(resources.inputs.source.path) --commit-from=$$(params.commitFrom) --commit-to=$(params.commitBefore) --branch=$(params.branch) --report gitleaks-report.json
 ---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-gitleaks-pathScann
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-gitleaks
+    ci.w6d.io/order: "0"
+params:
+  - name: repository_http_link
+    type: string
+step:
+  name: test-gitleaks-pathScann
+  image: "zricethezav/gitleaks:latest"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-gitleaks
+    cd $(workspaces.source.path)/tests/
+    git clone $(params.repository_http_link) repo-gitleaks
+    gitleaks --path="repo-gitleaks/" -v --report=$(workspaces.source.path)/tests/report-gitleaks/report-pathsecretsscan.json
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-coverage-codecov
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-coverage
+    ci.w6d.io/order: "0"
+params:
+  - name: codecov_link
+    type: string
+  - name: CODECOV_TOKEN
+    type: string
+step:
+  name: test-coverage-codecov
+  image: "bash"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-codecov
+    cd $(workspaces.source.path)/tests/
+    echo y | apk add --no-cache curl
+    bash <(curl -s $(params.codecov_link)) -t $(params.CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
