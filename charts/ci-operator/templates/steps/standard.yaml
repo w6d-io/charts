@@ -132,6 +132,32 @@ step:
     echo y | apk add --no-cache curl
     bash <(curl -s $(params.codecov_link)) -t $(params.CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
 ---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-clair-klar
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-clair
+    ci.w6d.io/order: "0"
+params:
+  - name: repository_http_link
+    type: string
+  - name: CODECOV_TOKEN
+    type: string
+step:
+  name: test-clair-klar
+  image: "bash"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-codecov
+    cd $(workspaces.source.path)/tests/
+    git clone $(params.repository_http_link) repo-klar
+    gitleaks --path="repo-codecov/" -v --report=$(workspaces.source.path)/tests/report-codecov/report-codecov.json
+
+    bash <(curl -s $(params.codecov_link)) -t $(params.CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
