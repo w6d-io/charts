@@ -111,12 +111,12 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-coverage-codecov
+  name: test-codecov-coverage
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-coverage
+    ci.w6d.io/task: test-codecov
     ci.w6d.io/order: "0"
 params:
   - name: codecov_link
@@ -124,7 +124,7 @@ params:
   - name: CODECOV_TOKEN
     type: string
 step:
-  name: test-coverage-codecov
+  name: test-codecov-coverage
   image: "bash"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-codecov
