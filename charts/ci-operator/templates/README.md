@@ -1,20 +1,25 @@
+
+
 ## **<center>W6D INTEGRATION TESTS DOCUMENTATION <br/> ![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
-<div  align="center">
+<table align="center"><tr><td align="center" width="9999">
+<center>
 SUMMARY
-<table>
 
 |      SAST       |       DAST      |       BUILD     |
 | :---------------: | :---------------:| :---------------: |
-|* [Gitleaks](#gitleaks)|* [Clair](#clair)|* [SBT](#gitleaks)|
-|* [Codecov]( #codecov)|* [Owasp ZAP](#owaspzap)|* [Quasar](#quasar)|
-|* [Sonarqube](#sonarqube)|* [Nmap](#nmap)||
-</table>
-</div>
+|* [Gitleaks](#GITLEAKS)|* [Clair](#CLAIR)|* [SBT](#GITLEAKS)|
+|* [Codecov]( #CODECOV)|* [Owasp ZAP](#OWASPZAP)|* [Quasar](#QUASAR)|
+|* [Sonarqube](#SONARQUBE)|* [Nmap](#NMAP)||
+<center/>
+</td></tr></table>
+
 
 ### gitleaks ![enter image description here](https://www.w6d.io/images/Logo.svg)
-##
+<table align="center"><tr><td align="center" width="9999">
+
 **<center>**GITLEAKS** (secret discovery SAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
 ##
+</td></tr></table>
  - **Preface**
  Gitleaks is a SAST tool for detecting hardcoded secrets like passwords, api keys, and tokens in git repos. Gitleaks is an **easy-to-use, all-in-one solution** for finding secrets, past or present, in your code.
 
@@ -54,9 +59,11 @@ repository_http_link= <the project client repository url>
 ```
 
 ### codecov ![enter image description here](https://www.w6d.io/images/Logo.svg)
-##
+<table align="center"><tr><td align="center" width="9999">
+
 **<center>**CODECOV**  (recovery rating SAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
  ##
+ </td></tr></table>
   - **Preface**
 Codecov delivers  _or "injects"_coverage metrics directly into the modern workflow to promote more code coverage, especially in pull requests where new features and bug fixes commonly occur.
 
@@ -105,10 +112,13 @@ INTERNAL_CODECOV_LINK= <https://codecov.io/bash> //link to Codecov
   ```
 CLIENT_CODECOV_TOKEN= <token generate by Codecov>
 ```
+
 ### clair![enter image description here](https://www.w6d.io/images/Logo.svg)
-##
+<table align="center"><tr><td align="center" width="9999">
+
 **<center>**Clair**  (Image Scanner DAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
  ##
+ </td></tr></table>
   - **Preface**
 Clair is an open source project for the  [static analysis](https://en.wikipedia.org/wiki/Static_program_analysis)  of vulnerabilities in application containers (currently including  [OCI](https://github.com/opencontainers/image-spec/blob/master/spec.md)  and  [docker](https://github.com/docker/docker/blob/master/image/spec/v1.2.md)). Clients use the Clair API to index their container images and can then match it against known vulnerabilities. Our goal is to enable a more transparent view of the security of container-based infrastructure. Thus, the project was named  `Clair`
 
@@ -167,11 +177,12 @@ CLIENT_DOCKER_USER = <USERNAME CREDENTIAL REGISTRY>
 CLIENT_DOCKER_USER = <PASSWORD REGISTRY>
 ```
 
-
 ### OWASPZAP ![enter image description here](https://www.w6d.io/images/Logo.svg)
-##
+<table align="center"><tr><td align="center" width="9999">
+
 **<center>**OWASP ZAP** ( Proxy Scan DAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
 ##
+</td></tr></table>
  - **Preface**
 OWASP Zed Attack Proxy (ZAP) is a free, open-source penetration testing tool being maintained under the umbrella of the Open Web Application Security Project (OWASP). ZAP is designed specifically for testing web applications and is both flexible and extensible.
 
@@ -180,7 +191,7 @@ OWASP Zed Attack Proxy (ZAP) is a free, open-source penetration testing tool bei
 
  - **CI-OPERATOR Configuration.**
 
-   - 1) [OWASP Zap Baseline](https://www.zaproxy.org/docs/docker/baseline-scan/)
+   - 1)[OWASP Zap Baseline](https://www.zaproxy.org/docs/docker/baseline-scan/)
 
 ```
 apiVersion: ci.w6d.io/v1alpha1
@@ -267,4 +278,109 @@ step:
 CLIENT_HOST_URL= <the project client repository url>
 
 Example: CLIENT_HOST_URL=http://deploymgt.test-owasp:8080
+```
+
+### NMAP ![enter image description here](https://www.w6d.io/images/Logo.svg)
+<table align="center"><tr><td align="center" width="9999">
+
+**<center>**NMAP** ( network discovery and security auditing Scan DAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
+##
+</td></tr></table>
+ - **Preface**
+Nmap provides a number of features for probing computer networks, including host discovery and service and operating system detection. These features are extensible by scripts that provide more advanced service detection, vulnerability detection, and other features. Nmap can adapt to network conditions including latency and congestion during a scan.
+
+This Nmap features include:
+
+-   Host discovery – Identifying hosts on a network. For example, listing the hosts that respond to  [TCP](https://en.wikipedia.org/wiki/Transmission_Control_Protocol "Transmission Control Protocol")  and/or  [ICMP](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol "Internet Control Message Protocol")  requests or have a particular port open.
+-   Port scanning – Enumerating the open  ports on target hosts.
+-   Version detection – Interrogating network services on remote devices to determine application name and version number.
+-   [TCP/IP stack fingerprinting](https://en.wikipedia.org/wiki/TCP/IP_stack_fingerprinting)  – Determining the  [operating system](https://en.wikipedia.org/wiki/Operating_system "Network congestion")  and hardware characteristics of network devices based on observations of network activity of said devices.
+-   Scriptable interaction with the target – using Nmap Scripting Engine (NSE) and  [Lua](https://en.wikipedia.org/wiki/Lua_(programming_language) "Lua (programming language)")  programming language.
+
+ - **Prerequisite:**
+    NaN
+
+ - **CI-OPERATOR Configuration.**
+
+   - 1)[NMAP IP RANGE SCAN](https://nmap.org/book/man-target-specification.html)
+
+```
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-nmap-ipRangeScan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-nmap
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP_RANGE
+    type: string
+step:
+  name: test-nmap-ipRangeScan
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    nmap -sn $(params.CLIENT_IP_RANGE) -oX report-ipRangeScanNmap.xml
+```
+   - 2) [NMAP TOP 100 SCAN](https://nmap.org/book/performance-port-selection.html)
+
+```
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-nmap-topPorts100
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-nmap
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+step:
+  name: test-nmap-topPorts100
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    nmap --top-ports 100 $(params.CLIENT_IP) -oX report-topPorts100Nmap.xml
+```
+
+   - 3) [NMAP HOST DISCOVERY](https://nmap.org/book/man-host-discovery.html)
+
+```
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-nmap-hostScan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-nmap
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+step:
+  name: test-nmap-hostScan
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    nmap $(params.CLIENT_IP) -oX report-hostScanNmap.xml
+```
+
+ ### -**Variables**
+ - **Clients found:**
+  ```
+ The target IP:
+CLIENT_IP= <IP>
+
+Example: CLIENT_IP=100.68.54.81
 ```

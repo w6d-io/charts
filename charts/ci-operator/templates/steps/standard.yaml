@@ -231,6 +231,69 @@ step:
     zap-full-scan.py -t $(params.CLIENT_HOST_URL) -T 60 -D 30 -J report-fullscan.json -d -I
     cp /zap/wrk/report-fullscan.json $(workspaces.source.path)/tests/report-owasp
 ---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-nmap-ipRangeScan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-nmap
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP_RANGE
+    type: string
+step:
+  name: test-nmap-ipRangeScan
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    nmap -sn $(params.CLIENT_IP_RANGE) -oX report-ipRangeScanNmap.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-nmap-topPorts100
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-nmap
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+step:
+  name: test-nmap-topPorts100
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    nmap --top-ports 100 $(params.CLIENT_IP) -oX report-topPorts100Nmap.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: test-nmap-hostScan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: test-nmap
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+step:
+  name: test-nmap-hostScan
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    nmap $(params.CLIENT_IP) -oX report-hostScanNmap.xml
+---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
