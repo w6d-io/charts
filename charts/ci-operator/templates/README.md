@@ -9,20 +9,20 @@ SUMMARY
 
 |      SAST       |       DAST      |       BUILD     |
 | :---------------: | :---------------:| :---------------: |
-|* [Gitleaks](#GITLEAKS)|* [Clair](#CLAIR)|* [SBT](#GITLEAKS)|
-|* [Codecov]( #CODECOV)|* [Owasp ZAP](#OWASPZAP)|* [Quasar](#QUASAR)|
-|* [Sonarqube](#SONARQUBE)|* [Nmap](#NMAP)||
+|[Gitleaks](#gitleaks)|[Clair](#clair)|[SBT](#sbt)|
+|[Codecov]( #codecov)|[Owasp ZAP](#owaspzap)|[Quasar](#quasar)|
+|[Sonarqube](#sonarqube)|[Nmap](#nmap)||
 <center/>
 </td></tr></table>
 
 
 ### gitleaks ![enter image description here](https://www.w6d.io/images/Logo.svg)
-<table align="center"><tr><td align="center" width="9999">
+<table align="center"><tr><td align="left" width="9999">
 
 **<center>**GITLEAKS** (secret discovery SAST)<center/>**<br/>![enter image description here](https://raw.githubusercontent.com/zricethezav/gifs/master/gitleakslogo.png)
 ##
 </td></tr></table>
-<table align="center"><tr><td align="center" width="9999">
+<table ><tr><td width="9999">
 
  - **Preface**<br/>
  Gitleaks is a SAST tool for detecting hardcoded secrets like passwords, api keys, and tokens in git repos. Gitleaks is an **easy-to-use, all-in-one solution** for finding secrets, past or present, in your code.
@@ -69,6 +69,7 @@ repository_http_link= <the project client repository url>
 **<center>**CODECOV**  (recovery rating SAST)<br/>![enter image description here](https://camo.githubusercontent.com/692d51b2ffcee37fc8ac7e75229128a225d3d9b57e294c7d848b73a059f2db57/68747470733a2f2f636f6465636f762e696f2f67682f636f6465636f762f636f6465636f762d626173682f6272616e63682f6d61737465722f67726170682f62616467652e7376673f746f6b656e3d69457653546e5739516d)<center/>**
  ##
  </td></tr></table>
+<table><tr><td width="9999">
 
  - **Preface**<br/>
 Codecov delivers  _or "injects"_coverage metrics directly into the modern workflow to promote more code coverage, especially in pull requests where new features and bug fixes commonly occur.
@@ -80,6 +81,7 @@ Codecov delivers  _or "injects"_coverage metrics directly into the modern workfl
  - [ ]  link your project
  - [ ] Generate a Token
     For more see the [Codecov documentation](https://docs.codecov.io/docs/quick-start)
+ </td></tr></table>
 
  - **CI-OPERATOR Configuration.**
 
@@ -125,6 +127,7 @@ CLIENT_CODECOV_TOKEN= <token generate by Codecov>
 **<center>**Clair**  (Image Scanner DAST)<br/>![enter image description here](https://cloud.githubusercontent.com/assets/343539/21630811/c5081e5c-d202-11e6-92eb-919d5999c77a.png)<center/>**
  ##
  </td></tr></table>
+<table><tr><td width="9999">
 
  - **Preface**<br/>
 Clair is an open source project for the  [static analysis](https://en.wikipedia.org/wiki/Static_program_analysis)  of vulnerabilities in application containers (currently including  [OCI](https://github.com/opencontainers/image-spec/blob/master/spec.md)  and  [docker](https://github.com/docker/docker/blob/master/image/spec/v1.2.md)). Clients use the Clair API to index their container images and can then match it against known vulnerabilities. Our goal is to enable a more transparent view of the security of container-based infrastructure. Thus, the project was named  `Clair`
@@ -137,6 +140,7 @@ Clair is an open source project for the  [static analysis](https://en.wikipedia.
 `curl -X GET -I http://<IP of k8s service>:6061/health`
  - [ ] Read the [documentation on **Clair api**](https://quay.github.io/clair/howto/api.html)
  - [ ]  Read the [documentation on **Klar**](https://github.com/optiopay/klar)
+ </td></tr></table>
 
  - **CI-OPERATOR Configuration.**
 
@@ -191,13 +195,14 @@ CLIENT_DOCKER_USER = <PASSWORD REGISTRY>
 **<center>**SONARQUBE**  (RATE RECOVERY SAST)<br/><center/>**
  ##
  </td></tr></table>
+<table><tr><td width="9999">
 
  - **Preface**<br/>
 
 
  - **Prerequisite**<br/>
 
-
+ </td></tr></table>
  - **CI-OPERATOR Configuration.**
 
 ```
@@ -261,14 +266,15 @@ step:
 
 **<center>**OWASP ZAP** ( Proxy Scan DAST)<center/>**<br/>![enter image description here](https://raw.githubusercontent.com/wiki/zaproxy/zaproxy/images/zap32x32.png)
 ##
-</td></tr></table>
+ </td></tr></table>
+<table><tr><td width="9999">
 
  - **Preface**<br/>
 OWASP Zed Attack Proxy (ZAP) is a free, open-source penetration testing tool being maintained under the umbrella of the Open Web Application Security Project (OWASP). ZAP is designed specifically for testing web applications and is both flexible and extensible.
 
  - **Prerequisite:**
     NaN
-
+</td></tr></table>
  - **CI-OPERATOR Configuration.**
 
    - 1)[OWASP Zap Baseline](https://www.zaproxy.org/docs/docker/baseline-scan/)
@@ -565,13 +571,14 @@ Example: CLIENT_PORT=8080
 **<center>**SBT**  (BUILD SCALA)<br/><center/>**
  ##
  </td></tr></table>
+<table><tr><td width="9999">
 
  - **Preface**<br/>
 
 
  - **Prerequisite**<br/>
 
-
+ </td></tr></table>
  - **CI-OPERATOR Configuration.**
 
 ```
@@ -624,13 +631,14 @@ step:
 **<center>**QUASAR**  (BUILD VUJS)<br/><center/>**
  ##
  </td></tr></table>
+<table><tr><td width="9999">
 
  - **Preface**<br/>
 
 
  - **Prerequisite**<br/>
 
-
+ </td></tr></table>
  - **CI-OPERATOR Configuration.**
 
 ```
