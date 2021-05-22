@@ -98,6 +98,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HTTP_REPOSITORY_URL
+    description: defines the http(s) repository
     type: string
 step:
   name: static-test-gitleakspathscan
@@ -120,8 +121,11 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: INTERNAL_CODECOV_URL
+    description: defines the codecov url
     type: string
+    default: "https://codecov.io/bash"
   - name: CLIENT_CODECOV_TOKEN
+    description: defines the token (found by the user)
     type: string
 step:
   name: static-test-codecov
@@ -143,9 +147,10 @@ metadata:
     ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
-  - name: INTERNAL_CODECOV_URL
+  - name: INTERNAL_SONAR_URL
     type: string
-  - name: CLIENT_CODECOV_TOKEN
+    default: "https://sonar.staging.w6d.io"
+  - name: CLIENT_SONAR_PROJECTNAME
     type: string
 step:
   name: static-test-sonarqube
@@ -163,7 +168,7 @@ step:
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     cat <<EOF >sonar.properties
-    sonar.host.url=https://sonar.staging.w6d.io
+    sonar.host.url=$(params.INTERNAL_SONAR_URL)
     sonar.login=cd6f53e6ad5e3f6d7074f28fb1bb1eecabd9f893
     sonar.projectKey=sonar:w6d:deploymgt
     sonar.projectName=deploymgt-test
@@ -191,13 +196,18 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IMAGE_URL
+    description: defines the http(s) registry url adress for get the image
     type: string
   - name: CLIENT_DOCKER_USER
+    description: defines the username credential for acces to the registry
     type: string
   - name: CLIENT_DOCKER_PASSWORD
+    description: defines the password for acces to the registry
     type: string
   - name: INTERNAL_CLAIR_URL
+    description: defines the clair url and the port entry of the cluster w6d (example IP:PORT).
     type: string
+    default: "100.66.104.108:6060"
 step:
   name: static-test-clair
   image: "golang"
@@ -221,6 +231,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
+    description: defines the http(s) target ip or hostname
     type: string
 step:
   name: static-test-owaspbaseline
@@ -244,6 +255,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
+    description: defines the http(s) target ip or hostname
     type: string
 step:
   name: static-test-owaspgraphql
@@ -267,6 +279,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
+    description: defines the http(s) target ip or hostname
     type: string
 step:
   name: static-test-owaspfullscan
@@ -290,6 +303,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP_RANGE
+    description: defines the target ip range to test (syntaxe example for the deploymgt service is 192.168.0.1-20 )
     type: string
 step:
   name: static-test-nmapiprangescan
@@ -311,6 +325,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
+    description: defines the target ip or hostname
     type: string
 step:
   name: static-test-nmaptopports100
@@ -332,6 +347,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
+    description: defines the target ip or hostname
     type: string
 step:
   name: static-test-nmaphostscan
@@ -353,8 +369,10 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
+    description: defines the target ip or hostname
     type: string
   - name: CLIENT_PORT
+    description: defines the entry port
     type: string
 step:
   name: static-test-nmapnsevuln
@@ -377,10 +395,13 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
+    description: defines the target ip or hostname
     type: string
   - name: CLIENT_PORT
+    description: defines the entry port
     type: string
   - name: CLIENT_PATHS
+    description: defines all path targeted
     type: string
     default: "/"
 step:
@@ -406,8 +427,10 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
+    description: defines the target ip or hostname
     type: string
   - name: CLIENT_PORT
+    description: defines the entry port
     type: string
 step:
   name: static-test-nmapnsevulscan
