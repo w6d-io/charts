@@ -1,6 +1,8 @@
 
+<table align="center"><tr><td align="center" width="9999">
 
-## **<center>W6D INTEGRATION TESTS DOCUMENTATION <br/> ![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
+## **<center>BUILD and AST  TESTS DOCUMENTATION <br/> ![enter image description here](https://www.w6d.io/images/Logo.svg)w6d.io![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
+</td></tr></table>
 <table align="center"><tr><td align="center" width="9999">
 <center>
 SUMMARY
@@ -17,7 +19,7 @@ SUMMARY
 ### gitleaks ![enter image description here](https://www.w6d.io/images/Logo.svg)
 <table align="center"><tr><td align="center" width="9999">
 
-**<center>**GITLEAKS** (secret discovery SAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
+**<center>**GITLEAKS** (secret discovery SAST)<center/>**<br/>![enter image description here](https://raw.githubusercontent.com/zricethezav/gifs/master/gitleakslogo.png)
 ##
 </td></tr></table>
  - **Preface**
@@ -31,18 +33,18 @@ SUMMARY
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-gitleaks-pathScann
+  name: static-test-gitleakspathscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-gitleaks
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HTTP_REPOSITORY_URL
     type: string
 step:
-  name: test-gitleaks-pathScann
+  name: static-test-gitleakspathscan
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-gitleaks
@@ -61,7 +63,7 @@ repository_http_link= <the project client repository url>
 ### codecov ![enter image description here](https://www.w6d.io/images/Logo.svg)
 <table align="center"><tr><td align="center" width="9999">
 
-**<center>**CODECOV**  (recovery rating SAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
+**<center>**CODECOV**  (recovery rating SAST)<br/>![enter image description here](https://camo.githubusercontent.com/692d51b2ffcee37fc8ac7e75229128a225d3d9b57e294c7d848b73a059f2db57/68747470733a2f2f636f6465636f762e696f2f67682f636f6465636f762f636f6465636f762d626173682f6272616e63682f6d61737465722f67726170682f62616467652e7376673f746f6b656e3d69457653546e5739516d)<center/>**
  ##
  </td></tr></table>
   - **Preface**
@@ -81,26 +83,26 @@ Codecov delivers  _or "injects"_coverage metrics directly into the modern workfl
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-codecov-coverage
+  name: static-test-codecov
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-codecov
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
-  - name: INTERNAL_CODECOV_LINK
+  - name: INTERNAL_CODECOV_URL
     type: string
   - name: CLIENT_CODECOV_TOKEN
     type: string
 step:
-  name: test-codecov-coverage
+  name: static-test-codecov
   image: "bash"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     echo y | apk add --no-cache curl
-    bash <(curl -s $(params.INTERNAL_CODECOV_LINK)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
+    bash <(curl -s $(params.INTERNAL_CODECOV_URL)) -t $(params.CLIENT_CODECOV_TOKEN) -f $(workspaces.source.path)/tests/report-codecov/cover.out
 
 ```
  ### -**Variables**
@@ -116,7 +118,7 @@ CLIENT_CODECOV_TOKEN= <token generate by Codecov>
 ### clair![enter image description here](https://www.w6d.io/images/Logo.svg)
 <table align="center"><tr><td align="center" width="9999">
 
-**<center>**Clair**  (Image Scanner DAST)<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)<center/>**
+**<center>**Clair**  (Image Scanner DAST)<br/>![enter image description here](https://cloud.githubusercontent.com/assets/343539/21630811/c5081e5c-d202-11e6-92eb-919d5999c77a.png)<center/>**
  ##
  </td></tr></table>
   - **Preface**
@@ -137,12 +139,12 @@ Clair is an open source project for the  [static analysis](https://en.wikipedia.
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-clair-klar
+  name: static-test-clair
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-clair
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IMAGE_URL
@@ -154,7 +156,7 @@ params:
   - name: INTERNAL_CLAIR_URL
     type: string
 step:
-  name: test-clair-klar
+  name: static-test-clair
   image: "golang"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-clair
@@ -163,6 +165,7 @@ step:
     cd klar
     go build
     CLAIR_ADDR=(params.INTERNAL_CLAIR_URL) CLAIR_OUTPUT=High CLAIR_THRESHOLD=10 JSON_OUTPUT=true DOCKER_USER=$(params.CLIENT_DOCKER_USER) DOCKER_PASSWORD=$(params.CLIENT_DOCKER_PASSWORD) ./klar $(params.CLIENT_IMAGE_URL) > ../report-clairklar.json
+---
 ```
  ### -**Variables**
  - **Internal:**
@@ -180,7 +183,7 @@ CLIENT_DOCKER_USER = <PASSWORD REGISTRY>
 ### OWASPZAP ![enter image description here](https://www.w6d.io/images/Logo.svg)
 <table align="center"><tr><td align="center" width="9999">
 
-**<center>**OWASP ZAP** ( Proxy Scan DAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
+**<center>**OWASP ZAP** ( Proxy Scan DAST)<center/>**<br/>![enter image description here](https://raw.githubusercontent.com/wiki/zaproxy/zaproxy/images/zap32x32.png)
 ##
 </td></tr></table>
  - **Preface**
@@ -197,18 +200,18 @@ OWASP Zed Attack Proxy (ZAP) is a free, open-source penetration testing tool bei
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-owasp-baseline
+  name: static-test-owaspbaseline
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-owasp
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
     type: string
 step:
-  name: test-owasp-baseline
+  name: static-test-owaspbaseline
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-owasp
@@ -223,18 +226,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-owasp-graphql
+  name: static-test-owaspgraphql
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-owasp
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
     type: string
 step:
-  name: test-owasp-graphql
+  name: static-test-owaspgraphql
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-owasp
@@ -250,18 +253,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-owasp-fullscan
+  name: static-test-owaspfullscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-owasp
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
     type: string
 step:
-  name: test-owasp-fullscan
+  name: static-test-owaspfullscan
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-owasp
@@ -283,7 +286,7 @@ Example: CLIENT_HOST_URL=http://deploymgt.test-owasp:8080
 ### NMAP ![enter image description here](https://www.w6d.io/images/Logo.svg)
 <table align="center"><tr><td align="center" width="9999">
 
-**<center>**NMAP** ( network discovery and security auditing Scan DAST)<center/>**<br/>![enter image description here](https://www.w6d.io/images/Logo.svg)
+**<center>**NMAP** ( network discovery and security auditing Scan DAST)<center/>**<br/>![@nmap](https://avatars.githubusercontent.com/u/63385?s=70&v=4)
 ##
 </td></tr></table>
  - **Preface**
@@ -308,18 +311,18 @@ This Nmap features include:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-nmap-ipRangeScan
+  name: static-test-nmapiprangescan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-nmap
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP_RANGE
     type: string
 step:
-  name: test-nmap-ipRangeScan
+  name: static-test-nmapiprangescan
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.source.path)/tests/nmap
@@ -332,18 +335,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-nmap-topPorts100
+  name: static-test-nmaptopports100
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-nmap
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
     type: string
 step:
-  name: test-nmap-topPorts100
+  name: static-test-nmaptopports100
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.source.path)/tests/nmap
@@ -357,18 +360,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-nmap-hostScan
+  name: static-test-nmaphostscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-nmap
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
     type: string
 step:
-  name: test-nmap-hostScan
+  name: static-test-nmaphostscan
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.source.path)/tests/nmap

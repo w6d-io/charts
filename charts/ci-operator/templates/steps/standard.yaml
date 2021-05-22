@@ -89,18 +89,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-gitleaks-pathScan
+  name: static-test-gitleakspathscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-gitleaks
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HTTP_REPOSITORY_URL
     type: string
 step:
-  name: test-gitleaks-pathScan
+  name: static-test-gitleakspathscan
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-gitleaks
@@ -111,12 +111,12 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-codecov-coverage
+  name: static-test-codecov
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-codecov
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: INTERNAL_CODECOV_URL
@@ -124,7 +124,7 @@ params:
   - name: CLIENT_CODECOV_TOKEN
     type: string
 step:
-  name: test-codecov-coverage
+  name: static-test-codecov
   image: "bash"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-codecov
@@ -135,12 +135,59 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-clair-klar
+  name: static-test-sonarqube
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-clair
+    ci.w6d.io/task: static-test
+    ci.w6d.io/order: "0"
+params:
+  - name: INTERNAL_CODECOV_URL
+    type: string
+  - name: CLIENT_CODECOV_TOKEN
+    type: string
+step:
+  name: static-test-sonarqube
+  image:
+    name: "sonarsource/sonar-scanner-cli:latest"
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/report-codecov
+    cd $(workspaces.source.path)/tests/
+    cat <<EOF >sonar.properties
+    sonar.host.url=https://sonar.staging.w6d.io
+    sonar.login=cd6f53e6ad5e3f6d7074f28fb1bb1eecabd9f893
+    sonar.projectKey=sonar:w6d:deploymgt
+    sonar.projectName=deploymgt-test
+    sonar.projectVersion=1.0
+    sonar.sourceEncoding=UTF-8
+    sonar.sources=./pkg,./internal
+    sonar.tests=./pkg,./internal
+    sonar.test.inclusions=./pkg/**/**/*_test.go,./internal/**/*_test.go
+    sonar.go.coverage.reportPaths=sonar/coverage/coverage.report
+    sonar.go.tests.reportPaths=sonar/test/test.report
+    sonar.log.level=DEBUG
+    EOF
+    mkdir -p .sonar
+    sonar-scanner -Dsonar.qualitygate.wait=true -Dproject.settings=./sonar.properties
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-clair
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IMAGE_URL
@@ -152,7 +199,7 @@ params:
   - name: INTERNAL_CLAIR_URL
     type: string
 step:
-  name: test-clair-klar
+  name: static-test-clair
   image: "golang"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-clair
@@ -165,18 +212,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-owasp-baseline
+  name: static-test-owaspbaseline
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-owasp
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
     type: string
 step:
-  name: test-owasp-baseline
+  name: static-test-owaspbaseline
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-owasp
@@ -188,18 +235,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-owasp-graphql
+  name: static-test-owaspgraphql
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-owasp
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
     type: string
 step:
-  name: test-owasp-graphql
+  name: static-test-owaspgraphql
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-owasp
@@ -211,18 +258,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-owasp-fullscan
+  name: static-test-owaspfullscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-owasp
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_HOST_URL
     type: string
 step:
-  name: test-owasp-fullscan
+  name: static-test-owaspfullscan
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.source.path)/tests/report-owasp
@@ -234,18 +281,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-nmap-ipRangeScan
+  name: static-test-nmapiprangescan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-nmap
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP_RANGE
     type: string
 step:
-  name: test-nmap-ipRangeScan
+  name: static-test-nmapiprangescan
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.source.path)/tests/nmap
@@ -255,18 +302,18 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-nmap-topPorts100
+  name: static-test-nmaptopports100
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-nmap
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
     type: string
 step:
-  name: test-nmap-topPorts100
+  name: static-test-nmaptopports100
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.source.path)/tests/nmap
@@ -276,23 +323,199 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: test-nmap-hostScan
+  name: static-test-nmaphostscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: test-nmap
+    ci.w6d.io/task: static-test
     ci.w6d.io/order: "0"
 params:
   - name: CLIENT_IP
     type: string
 step:
-  name: test-nmap-hostScan
+  name: static-test-nmaphostscan
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.source.path)/tests/nmap
     cd $(workspaces.source.path)/tests/nmap
     nmap $(params.CLIENT_IP) -oX report-hostScanNmap.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-nmapnsevuln
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-test
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+  - name: CLIENT_PORT
+    type: string
+step:
+  name: static-test-nmapnsevuln
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests/nmap
+    echo y | apk add --no-cache git
+    nmap -Pn -v -A -T5 --script vuln $(params.CLIENT_IP) -p $(params.CLIENT_PORT)  -oX reportCVE-vuln.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-nmapnsevulners
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-test
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+  - name: CLIENT_PORT
+    type: string
+  - name: CLIENT_PATHS
+    type: string
+    default: "/"
+step:
+  name: static-test-nmapnsevulners
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests
+    echo y | apk add --no-cache git
+    git clone https://github.com/vulnersCom/nmap-vulners.git vulnersCom_nmapvulners
+    nmap -Pn -v -A -T5 -p$(params.CLIENT_PORT) --script vulnersCom_nmapvulners/http-vulners-regex.nse --script-args paths={$(params.CLIENT_PATHS)} $(params.CLIENT_IP) -oX nmap/reportCVE-http-vulners-regex.xml
+    nmap -Pn -v -A -T5 --script vulnersCom_nmapvulners/vulners.nse --script-args mincvss=5.0 $(params.CLIENT_IP) -oX nmap/reportCVE-vulners.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: static-test-nmapnsevulscan
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: static-test
+    ci.w6d.io/order: "0"
+params:
+  - name: CLIENT_IP
+    type: string
+  - name: CLIENT_PORT
+    type: string
+step:
+  name: static-test-nmapnsevulscan
+  image: "instrumentisto/nmap"
+  script: |
+    mkdir -p $(workspaces.source.path)/tests/nmap
+    cd $(workspaces.source.path)/tests
+    echo y | apk add --no-cache git
+    git clone https://github.com/scipag/vulscan.git scipag_vulscan
+    nmap -Pn -v -A -T5 --script scipag_vulscan/vulscan.nse $(params.CLIENT_IP) -p$(params.CLIENT_PORT) -oX nmap/reportCVE-vulscan.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: build-sbt
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: build
+    ci.w6d.io/order: "0"
+params:
+  - name: COVERAGE
+    description: defines sbt coverage report config as true or false
+    type: string
+    default: "false"
+step:
+  name: build-sbt
+  image: "mozilla/sbt"
+  script: |
+    mkdir -p $(workspaces.source.path)/builds/sbt
+    cd $(workspaces.source.path)/builds
+    apt update
+    apt -y install git zip
+    git --version
+    git clone https://gitlab.com/jasperdenkers/lunatech-demo-ci-scala-sbt.git sbtapp
+    cd sbtapp
+    sbt clean test
+    if [[ "$(params.COVERAGE)" == "true" ]] ; then
+          sbt clean coverage test coverageReport
+    fi
+    cd target
+    zip -r ../../sbt/target.zip *
+    cd ../../sbt
+    ls target.zip
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: build-quasar
+  labels:
+  {{- include "ci-operator.labels" . | nindent 4 }}
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: build
+    ci.w6d.io/order: "0"
+params:
+    - name: ELECTRON
+      description: defines electron build as true or false
+      type: string
+      default: "false"
+    - name: SSR
+      description: defines electron build as true or false
+      type: string
+      default: "false"
+    - name: PWA
+      description: defines electron build as true or false
+      type: string
+      default: "false"
+    - name: CORDOVA
+      description: defines electron build as true or false
+      type: string
+      default: "false"
+    - name: EXTRA_PARAMETERS
+      description: defines -- some params --and options --here
+      type: string
+      default: ""
+step:
+  name: build-quasar
+  image: "node"
+  script: |
+    mkdir -p $(workspaces.source.path)/builds/quasar
+    cd $(workspaces.source.path)/builds
+    apt update
+    apt -y install git zip
+    npm i -g @quasar/cli
+    git clone https://github.com/quasarframework/quasar-ui-qmediaplayer.git quasarapp
+    cd quasarapp/ui
+    yarn
+    yarn build
+    cd ../demo
+    ls
+    yarn
+    if [[ "$(params.ELECTRON)" == "true" ]]; then
+      quasar build -m electron | tee output
+    elif [[ "$(params.SSR)" == "true" ]]; then
+      quasar build -m ssr | tee output
+    elif [[ "$(params.PWA)" == "true" ]]; then
+      quasar build -m pwa | tee output
+    elif [[ "$(params.CORDOVA)" == "true" ]]; then
+      quasar build -m cordova | tee output
+    else
+      quasar build | tee output
+    fi
+    cd dist
+    zip -r ../../quasar/dist.zip *
+    cd ../../quasar
+    ls dist.zip
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
