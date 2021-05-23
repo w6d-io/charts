@@ -3,8 +3,10 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+    cert-manager.io/inject-ca-from: ci-system/ci-serving-cert
     controller-gen.kubebuilder.io/version: v0.4.1
-  creationTimestamp: null
+  labels:
+    ci.w6d.io/name: ci-operator
   name: plays.ci.w6d.io
 spec:
   group: ci.w6d.io
@@ -27,10 +29,7 @@ spec:
       name: Message
       priority: 1
       type: string
-    - description: CreationTimestamp is a timestamp representing the server time when
-        this object was created. It is not guaranteed to be set in happens-before
-        order across separate operations. Clients may not set this value. It is represented
-        in RFC3339 form and is in UTC.
+    - description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -40,14 +39,10 @@ spec:
         description: Play is the Schema for the plays API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -57,6 +52,9 @@ spec:
               commit:
                 description: Commit contains all git information
                 properties:
+                  before_sha:
+                    description: BeforeSHA contains the commit before sha
+                    type: string
                   message:
                     description: Message contains commit message
                     type: string
@@ -68,8 +66,7 @@ spec:
                     type: string
                 type: object
               docker_url:
-                description: DockerURL contains the registry name and tag where to
-                  push docker image
+                description: DockerURL contains the registry name and tag where to push docker image
                 type: string
               domain:
                 description: Domain contains the url for exposition
@@ -78,8 +75,7 @@ spec:
                 description: Environment contains application environment
                 type: string
               expose:
-                description: Expose toggles the creation of the ingress in case of
-                  deployment
+                description: Expose toggles the creation of the ingress in case of deployment
                 type: boolean
               external:
                 description: External toggles is for using in values templating
@@ -99,8 +95,7 @@ spec:
                 description: RepoURL contains the git repository url
                 type: string
               scope:
-                description: Scope contains the name of scope and list of projects
-                  id
+                description: Scope contains the name of scope and list of projects id
                 properties:
                   name:
                     description: Name of the scope
@@ -113,8 +108,7 @@ spec:
               secret:
                 additionalProperties:
                   type: string
-                description: Secret contains the secret data. Each key must be either
-                  - git_token - .dockerconfigjson - sonar_token - kubeconfig
+                description: Secret contains the secret data. Each key must be either - git_token - .dockerconfigjson - sonar_token - kubeconfig
                 type: object
               stack:
                 description: Stack of the project
@@ -130,14 +124,18 @@ spec:
                 description: Tasks contains the list of task to be created by Play
                 items:
                   additionalProperties:
-                    description: Task is what actions and/or configuration the task
-                      can be contains
+                    description: Task is what actions and/or configuration the task can be contains
                     properties:
                       annotations:
                         additionalProperties:
                           type: string
                         description: Annotations is use for ingress annotations
                         type: object
+                      arguments:
+                        description: Arguments is used for flags in task
+                        items:
+                          type: string
+                        type: array
                       docker:
                         description: Docker contains information for docker build
                         properties:
@@ -152,20 +150,17 @@ spec:
                         description: Image to use for this task
                         type: string
                       namespace:
-                        description: Namespace where to deploy application. used only
-                          in deploy task
+                        description: Namespace where to deploy application. used only in deploy task
                         type: string
                       script:
-                        description: Script is a list of command to execute in the
-                          task
+                        description: Script is a list of command to execute in the task
                         items:
                           type: string
                         type: array
                       variables:
                         additionalProperties:
                           type: string
-                        description: Env is the map of environment variable for the
-                          task
+                        description: Variables is the map of environment variable for the task
                         type: object
                     type: object
                   type: object
@@ -175,15 +170,13 @@ spec:
                 properties:
                   secrets:
                     additionalProperties:
-                      description: VaultSecret contains information for get and put
-                        vault secret
+                      description: VaultSecret contains information for get and put vault secret
                       properties:
                         path:
                           description: Path is where the secret is in vault
                           type: string
                         volumePath:
-                          description: VolumePath is the folder where the secret will
-                            be put
+                          description: VolumePath is the folder where the secret will be put
                           type: string
                       type: object
                     description: Secrets is a map of the secret
@@ -200,12 +193,10 @@ spec:
                 description: Message contains the pipeline message
                 type: string
               pipeline_run_name:
-                description: PipelineRunName contains the pipeline run name created
-                  by play
+                description: PipelineRunName contains the pipeline run name created by play
                 type: string
               state:
-                description: State contains the current state of this Play resource.
-                  States Running, Failed, Succeeded, Errored
+                description: State contains the current state of this Play resource. States Running, Failed, Succeeded, Errored
                 type: string
             type: object
         type: object
