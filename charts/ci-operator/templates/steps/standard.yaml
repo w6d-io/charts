@@ -96,10 +96,6 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: git-leak
     ci.w6d.io/order: "0"
-params:
-  - name: CLIENT_HTTP_REPOSITORY_URL
-    description: defines the http(s) repository
-    type: string
 step:
   name: git-leak-standard
   image: "zricethezav/gitleaks:latest"
@@ -119,11 +115,11 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: CODECOV_URL
-    description: defines the codecov url
+    description: define the codecov url
     type: string
     default: "https://codecov.io/bash"
   - name: CODECOV_TOKEN
-    description: defines the token (found by the user)
+    description: define by client defines the token (found by the user)
     type: string
 step:
   name: code-cov-standard
@@ -132,50 +128,6 @@ step:
     mkdir -p $(workspaces.artifacts.path)/tests/report-codecov
     echo y | apk add --no-cache curl
     bash <(curl -s $(params.CODECOV_URL)) -t $(params.CODECOV_TOKEN) -f $(workspaces.artifacts.path)/tests/report-codecov/cover.out
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: code-sonarqube-standard
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: code-sonarqube
-    ci.w6d.io/order: "0"
-params:
-  - name: SONAR_URL
-    type: string
-  - name: SONAR_PROJECTNAME
-    type: string
-step:
-  name: code-sonarqube-standard
-  image:
-    name: "sonarsource/sonar-scanner-cli:latest"
-    entrypoint: [""]
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .sonar/cache
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-codecov
-    cd $(workspaces.artifacts.path)/tests/
-    cat <<EOF >sonar.properties
-    sonar.host.url=$(params.INTERNAL_SONAR_URL)
-    sonar.login=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    sonar.projectKey=$(params.SONAR_PROJECTNAME)
-    sonar.projectName=deploymgt-test
-    sonar.projectVersion=1.0
-    sonar.sourceEncoding=UTF-8
-    sonar.sources=./pkg,./internal
-    sonar.tests=./pkg,./internal
-    sonar.test.inclusions=./pkg/**/**/*_test.go,./internal/**/*_test.go
-    sonar.go.coverage.reportPaths=sonar/coverage/coverage.report
-    sonar.go.tests.reportPaths=sonar/test/test.report
-    sonar.log.level=DEBUG
-    EOF
-    mkdir -p .sonar
-    sonar-scanner -Dsonar.qualitygate.wait=true -Dproject.settings=./sonar.properties
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -189,13 +141,13 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: IMAGE_URL
-    description: defines the http(s) registry url adress for get the image
+    description: define by client  the http(s) registry url adress for get the image
     type: string
   - name: DOCKER_USER
-    description: defines the username credential for acces to the registry
+    description: define by client the username credential for acces to the registry
     type: string
   - name: DOCKER_PASSWORD
-    description: defines the password for acces to the registry
+    description: define by client  the password for acces to the registry
     type: string
   - name: CLAIR_URL
     description: defines the clair url and the port entry of the cluster w6d (example IP:PORT).
@@ -221,7 +173,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_HOST
-    description: defines the http(s) target ip or hostname
+    description: define by client  the http(s) target ip or hostname
     type: string
 step:
   name: owasp-baseline-standard
@@ -244,7 +196,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_HOST
-    description: defines the http(s) target ip or hostname
+    description: define by client  the http(s) target ip or hostname
     type: string
 step:
   name: owasp-graphql-standard
@@ -267,7 +219,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_HOST
-    description: defines the http(s) target ip or hostname
+    description: define by client the http(s) target ip or hostname
     type: string
 step:
   name: owasp-fullscan-standard
@@ -290,7 +242,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_IP_RANGE
-    description: defines the target ip range to test (syntaxe example for the deploymgt service is 127.0.0.1-20 )
+    description: define by client the target ip range to test (syntaxe example for the deploymgt service is 127.0.0.1-20 )
     type: string
 step:
   name: nmap-iprangescan-standard
@@ -311,7 +263,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_IP
-    description: defines the target ip or hostname
+    description: define by client  the target ip or hostname
     type: string
 step:
   name: nmap-topports100-standard
@@ -332,7 +284,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_IP
-    description: defines the target ip or hostname
+    description: define by client  the target ip or hostname
     type: string
 step:
   name: nmap-hostscan-standard
@@ -353,7 +305,7 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_IP
-    description: defines the target ip or hostname
+    description: define by client  the target ip or hostname
     type: string
   - name: TARGET_PORT
     description: defines the entry port
@@ -378,13 +330,13 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_IP
-    description: defines the target ip or hostname
+    description: define by client  the target ip or hostname
     type: string
   - name: TARGET_PORT
-    description: defines the entry port
+    description: define by client  the entry port
     type: string
   - name: TARGET_PATHS
-    description: defines all path targeted
+    description: define by client  all path targeted
     type: string
     default: "/"
 step:
@@ -408,10 +360,10 @@ metadata:
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_IP
-    description: defines the target ip or hostname
+    description: define by client  the target ip or hostname
     type: string
   - name: TARGET_PORT
-    description: defines the entry port
+    description: define by client the entry port
     type: string
 step:
   name: nmap-vulscan-standard
@@ -452,10 +404,6 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: build-sbt-cov
     ci.w6d.io/order: "0"
-params:
-  - name: COVERAGE
-    description: defines sbt coverage report config as true or false
-    type: string
 step:
   name: build-sbt-standard
   image: "mozilla/sbt"
