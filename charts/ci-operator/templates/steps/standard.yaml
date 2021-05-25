@@ -224,7 +224,7 @@ metadata:
     ci.w6d.io/task: owasp-baseline
     ci.w6d.io/order: "0"
 params:
-  - name: HOST_URL
+  - name: TARGET_HOST
     description: defines the http(s) target ip or hostname
     type: string
 step:
@@ -233,7 +233,7 @@ step:
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
     mkdir -p /zap/wrk
-    zap-baseline.py -t $(params.CLIENT_HOST_URL) -J report-baseline.json -d
+    zap-baseline.py -t $(params.TARGET_HOST) -J report-baseline.json -d
     cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)/tests/report-owasp
 ---
 apiVersion: ci.w6d.io/v1alpha1
@@ -247,7 +247,7 @@ metadata:
     ci.w6d.io/task: owasp-graphql
     ci.w6d.io/order: "0"
 params:
-  - name: HOST_URL
+  - name: TARGET_HOST
     description: defines the http(s) target ip or hostname
     type: string
 step:
@@ -256,7 +256,7 @@ step:
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
     mkdir -p /zap/wrk
-    zap-api-scan.py -t $(params.CLIENT_HOST_URL) -T 60 -D 30 -f graphql -J report-graphql.json -d -I
+    zap-api-scan.py -t $(params.TARGET_HOST) -T 60 -D 30 -f graphql -J report-graphql.json -d -I
     cp /zap/wrk/report-graphql.json $(workspaces.artifacts.path)/tests/report-owasp
 ---
 apiVersion: ci.w6d.io/v1alpha1
@@ -270,7 +270,7 @@ metadata:
     ci.w6d.io/task: owasp-fullscan
     ci.w6d.io/order: "0"
 params:
-  - name: HOST_URL
+  - name: TARGET_HOST
     description: defines the http(s) target ip or hostname
     type: string
 step:
@@ -279,7 +279,7 @@ step:
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
     mkdir -p /zap/wrk
-    zap-full-scan.py -t $(params.HOST_URL) -T 60 -D 30 -J report-fullscan.json -d -I
+    zap-full-scan.py -t $(params.TARGET_HOST) -T 60 -D 30 -J report-fullscan.json -d -I
     cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)/tests/report-owasp
 ---
 apiVersion: ci.w6d.io/v1alpha1
