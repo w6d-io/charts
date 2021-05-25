@@ -166,8 +166,8 @@ step:
     cd $(workspaces.artifacts.path)/tests/
     cat <<EOF >sonar.properties
     sonar.host.url=$(params.INTERNAL_SONAR_URL)
-    sonar.login=cd6f53e6ad5e3f6d7074f28fb1bb1eecabd9f893
-    sonar.projectKey=sonar:w6d:deploymgt
+    sonar.login=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    sonar.projectKey=$(params.SONAR_PROJECTNAME)
     sonar.projectName=deploymgt-test
     sonar.projectVersion=1.0
     sonar.sourceEncoding=UTF-8
