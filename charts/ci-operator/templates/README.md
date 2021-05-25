@@ -237,8 +237,8 @@ step:
     mkdir -p $(workspaces.source.path)/tests/report-codecov
     cd $(workspaces.source.path)/tests/
     cat <<EOF >sonar.properties
-    sonar.host.url=https://sonar.staging.w6d.io
-    sonar.login=cd6f53e6ad5e3f6d7074f28fb1bb1eecabd9f893
+    sonar.host.url=xxxxxxxxxxxxxxxxxx
+    sonar.login=xxxxxxxxxxxxxxxxxxx
     sonar.projectKey=sonar:w6d:deploymgt
     sonar.projectName=deploymgt-test
     sonar.projectVersion=1.0

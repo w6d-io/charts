@@ -139,19 +139,6 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: clair-klar
     ci.w6d.io/order: "0"
-params:
-  - name: IMAGE_URL
-    description: define by client  the http(s) registry url adress for get the image
-    type: string
-  - name: DOCKER_USER
-    description: define by client the username credential for acces to the registry
-    type: string
-  - name: DOCKER_PASSWORD
-    description: define by client  the password for acces to the registry
-    type: string
-  - name: CLAIR_URL
-    description: defines the clair url and the port entry of the cluster w6d (example IP:PORT).
-    type: string
 step:
   name: clair-klar-standard
   image: "golang"
@@ -171,17 +158,13 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: owasp-baseline
     ci.w6d.io/order: "0"
-params:
-  - name: TARGET_HOST
-    description: define by client  the http(s) target ip or hostname
-    type: string
 step:
   name: owasp-baseline-standard
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
     mkdir -p /zap/wrk
-    zap-baseline.py -t $(params.TARGET_HOST) -J report-baseline.json -d
+    zap-baseline.py -t 127.0.0.1 -J report-baseline.json -d
     cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)/tests/report-owasp
 ---
 apiVersion: ci.w6d.io/v1alpha1
@@ -194,17 +177,13 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: owasp-graphql
     ci.w6d.io/order: "0"
-params:
-  - name: TARGET_HOST
-    description: define by client  the http(s) target ip or hostname
-    type: string
 step:
   name: owasp-graphql-standard
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
     mkdir -p /zap/wrk
-    zap-api-scan.py -t $(params.TARGET_HOST) -T 60 -D 30 -f graphql -J report-graphql.json -d -I
+    zap-api-scan.py -t 127.0.0.1 -T 60 -D 30 -f graphql -J report-graphql.json -d -I
     cp /zap/wrk/report-graphql.json $(workspaces.artifacts.path)/tests/report-owasp
 ---
 apiVersion: ci.w6d.io/v1alpha1
@@ -217,39 +196,14 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: owasp-fullscan
     ci.w6d.io/order: "0"
-params:
-  - name: TARGET_HOST
-    description: define by client the http(s) target ip or hostname
-    type: string
 step:
   name: owasp-fullscan-standard
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
     mkdir -p /zap/wrk
-    zap-full-scan.py -t $(params.TARGET_HOST) -T 60 -D 30 -J report-fullscan.json -d -I
+    zap-full-scan.py -t 127.0.0.1 -T 60 -D 30 -J report-fullscan.json -d -I
     cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)/tests/report-owasp
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: nmap-iprangescan-standard
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-iprangescan
-    ci.w6d.io/order: "0"
-params:
-  - name: TARGET_IP_RANGE
-    description: define by client the target ip range to test (syntaxe example for the deploymgt service is 127.0.0.1-20 )
-    type: string
-step:
-  name: nmap-iprangescan-standard
-  image: "instrumentisto/nmap"
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap -sn $(params.TARGET_IP_RANGE) -oX $(workspaces.artifacts.path)/tests/nmap/report-ipRangeScanNmap.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -261,16 +215,12 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: nmap-topports100
     ci.w6d.io/order: "0"
-params:
-  - name: TARGET_IP
-    description: define by client  the target ip or hostname
-    type: string
 step:
   name: nmap-topports100-standard
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap --top-ports 100 $(params.TARGET_IP) -oX $(workspaces.artifacts.path)/tests/nmap/report-topPorts100Nmap.xml
+    nmap --top-ports 100 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/report-topPorts100Nmap.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -282,16 +232,12 @@ metadata:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: nmap-hostscan
     ci.w6d.io/order: "0"
-params:
-  - name: TARGET_IP
-    description: define by client  the target ip or hostname
-    type: string
 step:
   name: nmap-hostscan-standard
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap $(params.TARGET_IP) -oX $(workspaces.artifacts.path)/tests/nmap/report-hostScanNmap.xml
+    nmap 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/report-hostScanNmap.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -304,9 +250,6 @@ metadata:
     ci.w6d.io/task: nmap-vuln
     ci.w6d.io/order: "0"
 params:
-  - name: TARGET_IP
-    description: define by client  the target ip or hostname
-    type: string
   - name: TARGET_PORT
     description: defines the entry port
     type: string
@@ -316,7 +259,7 @@ step:
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
     echo y | apk add --no-cache git
-    nmap -Pn -v -A -T5 --script vuln $(params.TARGET_IP) -p $(params.TARGET_PORT)  -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vuln.xml
+    nmap -Pn -v -A -T5 --script vuln 127.0.0.1 -p $(params.TARGET_PORT)  -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vuln.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -329,9 +272,6 @@ metadata:
     ci.w6d.io/task: nmap-vulners
     ci.w6d.io/order: "0"
 params:
-  - name: TARGET_IP
-    description: define by client  the target ip or hostname
-    type: string
   - name: TARGET_PORT
     description: define by client  the entry port
     type: string
@@ -345,8 +285,8 @@ step:
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
     echo y | apk add --no-cache git
-    nmap -Pn -v -A -T5 -p$(params.TARGET_PORT) --script $(resources.inputs.source.path)/http-vulners-regex.nse --script-args paths={$(params.TARGET_PATHS)} $(params.CLIENT_IP) -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-http-vulners-regex.xml
-    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulners.nse --script-args mincvss=5.0 $(params.TARGET_IP) -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulners.xml
+    nmap -Pn -v -A -T5 -p$(params.TARGET_PORT) --script $(resources.inputs.source.path)/http-vulners-regex.nse --script-args paths={$(params.TARGET_PATHS)} 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-http-vulners-regex.xml
+    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulners.nse --script-args mincvss=5.0 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulners.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -359,9 +299,6 @@ metadata:
     ci.w6d.io/task: nmap-vulscan
     ci.w6d.io/order: "0"
 params:
-  - name: TARGET_IP
-    description: define by client  the target ip or hostname
-    type: string
   - name: TARGET_PORT
     description: define by client the entry port
     type: string
@@ -371,7 +308,7 @@ step:
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
     echo y | apk add --no-cache git
-    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulscan.nse $(params.TARGET_IP) -p$(params.TARGET_PORT) -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulscan.xml
+    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulscan.nse 127.0.0.1 -p$(params.TARGET_PORT) -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulscan.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -388,11 +325,9 @@ step:
   image: "mozilla/sbt"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/sbt
-    apt update
-    apt -y install git zip
     cd $(resources.inputs.source.path)
     sbt clean test
-    zip -r $(workspaces.artifacts.path)/builds/sbt/target.zip target/*
+    tar -czvf $(workspaces.artifacts.path)/builds/sbt/target.tar.gz target/*
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -409,12 +344,10 @@ step:
   image: "mozilla/sbt"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/sbt
-    apt update
-    apt -y install zip
     cd $(resources.inputs.source.path)
     sbt clean test
     sbt clean coverage test coverageReport
-    zip -r $(workspaces.artifacts.path)/builds/sbt/target.zip target/*
+    tar -czvf  $(workspaces.artifacts.path)/builds/sbt/target.tar.gz target/*
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -455,8 +388,6 @@ step:
   image: "node"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/quasar
-    apt update
-    apt -y install zip
     npm i -g @quasar/cli
     cd $(resources.inputs.source.path)/$(params.PATH)
     if [[ "$(params.ELECTRON)" == "true" ]]; then
@@ -470,7 +401,7 @@ step:
     else
       quasar build | tee output
     fi
-    zip -r $(workspaces.artifacts.path)/builds/quasar/dist.zip dist/*
+    tar -czvf $(workspaces.artifacts.path)/builds/quasar/dist.tar.gz dist/*
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
