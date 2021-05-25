@@ -136,54 +136,6 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: code-sonarqube-standard
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: code-sonarqube
-    ci.w6d.io/order: "0"
-params:
-  - name: SONAR_URL
-    type: string
-    default: "https://sonar.staging.w6d.io"
-  - name: SONAR_PROJECTNAME
-    type: string
-step:
-  name: code-sonarqube-standard
-  image:
-    name: "sonarsource/sonar-scanner-cli:latest"
-    entrypoint: [""]
-  variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
-    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .sonar/cache
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-codecov
-    cd $(workspaces.artifacts.path)/tests/
-    cat <<EOF >sonar.properties
-    sonar.host.url=$(params.INTERNAL_SONAR_URL)
-    sonar.login=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    sonar.projectKey=$(params.SONAR_PROJECTNAME)
-    sonar.projectName=deploymgt-test
-    sonar.projectVersion=1.0
-    sonar.sourceEncoding=UTF-8
-    sonar.sources=./pkg,./internal
-    sonar.tests=./pkg,./internal
-    sonar.test.inclusions=./pkg/**/**/*_test.go,./internal/**/*_test.go
-    sonar.go.coverage.reportPaths=sonar/coverage/coverage.report
-    sonar.go.tests.reportPaths=sonar/test/test.report
-    sonar.log.level=DEBUG
-    EOF
-    mkdir -p .sonar
-    sonar-scanner -Dsonar.qualitygate.wait=true -Dproject.settings=./sonar.properties
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
   name: clair-klar-standard
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
