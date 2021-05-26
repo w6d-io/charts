@@ -377,7 +377,7 @@ step:
     mkdir -p $(workspaces.artifacts.path)/builds/quasar
     npm i -g @quasar/cli
     cd $(resources.inputs.source.path)/$(params.PATH)
-    quasar build -m $(params.TYPE) | tee output
+    quasar build -m $(params.TYPE) $(params.EXTRA_PARAMETERS) | tee output
     tar -czvf $(workspaces.artifacts.path)/builds/quasar/dist.tar.gz dist/*
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
