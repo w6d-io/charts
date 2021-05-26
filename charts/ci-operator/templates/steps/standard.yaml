@@ -360,25 +360,12 @@ metadata:
     ci.w6d.io/task: build-quasar
     ci.w6d.io/order: "0"
 params:
-    - name: ELECTRON
-      description: defines electron build as true or false
+    - name: TYPE
+      description: defines ELECTRON SSR PWA CORDOVA
       type: string
-      default: "false"
     - name: PATH
       description: build path
       type: string
-    - name: SSR
-      description: defines electron build as true or false
-      type: string
-      default: "false"
-    - name: PWA
-      description: defines electron build as true or false
-      type: string
-      default: "false"
-    - name: CORDOVA
-      description: defines electron build as true or false
-      type: string
-      default: "false"
     - name: EXTRA_PARAMETERS
       description: defines -- some params --and options --here
       type: string
@@ -390,17 +377,7 @@ step:
     mkdir -p $(workspaces.artifacts.path)/builds/quasar
     npm i -g @quasar/cli
     cd $(resources.inputs.source.path)/$(params.PATH)
-    if [[ "$(params.ELECTRON)" == "true" ]]; then
-      quasar build -m electron | tee output
-    elif [[ "$(params.SSR)" == "true" ]]; then
-      quasar build -m ssr | tee output
-    elif [[ "$(params.PWA)" == "true" ]]; then
-      quasar build -m pwa | tee output
-    elif [[ "$(params.CORDOVA)" == "true" ]]; then
-      quasar build -m cordova | tee output
-    else
-      quasar build | tee output
-    fi
+    quasar build -m $(params.TYPE) | tee output
     tar -czvf $(workspaces.artifacts.path)/builds/quasar/dist.tar.gz dist/*
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
