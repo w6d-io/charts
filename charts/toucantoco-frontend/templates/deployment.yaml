@@ -29,6 +29,9 @@ spec:
           env:
             - name: API_BASEROUTE
               value: {{ .Values.apiRoute }}
+            {{- if .Values.envExtra }}
+              {{- toYaml .Values.envExtra | nindent 12 }}
+            {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
