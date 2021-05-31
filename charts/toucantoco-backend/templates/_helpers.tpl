@@ -46,7 +46,8 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Selector labels
 */}}
 {{- define "toucantoco-backend.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "toucantoco-backend.name" . }}
+app.kubernetes.io/name: "toucantoco"
+app.kubernetes.io/component: "backend"
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
