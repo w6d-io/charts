@@ -2226,6 +2226,22 @@ entries:
   toucantoco-frontend:
   - apiVersion: v2
     appVersion: v90.0.2
+    created: "2021-05-31T20:38:19.536479082Z"
+    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    digest: 6e87583b24a9f1f905a88433ff457bd8055548b57f30d6efe78eda6591a91b78
+    icon: https://toucantoco.com/img/logo-toucan-toco.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: toucantoco-frontend
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.4/toucantoco-frontend-0.1.4.tgz
+    version: 0.1.4
+  - apiVersion: v2
+    appVersion: v90.0.2
     created: "2021-05-31T19:37:24.431639793Z"
     description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
     digest: 79b2b01762643b798429d81aadd12f15c8cb5b4cc29fbc15ac4810caa54fcb65
