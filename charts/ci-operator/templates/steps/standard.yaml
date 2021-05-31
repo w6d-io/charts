@@ -89,15 +89,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: git-leak-standard
+  name: git-leaks-standard
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: git-leak
+    ci.w6d.io/task: git-leaks
     ci.w6d.io/order: "0"
 step:
-  name: git-leak-standard
+  name: git-leaks-standard
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-gitleaks
