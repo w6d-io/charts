@@ -89,7 +89,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: git-leak-standard
+  name: git-leak
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
@@ -97,7 +97,7 @@ metadata:
     ci.w6d.io/task: git-leak
     ci.w6d.io/order: "0"
 step:
-  name: git-leak-standard
+  name: git-leak
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-gitleaks
@@ -106,12 +106,12 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: code-cov-standard
+  name: codecov-standard
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: code-cov
+    ci.w6d.io/task: codecov
     ci.w6d.io/order: "0"
 params:
   - name: CODECOV_URL
@@ -122,31 +122,37 @@ params:
     description: define by client defines the token (found by the user)
     type: string
 step:
-  name: code-cov-standard
-  image: "bash"
+  name: codecov-standard
+  image: "w6dio/codecovcustom"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-codecov
-    echo y | apk add --no-cache curl
     bash <(curl -s $(params.CODECOV_URL)) -t $(params.CODECOV_TOKEN) -f $(workspaces.artifacts.path)/tests/report-codecov/cover.out
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: clair-klar-standard
+  name: trivy-standard
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: clair-klar
+    ci.w6d.io/task: trivy
     ci.w6d.io/order: "0"
+params:
+  - name: TRIVY_TEMPLATE_DIRECTORY
+    type: string
+  - name: TEMPLATE_NAME
+    type: string
+  - name: IMAGE
+    type: string
 step:
-  name: clair-klar-standard
-  image: "golang"
+  name: trivy-standard
+  image: aquasec/trivy:0.12.0
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-clair
-    cd $(resources.inputs.source.path)
-    go build
-    CLAIR_ADDR=(params.CLAIR_URL) CLAIR_OUTPUT=High CLAIR_THRESHOLD=10 JSON_OUTPUT=true DOCKER_USER=$(params.DOCKER_USER) DOCKER_PASSWORD=$(params.DOCKER_PASSWORD) ./klar $(params.IMAGE_URL) > $(workspaces.artifacts.path)/tests/report-clair/report-clairklar.json
+    mkdir -p $(workspaces.artifacts.path)/tests/report-trivy
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --format template --template "@${TRIVY_TEMPLATE_DIRECTORY}/${TEMPLATE_NAME}" -o $(workspaces.artifacts.path)/tests/report-trivy/gl-container-scanning-report.json $IMAGE
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --severity HIGH $IMAGE
+    trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress $IMAGE
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -258,7 +264,6 @@ step:
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    echo y | apk add --no-cache git
     nmap -Pn -v -A -T5 --script vuln 127.0.0.1 -p $(params.TARGET_PORT)  -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vuln.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
@@ -284,7 +289,6 @@ step:
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    echo y | apk add --no-cache git
     nmap -Pn -v -A -T5 -p$(params.TARGET_PORT) --script $(resources.inputs.source.path)/http-vulners-regex.nse --script-args paths={$(params.TARGET_PATHS)} 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-http-vulners-regex.xml
     nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulners.nse --script-args mincvss=5.0 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulners.xml
 ---
@@ -307,21 +311,20 @@ step:
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    echo y | apk add --no-cache git
     nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulscan.nse 127.0.0.1 -p$(params.TARGET_PORT) -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulscan.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: build-sbt-standard
+  name: sbt-build
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: build-sbt
+    ci.w6d.io/task: sbt
     ci.w6d.io/order: "0"
 step:
-  name: build-sbt-standard
+  name: sbt-build
   image: "mozilla/sbt"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/sbt
@@ -332,15 +335,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: build-sbt-coverage
+  name: sbt-coverage-build
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: build-sbt-cov
+    ci.w6d.io/task: sbt-coverage
     ci.w6d.io/order: "0"
 step:
-  name: build-sbt-standard
+  name: sbt-coverage-build
   image: "mozilla/sbt"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/sbt
