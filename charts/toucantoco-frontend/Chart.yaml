@@ -2,7 +2,7 @@ apiVersion: v2
 name: toucantoco-frontend
 description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
 type: application
-version: 0.1.3
+version: 0.1.4
 appVersion: v90.0.2
 maintainers:
   - name: Wildcard
