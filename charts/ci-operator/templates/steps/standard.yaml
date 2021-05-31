@@ -89,7 +89,7 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: git-leak
+  name: git-leak-standard
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
@@ -97,7 +97,7 @@ metadata:
     ci.w6d.io/task: git-leak
     ci.w6d.io/order: "0"
 step:
-  name: git-leak
+  name: git-leak-standard
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-gitleaks
@@ -157,15 +157,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: owasp-baseline-standard
+  name: owasp-baseline
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: owasp-baseline
+    ci.w6d.io/task: owasp
     ci.w6d.io/order: "0"
 step:
-  name: owasp-baseline-standard
+  name: owasp-baseline
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
@@ -176,15 +176,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: owasp-graphql-standard
+  name: owasp-graphql
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: owasp-graphql
+    ci.w6d.io/task: owasp
     ci.w6d.io/order: "0"
 step:
-  name: owasp-graphql-standard
+  name: owasp-graphql
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
@@ -195,15 +195,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: owasp-fullscan-standard
+  name: owasp-fullscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: owasp-fullscan
+    ci.w6d.io/task: owasp
     ci.w6d.io/order: "0"
 step:
-  name: owasp-fullscan-standard
+  name: owasp-fullscan
   image: "owasp/zap2docker-stable"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
@@ -214,15 +214,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: nmap-topports100-standard
+  name: nmap-topports100
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-topports100
+    ci.w6d.io/task: nmap
     ci.w6d.io/order: "0"
 step:
-  name: nmap-topports100-standard
+  name: nmap-topports100
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
@@ -231,15 +231,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: nmap-hostscan-standard
+  name: nmap-hostscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-hostscan
+    ci.w6d.io/task: nmap
     ci.w6d.io/order: "0"
 step:
-  name: nmap-hostscan-standard
+  name: nmap-hostscan
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
@@ -248,19 +248,19 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: nmap-vuln-standard
+  name: nmap-vuln
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-vuln
+    ci.w6d.io/task: nmap
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_PORT
     description: defines the entry port
     type: string
 step:
-  name: nmap-vuln-standard
+  name: nmap-vuln
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
@@ -269,12 +269,12 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: nmap-vulners-standard
+  name: nmap-vulners
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-vulners
+    ci.w6d.io/task: nmap
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_PORT
@@ -285,7 +285,7 @@ params:
     type: string
     default: "/"
 step:
-  name: nmap-vulners-standard
+  name: nmap-vulners
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
@@ -295,19 +295,19 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: nmap-vulscan-standard
+  name: nmap-vulscan
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-vulscan
+    ci.w6d.io/task: nmap
     ci.w6d.io/order: "0"
 params:
   - name: TARGET_PORT
     description: define by client the entry port
     type: string
 step:
-  name: nmap-vulscan-standard
+  name: nmap-vulscan
   image: "instrumentisto/nmap"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/nmap
@@ -335,15 +335,15 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: sbt-coverage-build
+  name: sbt-coverage
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: sbt-coverage
+    ci.w6d.io/task: sbt
     ci.w6d.io/order: "0"
 step:
-  name: sbt-coverage-build
+  name: sbt-coverage
   image: "mozilla/sbt"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/sbt
@@ -355,12 +355,12 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: build-quasar-standard
+  name: quasar-build
   labels:
   {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: build-quasar
+    ci.w6d.io/task: quasar
     ci.w6d.io/order: "0"
 params:
     - name: TYPE
@@ -374,7 +374,7 @@ params:
       type: string
       default: ""
 step:
-  name: build-quasar-standard
+  name: quasar-build
   image: "node"
   script: |
     mkdir -p $(workspaces.artifacts.path)/builds/quasar
