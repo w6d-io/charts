@@ -139,10 +139,6 @@ metadata:
     ci.w6d.io/task: trivy
     ci.w6d.io/order: "0"
 params:
-  - name: TRIVY_TEMPLATE_DIRECTORY
-    type: string
-  - name: TEMPLATE_NAME
-    type: string
   - name: IMAGE
     type: string
 step:
@@ -150,7 +146,7 @@ step:
   image: aquasec/trivy:0.12.0
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-trivy
-    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --format template --template "@${TRIVY_TEMPLATE_DIRECTORY}/${TEMPLATE_NAME}" -o $(workspaces.artifacts.path)/tests/report-trivy/gl-container-scanning-report.json $IMAGE
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress -o $(workspaces.artifacts.path)/tests/report-trivy/trivy-report.json $IMAGE
     trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --severity HIGH $IMAGE
     trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress $IMAGE
 ---
