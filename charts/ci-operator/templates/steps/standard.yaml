@@ -154,7 +154,7 @@ step:
   image: w6dio/owasp-zap:v0.0.2
   name: owasp-baseline
   script: |
-    zap-baseline.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -J report-baseline.json -d
+    zap-baseline.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -J report-baseline.json -d -I
     cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)
 ---
 apiVersion: ci.w6d.io/v1alpha1
