@@ -100,7 +100,6 @@ step:
   name: git-leaks-standard
   image: "zricethezav/gitleaks:latest"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-gitleaks
     gitleaks --path $(resources.inputs.source.path) -v --report=$(workspaces.artifacts.path)/report-pathsecretsscan.json
 ---
 apiVersion: ci.w6d.io/v1alpha1
