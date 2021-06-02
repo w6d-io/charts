@@ -101,7 +101,7 @@ step:
   image: "zricethezav/gitleaks:latest"
   script: |
     mkdir -p $(workspaces.artifacts.path)/tests/report-gitleaks
-    gitleaks --repo-path $(resources.inputs.source.path) -v --report=$(workspaces.artifacts.path)/tests/report-gitleaks/report-pathsecretsscan.json
+    gitleaks --path $(resources.inputs.source.path) -v --report=$(workspaces.artifacts.path)/report-pathsecretsscan.json
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -125,215 +125,128 @@ step:
   name: codecov-standard
   image: "w6dio/codecovcustom"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-codecov
-    bash <(curl -s $(params.CODECOV_URL)) -t $(params.CODECOV_TOKEN) -f $(workspaces.artifacts.path)/tests/report-codecov/cover.out
+    bash <(curl -s $(params.CODECOV_URL)) -t $(params.CODECOV_TOKEN) -f $(workspaces.artifacts.path)/cover.out
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: trivy-standard
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: trivy
     ci.w6d.io/order: "0"
-params:
-  - name: IMAGE
-    type: string
 step:
   name: trivy-standard
   image: aquasec/trivy:0.12.0
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-trivy
-    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress -o $(workspaces.artifacts.path)/tests/report-trivy/trivy-report.json $IMAGE
-    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --severity HIGH $IMAGE
-    trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress $IMAGE
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress -o $(workspaces.artifacts.path)/trivy-report.json $params.IMAGE
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --severity HIGH $params.IMAGE
+    trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress $params.IMAGE
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: owasp-baseline
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
+    ci.w6d.io/order: "2"
     ci.w6d.io/task: owasp
-    ci.w6d.io/order: "0"
 step:
+  image: w6dio/owasp-zap:v0.0.2
   name: owasp-baseline
-  image: "owasp/zap2docker-stable"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
-    mkdir -p /zap/wrk
-    zap-baseline.py -t 127.0.0.1 -J report-baseline.json -d
-    cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)/tests/report-owasp
+    zap-baseline.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -J report-baseline.json -d
+    cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: owasp-graphql
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
+    ci.w6d.io/order: "2"
     ci.w6d.io/task: owasp
-    ci.w6d.io/order: "0"
 step:
+  image: w6dio/owasp-zap:v0.0.2
   name: owasp-graphql
-  image: "owasp/zap2docker-stable"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
-    mkdir -p /zap/wrk
-    zap-api-scan.py -t 127.0.0.1 -T 60 -D 30 -f graphql -J report-graphql.json -d -I
-    cp /zap/wrk/report-graphql.json $(workspaces.artifacts.path)/tests/report-owasp
+    zap-api-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -f graphql -J report-graphql.json -d -I
+    cp /zap/wrk/report-graphql.json $(workspaces.artifacts.path)
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: owasp-fullscan
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
+    ci.w6d.io/order: "2"
     ci.w6d.io/task: owasp
-    ci.w6d.io/order: "0"
 step:
+  image: w6dio/owasp-zap:v0.0.2
   name: owasp-fullscan
-  image: "owasp/zap2docker-stable"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/report-owasp
-    mkdir -p /zap/wrk
-    zap-full-scan.py -t 127.0.0.1 -T 60 -D 30 -J report-fullscan.json -d -I
-    cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)/tests/report-owasp
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: nmap-topports100
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap
-    ci.w6d.io/order: "0"
-step:
-  name: nmap-topports100
-  image: "instrumentisto/nmap"
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap --top-ports 100 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/report-topPorts100Nmap.xml
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: nmap-hostscan
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap
-    ci.w6d.io/order: "0"
-step:
-  name: nmap-hostscan
-  image: "instrumentisto/nmap"
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/report-hostScanNmap.xml
+    zap-full-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -J report-fullscan.json -d -I
+    cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: nmap-vuln
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap
-    ci.w6d.io/order: "0"
-params:
-  - name: TARGET_PORT
-    description: defines the entry port
-    type: string
+    ci.w6d.io/order: "2"
+    ci.w6d.io/task: nmap-nse
 step:
-  name: nmap-vuln
   image: "instrumentisto/nmap"
+  name: nmap-vuln
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap -Pn -v -A -T5 --script vuln 127.0.0.1 -p $(params.TARGET_PORT)  -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vuln.xml
+    nmap -Pn -v -A -T5 --script vuln http://nmap-nse-${W6D_PIPELINE_ID}:8080 -p $(params.TARGET_PORT)  -oX $(workspaces.artifacts.path)
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: nmap-vulners
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap
-    ci.w6d.io/order: "0"
+    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/order: "2"
 params:
   - name: TARGET_PORT
     description: define by client  the entry port
     type: string
   - name: TARGET_PATHS
-    description: define by client  all path targeted
+    description: define by client  all path targeted exemple '{"/","api/v1"}'
     type: string
-    default: "/"
+    default: '{"/"}'
 step:
   name: nmap-vulners
   image: "instrumentisto/nmap"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap -Pn -v -A -T5 -p$(params.TARGET_PORT) --script $(resources.inputs.source.path)/http-vulners-regex.nse --script-args paths={$(params.TARGET_PATHS)} 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-http-vulners-regex.xml
-    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulners.nse --script-args mincvss=5.0 127.0.0.1 -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulners.xml
+    nmap -Pn -v -A -T5 -p$(params.TARGET_PORT) --script $(resources.inputs.source.path)/vulnersCom_nmapvulner/http-vulners-regex.nse --script-args paths={$(params.TARGET_PATHS)} http://nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/reportCVE-http-vulners-regex.xml
+    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/scipag_vulscan/vulners.nse --script-args mincvss=5.0 http://nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/reportCVE-vulners.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: nmap-vulscan
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap
-    ci.w6d.io/order: "0"
+    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/order: "2"
 params:
   - name: TARGET_PORT
-    description: define by client the entry port
+    description: define by client  the entry port
     type: string
 step:
   name: nmap-vulscan
   image: "instrumentisto/nmap"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/tests/nmap
-    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulscan.nse 127.0.0.1 -p$(params.TARGET_PORT) -oX $(workspaces.artifacts.path)/tests/nmap/reportCVE-vulscan.xml
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: sbt-build
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: sbt
-    ci.w6d.io/order: "0"
-step:
-  name: sbt-build
-  image: "mozilla/sbt"
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/builds/sbt
-    cd $(resources.inputs.source.path)
-    sbt clean test
-    tar -czvf $(workspaces.artifacts.path)/builds/sbt/target.tar.gz target/*
+    nmap -Pn -v -A -T5 --script $(resources.inputs.source.path)/vulscan.nse http://nmap-nse-${W6D_PIPELINE_ID} -p$(params.TARGET_PORT) -oX $(workspaces.artifacts.path)/reportCVE-vulscan.xml
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: sbt-coverage
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: sbt
@@ -342,18 +255,15 @@ step:
   name: sbt-coverage
   image: "mozilla/sbt"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/builds/sbt
     cd $(resources.inputs.source.path)
     sbt clean test
     sbt clean coverage test coverageReport
-    tar -czvf  $(workspaces.artifacts.path)/builds/sbt/target.tar.gz target/*
+    tar -czvf  $(workspaces.artifacts.path)/target.tar.gz target/*
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: quasar-build
-  labels:
-  {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: quasar
@@ -370,14 +280,12 @@ params:
       type: string
       default: ""
 step:
-  name: quasar-build
+  name: w6dio/docker-quasar:v0.0.1
   image: "node"
   script: |
-    mkdir -p $(workspaces.artifacts.path)/builds/quasar
-    npm i -g @quasar/cli
     cd $(resources.inputs.source.path)/$(params.PATH)
     quasar build -m $(params.TYPE) $(params.EXTRA_PARAMETERS) | tee output
-    tar -czvf $(workspaces.artifacts.path)/builds/quasar/dist.tar.gz dist/*
+    tar -czvf $(workspaces.artifacts.path)/dist.tar.gz dist/*
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
