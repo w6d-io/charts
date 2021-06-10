@@ -115,7 +115,7 @@ metadata:
     ci.w6d.io/task: deploy
   name: deploy-init-helm-step-generic
 step:
-  image: w6dio/kubectl:v1.1.3
+  image: w6dio/kubectl:v1.2.1
   name: init-helm
   script: |
     helm3 repo add w6dio https://charts.w6d.io
@@ -268,7 +268,7 @@ metadata:
     ci.w6d.io/task: nmap-nse
   name: nmap-nse-clean-step-generic
 step:
-  image: w6dio/kubectl:v1.1.3
+  image: w6dio/kubectl:v1.2.1
   name: clean
   script: |
     helm3 delete nmap-nse-${W6D_PIPELINE_ID}
@@ -282,7 +282,7 @@ metadata:
     ci.w6d.io/task: owasp
   name: owasp-clean-step-generic
 step:
-  image: w6dio/kubectl:v1.1.3
+  image: w6dio/kubectl:v1.2.1
   name: clean
   script: |
     helm3 delete owasp-${W6D_PIPELINE_ID}
@@ -324,7 +324,7 @@ metadata:
     ci.w6d.io/task: nmap-nse
   name: nmap-nse-deploy-step-generic
 step:
-  image: w6dio/kubectl:v1.1.3
+  image: w6dio/kubectl:v1.2.1
   name: deploy
   script: |
     helm3 repo add w6dio https://charts.w6d.io
@@ -340,7 +340,7 @@ metadata:
     ci.w6d.io/task: owasp
   name: owasp-deploy-step-generic
 step:
-  image: w6dio/kubectl:v1.1.3
+  image: w6dio/kubectl:v1.2.1
   name: deploy
   script: |
     helm3 repo add w6dio https://charts.w6d.io
