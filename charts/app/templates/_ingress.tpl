@@ -11,3 +11,29 @@ Return the appropriate apiVersion for Ingress.
 {{- end -}}
 {{- end -}}
 
+{{- define "ingress.extra.paths" -}}
+{{- range .Values.ingress.extraPaths }}
+{{- $name := "" }}
+{{- $port := 0 }}
+{{- if hasKey .backend "service" }}
+{{- $name = .backend.service.name }}
+{{- $port = .backend.service.port.number }}
+{{- else }}
+{{- $name = .backend.serviceName }}
+{{- $port = .backend.servicePort }}
+{{- end }}
+- path: {{ default "/" .path }}
+  backend:
+  {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" }}
+    service:
+      name: {{ $name }}
+      port:
+        number: {{ $port }}
+  pathType: Prefix
+  {{- else }}
+    serviceName: {{ $name }}
+    servicePort: {{ $port }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
