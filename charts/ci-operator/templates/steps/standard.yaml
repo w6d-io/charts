@@ -73,6 +73,82 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: deploy
+  name: deploy-get-values-step-generic
+step:
+  args:
+    - s3://$(params.s3valuepath)
+    - --skip-existing
+    - $(params.values)
+  command:
+    - s3cmd
+    - get
+  image: w6dio/s3cmd:v0.1.1
+  name: get-values
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "3"
+    ci.w6d.io/task: deploy
+  name: deploy-check-step-generic
+step:
+  args:
+    - $(params.release_name)
+    - $(params.namespace)
+  command:
+    - validate_rollout
+  image: w6dio/kubectl:v1.2.1
+  name: check
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: deploy
+  name: deploy-init-helm-step-generic
+step:
+  image: w6dio/kubectl:v1.2.1
+  name: init-helm
+  script: |
+    helm3 repo add w6dio https://charts.w6d.io
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "2"
+    ci.w6d.io/task: deploy
+  name: deploy-step-generic
+step:
+  args:
+    - upgrade
+    - --install
+    - -f
+    - $(params.values)
+    - $(params.flags[*])
+    - --namespace
+    - $(params.namespace)
+    - --version
+    - 1.1.6
+    - $(params.release_name)
+    - w6dio/app
+  command:
+    - helm3
+  image: w6dio/kubectl:v1.2.1
+  name: deploy
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
   name: static-test-gitleaks
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
@@ -85,6 +161,237 @@ step:
   image: "zricethezav/gitleaks:v6.1.2"
   script: |
     gitleaks -v --pretty --repo-path $(resources.inputs.source.path) --commit-from=$$(params.commitFrom) --commit-to=$(params.commitBefore) --branch=$(params.branch) --report gitleaks-report.json
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: git-leaks
+  name: git-leaks-standard
+step:
+  image: w6dio/docker-gitleaks:v0.0.6
+  name: git-leaks-standard
+  script: |
+    #!/bin/sh -e
+    mkdir -p $(workspaces.artifacts.path)/git-leaks
+    gitleaks -r ${W6D_REPOSITORY_URL} --access-token=$(cat /tekton/creds-secrets/secret-git-${W6D_PROJECT_ID}-${W6D_PIPELINE_ID}/password) --config-path=/run/configs/leaky-repo.toml -v --report=$(workspaces.artifacts.path)/git-leaks/report-pathsecretsscan.json --depth=20
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: trivy
+  name: trivy-standard
+params:
+  - name: DOCKER_IMAGE_URL
+    type: string
+    value: play.docker_url
+step:
+  image: aquasec/trivy:0.12.0
+  name: trivy-standard
+  script: |
+    echo $(params.DOCKER_IMAGE_URL)
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress -o $(workspaces.artifacts.path)/trivy-report.json $(params.DOCKER_IMAGE_URL)
+    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --severity HIGH $(params.DOCKER_IMAGE_URL)
+    trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress $(params.DOCKER_IMAGE_URL)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: owasp-baseline
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "2"
+    ci.w6d.io/task: owasp
+step:
+  image: w6dio/docker-owaspzap:v0.0.4
+  name: owasp-baseline
+  script: |
+    #!/bin/sh
+    set -e # comment due to return always warning (exit code 2)
+    set +e
+    zap-baseline.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -J report-baseline.json -d -a || {
+      cat /zap/wrk/report-baseline.json | jq '.'
+    }
+    cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)/owasp
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: owasp-graphql
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "4"
+    ci.w6d.io/task: owasp
+step:
+  image: w6dio/docker-owaspzap:v0.0.4
+  name: owasp-graphql
+  script: |
+    #!/bin/sh
+    set -e # comment due to return always warning (exit code 2)
+    set +e
+    zap-api-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -f graphql -J report-graphql.json -d -a || {
+      cat /zap/wrk/report-graphql.json | jq '.'
+    }
+    cp /zap/wrk/report-graphql.json $(workspaces.artifacts.path)/owasp
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: owasp-fullscan
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "3"
+    ci.w6d.io/task: owasp
+step:
+  image: w6dio/docker-owaspzap:v0.0.4
+  name: owasp-fullscan
+  script: |
+    #!/bin/sh
+    set -e # comment due to return always warning (exit code 2)
+    set +e
+    zap-full-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -J report-fullscan.json -d -a || {
+      cat /zap/wrk/report-fullscan.json | jq '.'
+    }
+    cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)/owasp
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "5"
+    ci.w6d.io/task: nmap-nse
+  name: nmap-nse-clean-step-generic
+step:
+  image: w6dio/kubectl:v1.2.1
+  name: clean
+  script: |
+    helm3 delete nmap-nse-${W6D_PIPELINE_ID}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "5"
+    ci.w6d.io/task: owasp
+  name: owasp-clean-step-generic
+step:
+  image: w6dio/kubectl:v1.2.1
+  name: clean
+  script: |
+    helm3 delete owasp-${W6D_PIPELINE_ID}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: nmap-nse
+  name: nmap-nse-deploy-get-values-step-generic
+step:
+  image: w6dio/s3cmd:v0.1.1
+  name: get-values
+  script: |
+    s3cmd get --skip-existing s3://artifacts/${W6D_PROJECT_ID}/${W6D_PIPELINE_ID}/values.yaml /helm/values/values.yaml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: owasp
+  name: owasp-deploy-get-values-step-generic
+step:
+  image: w6dio/s3cmd:v0.1.1
+  name: get-values
+  script: |
+    s3cmd get --skip-existing s3://artifacts/${W6D_PROJECT_ID}/${W6D_PIPELINE_ID}/values.yaml /helm/values/values.yaml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: nmap-nse
+  name: nmap-nse-deploy-step-generic
+step:
+  image: w6dio/kubectl:v1.2.1
+  name: deploy
+  script: |
+    helm3 repo add w6dio https://charts.w6d.io
+    helm3 upgrade --install -f /helm/values/values.yaml --set ingress.enabled=false --set service.name=nmap-nse-${W6D_PIPELINE_ID} --set serviceAccount.name=sa-${W6D_PROJECT_ID}-${W6D_PIPELINE_ID} --version 1.1.6 nmap-nse-${W6D_PIPELINE_ID} w6dio/app
+    validate_rollout nmap-nse-${W6D_PIPELINE_ID} p6e-cx-${W6D_PROJECT_ID}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: owasp
+  name: owasp-deploy-step-generic
+step:
+  image: w6dio/kubectl:v1.2.1
+  name: deploy
+  script: |
+    helm3 repo add w6dio https://charts.w6d.io
+    helm3 upgrade --install -f /helm/values/values.yaml --set ingress.enabled=false --set service.name=owasp-${W6D_PIPELINE_ID} --set serviceAccount.name=sa-${W6D_PROJECT_ID}-${W6D_PIPELINE_ID} --version 1.1.6 owasp-${W6D_PIPELINE_ID} w6dio/app
+    validate_rollout owasp-${W6D_PIPELINE_ID} p6e-cx-${W6D_PROJECT_ID}
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: nmap-vuln
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "4"
+    ci.w6d.io/task: nmap-nse
+step:
+  image: w6dio/docker-nmap:v0.0.6
+  name: nmap-vuln
+  script: |
+    mkdir -p $(workspaces.artifacts.path)/nmap
+    nmap -Pn -v -A -T5 --script=vuln nmap-nse-${W6D_PIPELINE_ID} -p 8080  -oX $(workspaces.artifacts.path)/nmap/nmap-vuln.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: nmap-vulners
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/order: "3"
+step:
+  image: w6dio/docker-nmap:v0.0.6
+  name: nmap-vulners
+  script: |
+    mkdir -p $(workspaces.artifacts.path)/nmap
+    nmap -Pn -v -A -T5 -p 8080 --script=/scripts/vulnersCom_nmapvulner/http-vulners-regex.nse --script-args paths=${TARGET_PATHS} nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/nmap/reportCVE-http-vulners-regex.xml
+    nmap -Pn -v -A -T5 --script=/scripts/vulnersCom_nmapvulner/vulners.nse --script-args mincvss=5.0 nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/nmap/reportCVE-vulners.xml
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  name: nmap-vulscan
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/order: "2"
+step:
+  image: w6dio/docker-nmap:v0.0.6
+  name: nmap-vulscan
+  script: |
+    mkdir -p $(workspaces.artifacts.path)/nmap
+    nmap -Pn -v -A -T5 --script=/scripts/scipag_vulscan/vulscan.nse nmap-nse-${W6D_PIPELINE_ID} -p 8080 -oX $(workspaces.artifacts.path)/nmap/reportCVE-vulscan.xml
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
