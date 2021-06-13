@@ -25,13 +25,23 @@ spec:
   - host: {{ .Values.ingress.host }}
     http:
       paths:
-      - backend:
+      - path: {{ .Values.ingress.path }}
+        {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" }}
+        pathType: Prefix
+        backend:
+          service:
+              name: {{ .Values.service.name }}
+              port:
+                number: {{ .Values.service.externalPort }}
+        {{- else }}
+        backend:
           serviceName: {{ .Values.service.name }}
           servicePort: {{ .Values.service.externalPort }}
-        path: {{ .Values.ingress.path }}
-      {{- if .Values.ingress.extraPaths }}
-      {{ toYaml .Values.ingress.extraPaths | nindent 6 }}
-      {{- end }}
+        {{- end }}
+        {{- if .Values.ingress.extraPaths }}
+        {{- include "ingress.extra.paths" . | nindent 6 }}
+        {{- end }}
+
   tls:
   - hosts:
     - {{ .Values.ingress.host }}
