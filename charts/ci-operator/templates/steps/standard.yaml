@@ -133,7 +133,6 @@ step:
     - upgrade
     - --install
     - -f
-    - --skip-existing
     - $(params.values)
     - $(params.flags[*])
     - --namespace
