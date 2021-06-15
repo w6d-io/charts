@@ -131,7 +131,6 @@ metadata:
 step:
   args:
     - upgrade
-    - --skip-existing
     - --install
     - -f
     - $(params.values)
