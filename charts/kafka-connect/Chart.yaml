@@ -4,9 +4,9 @@ description: install kafka connect instance from debezium
 type: application
 version: 1.5.0
 appVersion: 1.5
-maintainer:
+maintainers:
   - name: Wildcard
-    email: support@w8d.io
+    email: support@w6d.io
   - name: david972
     email: david.alexandre@w6d.io
 icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/favicon.png
