@@ -1,3 +1,4 @@
+{{- if .Values.connector.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,4 +20,4 @@ data:
       exit 0
     fi
     curl -i -X POST -H "Content-Type: application/json" $HOSTNAME:8083/connectors -d @/data/connector.json
-
+{{- end }}
