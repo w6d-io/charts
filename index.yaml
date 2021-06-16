@@ -2285,6 +2285,23 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/ci-status-0.1.0/ci-status-0.1.0.tgz
     version: 0.1.0
+  kafka-connect:
+  - apiVersion: v2
+    appVersion: "1.5"
+    created: "2021-06-16T21:37:08.667889781Z"
+    description: install kafka connect instance from debezium
+    digest: 4ca58235ead1a7f4e79965f7406aef497c4c8b16c82427a76cd1161e3bd4879d
+    icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/favicon.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: kafka-connect
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/kafka-connect-1.5.0/kafka-connect-1.5.0.tgz
+    version: 1.5.0
   redisinsight:
   - apiVersion: v2
     appVersion: 1.7.0
