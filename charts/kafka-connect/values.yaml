@@ -87,6 +87,7 @@ config:
     status: ''
 
 connector:
+  enabled: false
   database:
     hostname: ''
     port: ''
