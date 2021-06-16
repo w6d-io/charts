@@ -1,0 +1,23 @@
+{{- if .Values.connector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kafka-connect.fullname" . }}
+  labels:
+    {{- include "kafka-connect.labels" . | nindent 4 }}
+data:
+  connector.sh: |
+    #/usr/bin/env bash
+    set -e
+    timeout 30 bash -c 'while [[ "$(curl -s -o /dev/stderr -w '%{http_code}' -X GET http://$HOSTNAME:8083/ 2>/dev/null)" != "200" ]]; do sleep 1 ; done'
+    if [[ "$?" != "0" ]]
+    then
+      exit 1
+    fi
+    status_code=$(curl -i -X GET -s -o /dev/stderr -w "%{http_code}" -H "Content-Type: application/json" $HOSTNAME:8083/connectors/containers-connector 2>/dev/null)
+    if [ "${status_code}" == "200" ]
+    then
+      exit 0
+    fi
+    curl -i -X POST -H "Content-Type: application/json" $HOSTNAME:8083/connectors -d @/data/connector.json
+{{- end }}

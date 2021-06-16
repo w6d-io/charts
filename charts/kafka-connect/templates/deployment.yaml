@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-connect.fullname" . }}
+  labels:
+    {{- include "kafka-connect.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kafka-connect.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "kafka-connect.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kafka-connect.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: {{ .Values.config.bootstrap_servers }}
+            - name: GROUP_ID
+              value: {{ .Values.config.group_id }}
+            - name: OFFSET_STORAGE_TOPIC
+              value: {{ .Values.config.topics.offsets }}
+            - name: CONFIG_STORAGE_TOPIC
+              value: {{ .Values.config.topics.config }}
+            - name: STATUS_STORAGE_TOPIC
+              value: {{ .Values.config.topics.status }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ .Chart.Name }}
+              containerPort: 8083
+              protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 8083
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 8083
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.connector.enabled }}
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - /scripts/connector.sh
+          volumeMounts:
+          - mountPath: /data
+            name: connector
+          - mountPath: /scripts
+            name: scripts
+      volumes:
+      - name: connector
+        secret:
+          defaultMode: 0444
+          secretName: {{ include "kafka-connect.fullname" . }}
+      - name: scripts
+        configMap:
+          defaultMode: 0555
+          name: {{ include "kafka-connect.fullname" . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
