@@ -45,6 +45,11 @@ jobs:
             echo "::set-output name=changed::true"
           fi
 
+      # install kafka for kafka-connect
+      - name: Start Bitname Kafka
+        uses: bbcCorp/kafka-actions@v1
+        if: contains(steps.list-changed.outputs, 'kafka-connect')
+
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
 

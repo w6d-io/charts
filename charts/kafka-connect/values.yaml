@@ -79,12 +79,12 @@ tolerations: []
 affinity: {}
 
 config:
-  bootstrap_servers: ''
-  group_id: ''
+  bootstrap_servers: 'localhost:9200'
+  group_id: 'APP'
   topics:
-    offsets: ''
-    config: ''
-    status: ''
+    offsets: 'OFFSET'
+    config: 'CONFIG'
+    status: 'STATUS'
 
 connector:
   enabled: false
