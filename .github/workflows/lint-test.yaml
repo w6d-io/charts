@@ -48,7 +48,7 @@ jobs:
       - name: Debug
         shell: bash
         run: |
-          echo ${{ steps.list-changed.outputs }}
+          echo ${{ steps.list-changed.outputs.changed }}
 
       # install kafka for kafka-connect
       - name: Start Bitname Kafka
