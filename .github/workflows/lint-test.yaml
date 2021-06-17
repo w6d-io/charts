@@ -44,6 +44,11 @@ jobs:
           if [[ -n "$changed" ]]; then
             echo "::set-output name=changed::true"
           fi
+      # debug
+      - name: Debug
+        shell: bash
+        run: |
+          echo ${{ steps.list-changed.outputs }}
 
       # install kafka for kafka-connect
       - name: Start Bitname Kafka
