@@ -149,6 +149,125 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: codecov
+  name: codecov-step-standard
+step:
+  image: w6dio/docker-bash:v0.0.6
+  name: codecov-standard
+  script: |
+    #!/bin/bash
+    cd $(resources.inputs.source.path)
+    bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN -f $REPORT_PATH
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: codecov
+  name: codecov-step-test-standard
+params:
+- name: IMAGE_TEST
+  type: string
+  value: play.tasks.codecov.image
+- name: SCRIPT_TEST
+  type: string
+  value: play.tasks.codecov.script
+step:
+  image: $(params.IMAGE_TEST)
+  name: unit-test-report
+  script: |
+    #!/usr/bin/env sh
+    cd $(resources.inputs.source.path)
+    $(params.SCRIPT_TEST)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/language: python
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: codecov
+  name: codecov-step-python
+step:
+  image: w6dio/docker-codecov:v0.0.5
+  name: codecov-python
+  script: |
+    #!/bin/sh
+    cd $(resources.inputs.source.path)
+    codecov -t $CODECOV_TOKEN -f $REPORT_PATH
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/language: python
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: codecov
+  name: codecov-step-test-python
+params:
+- name: IMAGE_TEST
+  type: string
+  value: play.tasks.codecov.image
+- name: SCRIPT_TEST
+  type: string
+  value: play.tasks.codecov.script
+step:
+  image: $(params.IMAGE_TEST)
+  name: unit-test-report
+  script: |
+    #!/usr/bin/env sh
+    cd $(resources.inputs.source.path)
+    $(params.SCRIPT_TEST)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: sonarqube
+  name: sonarqube-step-standard
+step:
+  image: w6dio/docker-sonarqube:v0.0.1
+  name: sonarqube-standard
+  script: |
+    #!/bin/bash
+    cd $(resources.inputs.source.path)
+    ls -la
+    pwd
+    sonar-scanner -Dsonar.qualitygate.wait=true -Dsonar.login=$SONAR_TOKEN -Dproject.settings=$SONAR_PROPERTIES_PATH
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "0"
+    ci.w6d.io/task: sonarqube
+  name: sonarqube-step-test-standard
+params:
+- name: IMAGE_TEST
+  type: string
+  value: play.tasks.sonarqube.image
+- name: SCRIPT_TEST
+  type: string
+  value: play.tasks.sonarqube.script
+step:
+  image: $(params.IMAGE_TEST)
+  name: unit-test-report
+  script: |
+    #!/usr/bin/env sh
+    cd $(resources.inputs.source.path)
+    $(params.SCRIPT_TEST)
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
   name: static-test-gitleaks
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
