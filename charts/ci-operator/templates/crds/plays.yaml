@@ -3,10 +3,10 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: ci-system/ci-serving-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/ci-serving-cert
     controller-gen.kubebuilder.io/version: v0.4.1
   labels:
-    ci.w6d.io/name: ci-operator
+    {{- include "ci-operator.labels" . | nindent 4 }}
   name: plays.ci.w6d.io
 spec:
   group: ci.w6d.io
@@ -87,6 +87,9 @@ spec:
                 description: PipelineID contains the ID of pipeline for the project
                 format: int64
                 type: integer
+              pipeline_namespace:
+                description: 'PipelineNamespace is the namespace where the pipeline will run default : <pipeline_prefix>-<project_id>'
+                type: string
               project_id:
                 description: ProjectID contains the project ID
                 format: int64
