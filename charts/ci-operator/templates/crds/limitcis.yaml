@@ -6,7 +6,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
   labels:
-    ci.w6d.io/name: ci-operator
+    {{- include "ci-operator.labels" . | nindent 4 }}
   name: limitcis.ci.w6d.io
 spec:
   group: ci.w6d.io
