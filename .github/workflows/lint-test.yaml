@@ -44,6 +44,14 @@ jobs:
           if [[ -n "$changed" ]]; then
             echo "::set-output name=changed::true"
           fi
+          echo 'LIST_CHANGED<<EOF' >> $GITHUB_ENV
+          ct list-changed --config ct.yaml >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
+      # install kafka for kafka-connect
+      - name: Start Bitname Kafka
+        uses: bbcCorp/kafka-actions@v1
+        if: ${{ contains(env.LIST_CHANGED, 'kafka-connect') }}
 
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
