@@ -87,9 +87,6 @@ spec:
                 description: PipelineID contains the ID of pipeline for the project
                 format: int64
                 type: integer
-              pipeline_namespace:
-                description: 'PipelineNamespace is the namespace where the pipeline will run default : <pipeline_prefix>-<project_id>'
-                type: string
               project_id:
                 description: ProjectID contains the project ID
                 format: int64
