@@ -4,7 +4,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: ci-system/ci-serving-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/ci-serving-cert
   labels:
     {{- include "ci-operator.labels" . | nindent 4 }}
   name: ci-mutating-webhook-configuration
@@ -15,7 +15,7 @@ webhooks:
   clientConfig:
     service:
       name: ci-webhook-service
-      namespace: ci-system
+      namespace: {{ .Release.Namespace }}
       path: /mutate-ci-w6d-io-v1alpha1-play
   failurePolicy: Fail
   name: mutate.play.ci.w6d.io
