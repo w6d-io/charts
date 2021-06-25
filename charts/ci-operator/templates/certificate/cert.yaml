@@ -8,8 +8,8 @@ metadata:
     {{- include "ci-operator.labels" . | nindent 4 }}
 spec:
   dnsNames:
-    - ci-webhook-service.ci-system.svc
-    - ci-webhook-service.ci-system.svc.cluster.local
+    - ci-webhook-service.{{ .Release.Namespace }}.svc
+    - ci-webhook-service.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: ci-selfsigned-issuer
