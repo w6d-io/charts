@@ -21,6 +21,9 @@ spec:
       {{- end }}
       labels:
         {{- include "kafka-connect.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
