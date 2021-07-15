@@ -129,20 +129,14 @@ metadata:
     ci.w6d.io/task: deploy
   name: deploy-step-generic
 step:
-  args:
-    - upgrade
-    - --install
-    - -f
-    - $(params.values)
-    - $(params.flags[*])
-    - --namespace
-    - $(params.namespace)
-    - --version
-    - 1.1.6
-    - $(params.release_name)
-    - w6dio/app
-  command:
-    - helm3
+  script: |
+    RELEASE_NAME=$(yq -e -r '.release_name // empty' $(params.values) || echo -n "")
+    if [ -z "${RELEASE_NAME}" ]
+    then
+      RELEASE_NAME=$(params.release_name)
+    fi
+    echo ${RELEASE_NAME}
+    helm3 upgrade --install -f $(params.values) --namespace $(params.namespace) --version 1.1.6 $RELEASE_NAME w6dio/app
   image: w6dio/kubectl:v1.2.1
   name: deploy
 ---
@@ -758,20 +752,12 @@ metadata:
 step:
   name: deploy
   image: "w6dio/kubectl:v1.1.3"
-  command:
-    - helm3
-  args:
-    - upgrade
-    - --install
-    - -f
-    - $(params.values)
-    - $(params.flags[*])
-    - --namespace
-    - $(params.namespace)
-    - --version
-    - 1.1.6
-    - $(params.release_name)
-    - w6dio/app
+  script: |
+    RELEASE_NAME=$(yq -e -r '.release_name // empty' $(params.values) || echo -n "")
+    if [ -z "${RELEASE_NAME}" ] ; then
+      RELEASE_NAME=$(params.release_name)
+    fi
+    helm3 upgrade --install -f $(params.values) --namespace $(params.namespace) --version 1.1.6 $RELEASE_NAME w6dio/app
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -850,11 +836,12 @@ metadata:
 step:
   name: check
   image: "w6dio/kubectl:v1.1.3"
-  command:
-    - validate_rollout
-  args:
-    - $(params.release_name)
-    - $(params.namespace)
+  script: |
+    RELEASE_NAME=$(yq -e -r '.release_name // empty' $(params.values) || echo -n "")
+    if [ -z "${RELEASE_NAME}" ] ; then
+      RELEASE_NAME=$(params.release_name)
+    fi
+    validate_rollout $RELEASE_NAME $(params.namespace)
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
