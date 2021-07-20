@@ -291,11 +291,14 @@ metadata:
   name: git-leaks-standard
 step:
   image: w6dio/docker-gitleaks:v0.0.6
-  name: git-leaks-standard
+  name: scan-and-report-leaks
   script: |
-    #!/bin/sh -e
+    #!/bin/sh
+    set -e
+    if [ "$W6D_ERREXIT" != "true" ]; then trap '[ $? -eq 0 ] && exit 0 || echo -e "\e[93merror skipped..." && exit 0' EXIT; fi
     mkdir -p $(workspaces.artifacts.path)/git-leaks
-    gitleaks -r ${W6D_REPOSITORY_URL} --access-token=$(cat /tekton/creds-secrets/secret-git-${W6D_PROJECT_ID}-${W6D_PIPELINE_ID}/password) --config-path=/run/configs/leaky-repo.toml -v --report=$(workspaces.artifacts.path)/git-leaks/report-pathsecretsscan.json --depth=20
+    gitleaks -r ${W6D_REPOSITORY_URL} --access-token=$(cat /tekton/creds-secrets/secret-git-${W6D_PROJECT_ID}-${W6D_PIPELINE_ID}/password) --config-path=/run/configs/leaky-repo.toml -v --report=$(workspaces.artifacts.path)/git-leaks/report-pathsecretsscan.json --depth=5
+    echo -e "\e[32msuccess"
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -303,7 +306,7 @@ metadata:
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/order: "0"
-    ci.w6d.io/task: trivy
+    ci.w6d.io/task: scan-image
   name: trivy-standard
 params:
   - name: DOCKER_IMAGE_URL
@@ -311,72 +314,100 @@ params:
     value: play.docker_url
 step:
   image: aquasec/trivy:0.12.0
-  name: trivy-standard
-  script: |
-    echo $(params.DOCKER_IMAGE_URL)
-    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress -o $(workspaces.artifacts.path)/trivy-report.json $(params.DOCKER_IMAGE_URL)
-    trivy --exit-code 0 --cache-dir .trivycache/ --no-progress --severity HIGH $(params.DOCKER_IMAGE_URL)
-    trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress $(params.DOCKER_IMAGE_URL)
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: owasp-baseline
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/order: "2"
-    ci.w6d.io/task: owasp
-step:
-  image: w6dio/docker-owaspzap:v0.0.4
-  name: owasp-baseline
+  name: scan-image-vulnerabilities
   script: |
     #!/bin/sh
-    set -e # comment due to return always warning (exit code 2)
-    set +e
-    zap-baseline.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -J report-baseline.json -d -a || {
-      cat /zap/wrk/report-baseline.json | jq '.'
-    }
-    cp /zap/wrk/report-baseline.json $(workspaces.artifacts.path)/owasp
+    set -e
+    if [ "$W6D_ERREXIT" != "true" ]; then trap '[ $? -eq 0 ] && exit 0 || echo -e "\e[93merror skipped..." && exit 0' EXIT; fi
+    mkdir -p $(workspaces.artifacts.path)/scan-image-vulnerabilities
+    trivy --exit-code 0 --cache-dir .trivycache/ --severity LOW --no-progress -o $(workspaces.artifacts.path)/scan-image-vulnerabilities/trivy-low-severity-report.txt $(params.DOCKER_IMAGE_URL)
+    trivy --exit-code 0 --cache-dir .trivycache/ --severity MEDIUM --no-progress -o $(workspaces.artifacts.path)/scan-image-vulnerabilities/trivy-medium-severity-report.txt $(params.DOCKER_IMAGE_URL)
+    trivy --exit-code 0 --cache-dir .trivycache/ --severity HIGH --no-progress -o $(workspaces.artifacts.path)/scan-image-vulnerabilities/trivy-high-severity-report.txt  $(params.DOCKER_IMAGE_URL)
+    trivy --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress -o $(workspaces.artifacts.path)/scan-image-vulnerabilities/trivy-critical-severity-report.txt $(params.DOCKER_IMAGE_URL)
+    echo -e "\e[32msuccess"
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: owasp-graphql
   annotations:
     ci.w6d.io/kind: generic
-    ci.w6d.io/order: "4"
-    ci.w6d.io/task: owasp
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: scan-image
+  name: trivy-upload-artifact-standard
 step:
-  image: w6dio/docker-owaspzap:v0.0.4
-  name: owasp-graphql
+  image: w6dio/s3cmd:v0.1.1
+  name: upload-report
   script: |
-    #!/bin/sh
-    set -e # comment due to return always warning (exit code 2)
-    set +e
-    zap-api-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -f graphql -J report-graphql.json -d -a || {
-      cat /zap/wrk/report-graphql.json | jq '.'
-    }
-    cp /zap/wrk/report-graphql.json $(workspaces.artifacts.path)/owasp
+    #!/bin/bash
+    cd $(workspaces.artifacts.path)
+    for FILES in */*; do s3cmd put $(workspaces.artifacts.path)/$FILES s3://user-artifacts/${W6D_PROJECT_ID}/${W6D_PIPELINE_ID}/$FILES && rm $(workspaces.artifacts.path)/$FILES; done
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: owasp-fullscan
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/order: "3"
     ci.w6d.io/task: owasp
+  name: owasp-fullscan
 step:
   image: w6dio/docker-owaspzap:v0.0.4
-  name: owasp-fullscan
+  name: full-scan-web-app-vulnerabilities
   script: |
     #!/bin/sh
-    set -e # comment due to return always warning (exit code 2)
-    set +e
-    zap-full-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -J report-fullscan.json -d -a || {
-      cat /zap/wrk/report-fullscan.json | jq '.'
-    }
-    cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)/owasp
+    set -e
+    mkdir -p $(workspaces.artifacts.path)/owasp
+    if [ "$W6D_ERREXIT" != "true" ]; then trap 'exitcode=$? && cp /zap/wrk/report-fullscan.json $(workspaces.artifacts.path)/owasp/ && [ $exitcode -eq 0 ] && exit 0 || echo -e "\e[93merror skipped..." && exit 0' EXIT; fi
+    zap-full-scan.py -t http://owasp-${W6D_PIPELINE_ID}:8080 -T 60 -D 30 -J report-fullscan.json -d -a
+    echo -e "\e[32msuccess"
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "6"
+    ci.w6d.io/task: owasp
+  name: owasp-upload-artifacts-standard
+step:
+  image: w6dio/s3cmd:v0.1.1
+  name: upload-reports
+  script: |
+    #!/bin/bash
+    cd $(workspaces.artifacts.path)
+    for FILES in */*; do s3cmd put $(workspaces.artifacts.path)/$FILES s3://user-artifacts/${W6D_PROJECT_ID}/${W6D_PIPELINE_ID}/$FILES && rm $(workspaces.artifacts.path)/$FILES; done
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "6"
+    ci.w6d.io/task: scan-vulnaribilities-cve
+  name: nmap-upload-artifacts-standard
+step:
+  image: w6dio/s3cmd:v0.1.1
+  name: upload-reports
+  script: |
+    #!/bin/bash
+    cd $(workspaces.artifacts.path)
+    for FILES in */*; do s3cmd put $(workspaces.artifacts.path)/$FILES s3://user-artifacts/${W6D_PROJECT_ID}/${W6D_PIPELINE_ID}/$FILES && rm $(workspaces.artifacts.path)/$FILES; done
+---
+apiVersion: ci.w6d.io/v1alpha1
+kind: Step
+metadata:
+  annotations:
+    ci.w6d.io/kind: generic
+    ci.w6d.io/order: "1"
+    ci.w6d.io/task: git-leaks
+  name: git-leaks-upload-artifact-standard
+step:
+  image: w6dio/s3cmd:v0.1.1
+  name: upload-report
+  script: |
+    #!/bin/bash
+    cd $(workspaces.artifacts.path)
+    for FILES in */*; do s3cmd put $(workspaces.artifacts.path)/$FILES s3://user-artifacts/${W6D_PROJECT_ID}/${W6D_PIPELINE_ID}/$FILES && rm $(workspaces.artifacts.path)/$FILES; done
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
@@ -384,7 +415,7 @@ metadata:
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/order: "5"
-    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/task: scan-vulnaribilities-cve
   name: nmap-nse-clean-step-generic
 step:
   image: w6dio/kubectl:v1.2.1
@@ -412,7 +443,7 @@ metadata:
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/order: "0"
-    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/task: scan-vulnaribilities-cve
   name: nmap-nse-deploy-get-values-step-generic
 step:
   image: w6dio/s3cmd:v0.1.1
@@ -440,7 +471,7 @@ metadata:
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/order: "1"
-    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/task: scan-vulnaribilities-cve
   name: nmap-nse-deploy-step-generic
 step:
   image: w6dio/kubectl:v1.2.1
@@ -469,48 +500,24 @@ step:
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
-  name: nmap-vuln
+  name: nmap
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/order: "4"
-    ci.w6d.io/task: nmap-nse
+    ci.w6d.io/task: scan-vulnaribilities-cve
 step:
   image: w6dio/docker-nmap:v0.0.6
-  name: nmap-vuln
+  name: check-vulnerabilities
   script: |
+    #!/bin/sh
+    set -e
+    if [ "$W6D_ERREXIT" != "true" ]; then trap '[ $? -eq 0 ] && exit 0 || echo -e "\e[93merror skipped..." && exit 0' EXIT; fi
     mkdir -p $(workspaces.artifacts.path)/nmap
     nmap -Pn -v -A -T5 --script=vuln nmap-nse-${W6D_PIPELINE_ID} -p 8080  -oX $(workspaces.artifacts.path)/nmap/nmap-vuln.xml
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: nmap-vulners
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-nse
-    ci.w6d.io/order: "3"
-step:
-  image: w6dio/docker-nmap:v0.0.6
-  name: nmap-vulners
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/nmap
-    nmap -Pn -v -A -T5 -p 8080 --script=/scripts/vulnersCom_nmapvulner/http-vulners-regex.nse --script-args paths=${TARGET_PATHS} nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/nmap/reportCVE-http-vulners-regex.xml
+    nmap -Pn -v -A -T5 -p 8080 --script=/scripts/vulnersCom_nmapvulner/http-vulners-regex.nse --script-args paths=${TARGET_ENDPOINTS} nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/nmap/reportCVE-http-vulners-regex.xml
     nmap -Pn -v -A -T5 --script=/scripts/vulnersCom_nmapvulner/vulners.nse --script-args mincvss=5.0 nmap-nse-${W6D_PIPELINE_ID} -oX $(workspaces.artifacts.path)/nmap/reportCVE-vulners.xml
----
-apiVersion: ci.w6d.io/v1alpha1
-kind: Step
-metadata:
-  name: nmap-vulscan
-  annotations:
-    ci.w6d.io/kind: generic
-    ci.w6d.io/task: nmap-nse
-    ci.w6d.io/order: "2"
-step:
-  image: w6dio/docker-nmap:v0.0.6
-  name: nmap-vulscan
-  script: |
-    mkdir -p $(workspaces.artifacts.path)/nmap
     nmap -Pn -v -A -T5 --script=/scripts/scipag_vulscan/vulscan.nse nmap-nse-${W6D_PIPELINE_ID} -p 8080 -oX $(workspaces.artifacts.path)/nmap/reportCVE-vulscan.xml
+    echo -e "\e[32msuccess"
 ---
 # https://r2devops.io/jobs/static_tests/trivy_dependency
 apiVersion: ci.w6d.io/v1alpha1
@@ -583,8 +590,6 @@ apiVersion: ci.w6d.io/v1alpha1
 kind: Step
 metadata:
   name: unittest-step-generic
-  labels:
-    {{- include "ci-operator.labels" . | nindent 4 }}
   annotations:
     ci.w6d.io/kind: generic
     ci.w6d.io/task: unit-tests
@@ -594,8 +599,11 @@ step:
   image: $(params.IMAGE)
   script: |
     #!/usr/bin/env sh
+    set -e
+    if [ "$W6D_ERREXIT" != "true" ]; then trap '[ $? -eq 0 ] && exit 0 || echo "\e[93merror skipped..." && exit 0' EXIT; fi
     cd $(resources.inputs.source.path)
     $(params.script)
+    echo "\e[32msuccess"
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
