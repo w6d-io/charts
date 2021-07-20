@@ -98,13 +98,14 @@ metadata:
     ci.w6d.io/task: deploy
   name: deploy-check-step-generic
 step:
-  args:
-    - $(params.release_name)
-    - $(params.namespace)
-  command:
-    - validate_rollout
   image: w6dio/kubectl:v1.2.1
   name: check
+  script: |
+    RELEASE_NAME=$(yq -e -r '.release_name // empty' $(params.values) || echo -n "")
+    if [ -z "${RELEASE_NAME}" ] ; then
+      RELEASE_NAME=$(params.release_name)
+    fi
+    validate_rollout $RELEASE_NAME $(params.namespace)
 ---
 apiVersion: ci.w6d.io/v1alpha1
 kind: Step
