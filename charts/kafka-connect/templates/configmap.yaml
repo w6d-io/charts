@@ -7,17 +7,38 @@ metadata:
     {{- include "kafka-connect.labels" . | nindent 4 }}
 data:
   connector.sh: |
-    #/usr/bin/env bash
+    #!/usr/bin/env bash
     set -e
+    function install_jq() {
+      if [[ ! -d /kafka/external_libs/jq ]] || [[ ! -f /kafka/external_libs/jq/jq ]]
+      then
+        mkdir -p /kafka/external_libs/jq/ && curl -L -o /kafka/external_libs/jq/jq  https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        chmod +x /kafka/external_libs/jq/jq
+      fi
+    }
+    install_jq
     timeout 30 bash -c 'while [[ "$(curl -s -o /dev/stderr -w '%{http_code}' -X GET http://$HOSTNAME:8083/ 2>/dev/null)" != "200" ]]; do sleep 1 ; done'
     if [[ "$?" != "0" ]]
     then
       exit 1
     fi
-    status_code=$(curl -i -X GET -s -o /dev/stderr -w "%{http_code}" -H "Content-Type: application/json" $HOSTNAME:8083/connectors/containers-connector 2>/dev/null)
+    connector_name=$(cat /data/connector.json | jq -r '.name')
+    status_code=$(curl -i -X GET -s -o /dev/stderr -w "%{http_code}" -H "Content-Type: application/json" $HOSTNAME:8083/connectors/${connector_name} 2>/dev/null)
     if [ "${status_code}" == "200" ]
     then
+      PATH=$PATH:/kafka/external_libs/jq
+      config=$(mktemp -t config.XXXX.json)
+      cat /data/connector.json | jq -c '.config' > $config
+      status_code=$(curl -i -X PUT -s -o /dev/stderr -w "%{http_code}" -d@${config} -H "Content-Type: application/json" $HOSTNAME:8083/connectors/${connector_name}/config 2>/dev/null)
+      rm -rf $config
+      if [ "${status_code}" != "200" ]
+      then
+        echo "update failed (${status_code})"
+        exit 1
+      fi
+      exit 0
+    else
+      curl -i -X POST -H "Content-Type: application/json" $HOSTNAME:8083/connectors -d @/data/connector.json
       exit 0
     fi
-    curl -i -X POST -H "Content-Type: application/json" $HOSTNAME:8083/connectors -d @/data/connector.json
 {{- end }}
