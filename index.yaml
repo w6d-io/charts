@@ -2364,6 +2364,22 @@ entries:
   kafka-connect:
   - apiVersion: v2
     appVersion: "1.5"
+    created: "2021-07-22T16:35:03.787597348Z"
+    description: install kafka connect instance from debezium
+    digest: 7cbc0b07c62be931e35a7f7e23621169f5c4ef9b5ac66defa62590d768e7e7e7
+    icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/favicon.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: kafka-connect
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/kafka-connect-1.5.4/kafka-connect-1.5.4.tgz
+    version: 1.5.4
+  - apiVersion: v2
+    appVersion: "1.5"
     created: "2021-07-20T15:32:14.25529963Z"
     description: install kafka connect instance from debezium
     digest: a3512005861e810b9c2c40c682cb72bee7e66268750606c3ddead14a989167c5
