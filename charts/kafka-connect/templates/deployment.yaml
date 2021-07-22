@@ -32,7 +32,37 @@ spec:
       serviceAccountName: {{ include "kafka-connect.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.convertor.enabled }}
+      initContainers:
+        - name: download-convertor
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              wget -O /tmp/convertor.zip {{ .Values.convertor.plugin.url }}
+              mkdir -p /convertors
+              cd /convertors
+              unzip /tmp/convertor.zip
+              rm -f /tmp/convertor.zip
+          volumeMounts:
+          - mountPath: /convertors
+            name: convertors
+      {{- end }}
       containers:
+        {{- if .Values.convertor.enabled }}
+        - name: convertor
+          image: confluentinc/cp-schema-registry:latest
+          env:
+            - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
+              value: PLAINTEXT:{{ .Values.config.bootstrap_servers }}
+            - name: SCHEMA_REGISTRY_HOST_NAME
+              value: localhost
+            - name: SCHEMA_REGISTRY_LISTENERS
+              value: http://localhost:{{- .Values.convertor.plugin.port }}
+            - name: SCHEMA_REGISTRY_DEBUG
+              value: "true"
+        {{- end }}
         - name: {{ .Chart.Name }}
           env:
             - name: BOOTSTRAP_SERVERS
@@ -45,6 +75,10 @@ spec:
               value: {{ .Values.config.topics.config }}
             - name: STATUS_STORAGE_TOPIC
               value: {{ .Values.config.topics.status }}
+            {{- if .Values.connector.enabled }}
+            - name: CONNECT_PLUGIN_PATH
+              value: "/kafka/connect,/convertors"
+            {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -76,7 +110,15 @@ spec:
             name: connector
           - mountPath: /scripts
             name: scripts
+      {{- if .Values.convertor.enabled }}
+          - mountPath: /convertors
+            name: convertors
+      {{- end}}
       volumes:
+      {{- if .Values.convertor.enabled }}
+      - name: convertors
+        emptyDir: {}
+      {{- end}}
       - name: connector
         secret:
           defaultMode: 0444
