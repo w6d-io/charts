@@ -1,0 +1,18 @@
+{{- if and .Values.externalsvc .Values.externalsvc.namespaceTarget }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: {{ include "app.servicename" . }}
+  namespace: {{ .Values.externalsvc.namespaceTarget }}
+spec:
+  type: ExternalName
+  externalName: {{ include "app.externalservicename" . }}
+  ports:
+  - port: {{ .Values.externalsvc.port }}
+    protocol: TCP
+    targetPort: {{ .Values.service.externalPort }}
+{{- end }}
+
