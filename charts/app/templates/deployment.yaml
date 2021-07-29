@@ -94,14 +94,13 @@ spec:
           {{- end }}
           {{- with $secrets }}
           {{- range . }}
-            {{- if ne (coalesce .kind "env" ) "volume" }}
           - name: {{ .name }}
+            {{- if ne (coalesce .kind "env" ) "volume" }}
             valueFrom:
               secretKeyRef:
                 key: {{ .key }}
                 name: {{ $fullname }}
             {{- else }}
-          - name: {{ .name }}
             value: {{ .path }}/{{ .key }}
             {{- end }}
           {{- end }}
@@ -159,12 +158,14 @@ spec:
           {{- end }}
           {{- with $secrets }}
             {{- range . }}
-            {{- if ne (coalesce .kind "env" ) "volume" }}
           - name: {{ .name }}
+            {{- if ne (coalesce .kind "env" ) "volume" }}
             valueFrom:
               secretKeyRef:
                 key: {{ .key }}
                 name: {{ $fullname }}
+            {{- else }}
+            value: {{ .path }}/{{ .key }}
             {{- end }}
             {{- end }}
           {{- end }}
