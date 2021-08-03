@@ -3,6 +3,26 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v1.0.1
+    created: "2021-08-03T10:36:16.853652392Z"
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: 7212ea0d33790b14e7da3b42ea41a8e851a4de0b4d0fe48dd94b81234de05e77
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-1.2.6/app-1.2.6.tgz
+    version: 1.2.6
+  - apiVersion: v2
+    appVersion: v1.0.1
     created: "2021-08-03T10:30:41.028177602Z"
     description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
     digest: 705a2f28261b3af1e6f3ffc2a7883c2a5db7a5feecba04a29666f2e211287723
