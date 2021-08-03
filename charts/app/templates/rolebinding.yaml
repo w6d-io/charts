@@ -1,4 +1,5 @@
 {{- if or .Values.lifecycle.enabled .Values.serviceAccount.create }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -9,6 +10,21 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: role-{{ template "app.fullname" . }}-svc
+subjects:
+- kind: ServiceAccount
+  name: {{ include "app.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  name: rolebinding-{{ template "app.fullname" . }}-pod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: role-{{ template "app.fullname" . }}-pod
 subjects:
 - kind: ServiceAccount
   name: {{ include "app.serviceAccountName" . }}
