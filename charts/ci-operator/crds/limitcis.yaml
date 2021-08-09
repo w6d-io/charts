@@ -4,11 +4,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
-    "helm.sh/hook": "pre-install,pre-upgrade"
-    "helm.sh/hook-weight": "-1"
-  creationTimestamp: null
-  labels:
-    {{- include "ci-operator.labels" . | nindent 4 }}
   name: limitcis.ci.w6d.io
 spec:
   group: ci.w6d.io
