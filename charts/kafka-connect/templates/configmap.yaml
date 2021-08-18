@@ -17,6 +17,7 @@ data:
       fi
     }
     install_jq
+    PATH=$PATH:/kafka/external_libs/jq
     timeout 30 bash -c 'while [[ "$(curl -s -o /dev/stderr -w '%{http_code}' -X GET http://$HOSTNAME:8083/ 2>/dev/null)" != "200" ]]; do sleep 1 ; done'
     if [[ "$?" != "0" ]]
     then
@@ -26,7 +27,6 @@ data:
     status_code=$(curl -i -X GET -s -o /dev/stderr -w "%{http_code}" -H "Content-Type: application/json" $HOSTNAME:8083/connectors/${connector_name} 2>/dev/null)
     if [ "${status_code}" == "200" ]
     then
-      PATH=$PATH:/kafka/external_libs/jq
       config=$(mktemp -t config.XXXX.json)
       cat /data/connector.json | jq -c '.config' > $config
       status_code=$(curl -i -X PUT -s -o /dev/stderr -w "%{http_code}" -d@${config} -H "Content-Type: application/json" $HOSTNAME:8083/connectors/${connector_name}/config 2>/dev/null)
