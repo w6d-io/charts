@@ -2,7 +2,7 @@ apiVersion: v2
 name: kafka-connect
 description: install kafka connect instance from debezium
 type: application
-version: 1.5.7
+version: 1.5.8
 appVersion: "1.5"
 maintainers:
   - name: Wildcard
