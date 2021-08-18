@@ -97,6 +97,7 @@ convertor:
 
 connector:
   enabled: false
+  slotName: ''
   database:
     hostname: ''
     port: ''
