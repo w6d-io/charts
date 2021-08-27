@@ -1,7 +1,8 @@
+{{- if .Values.schema_registry.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kafka-connect.fullname" . }}
+  name: {{ include "kafka-connect.fullname" . }}-schema-registry
   labels:
     {{- include "kafka-connect.labels" . | nindent 4 }}
 spec:
@@ -12,5 +13,6 @@ spec:
       protocol: TCP
       name: {{ .Chart.Name }}
   selector:
-    component: kafka-connect
     {{- include "kafka-connect.selectorLabels" . | nindent 4 }}
+    component: schema-registry
+{{- end }}

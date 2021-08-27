@@ -60,3 +60,13 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+
+{{- define "plugin.path" -}}
+{{- $v := list "/kafka/connect" -}}
+{{- range .Values.volumeMounts }}
+{{- $v = append $v (printf "%s" .mountPath)  -}}
+{{- end -}}
+{{- join "," $v -}}
+{{- end -}}
+
