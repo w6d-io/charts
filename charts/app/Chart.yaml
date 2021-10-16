@@ -13,6 +13,7 @@ maintainers:
   - name: david972
     email: david.alexandre@w6d.io
 icon: https://gitlab.w6d.io/favicon.ico
+dependencies:
 - name: mongodb
   version: 10.28.1
   repository: https://charts.bitnami.com/bitnami
