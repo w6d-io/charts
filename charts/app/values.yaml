@@ -124,3 +124,9 @@ nodeSelector: {}
 
 volumeMounts: {}
 volumes: {}
+
+mongodb:
+  install: false
+
+redis:
+  install: false
