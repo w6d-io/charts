@@ -3,6 +3,35 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v1.0.1
+    created: "2021-10-17T12:22:48.923681746Z"
+    dependencies:
+    - condition: mongodb.install
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: 10.28.1
+    - condition: redis.install
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 15.4.1
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: c24707a796c726a2565524ed389bef45042b637388057de72626198db5ea632e
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-1.3.0/app-1.3.0.tgz
+    version: 1.3.0
+  - apiVersion: v2
+    appVersion: v1.0.1
     created: "2021-08-03T10:36:16.853652392Z"
     description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
     digest: 7212ea0d33790b14e7da3b42ea41a8e851a4de0b4d0fe48dd94b81234de05e77
@@ -2924,7 +2953,8 @@ entries:
   - apiVersion: v2
     appVersion: v90.0.2
     created: "2021-05-31T20:38:19.536479082Z"
-    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    description: This chart install the toucantouco frontend on premise. You will
+      need to access to their repository in orrder this chart works
     digest: 6e87583b24a9f1f905a88433ff457bd8055548b57f30d6efe78eda6591a91b78
     icon: https://toucantoco.com/img/logo-toucan-toco.png
     maintainers:
@@ -2940,7 +2970,8 @@ entries:
   - apiVersion: v2
     appVersion: v90.0.2
     created: "2021-05-31T19:37:24.431639793Z"
-    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    description: This chart install the toucantouco frontend on premise. You will
+      need to access to their repository in orrder this chart works
     digest: 79b2b01762643b798429d81aadd12f15c8cb5b4cc29fbc15ac4810caa54fcb65
     icon: https://toucantoco.com/img/logo-toucan-toco.png
     maintainers:
@@ -2956,7 +2987,8 @@ entries:
   - apiVersion: v2
     appVersion: v90.0.2
     created: "2021-05-31T15:12:19.479474839Z"
-    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    description: This chart install the toucantouco frontend on premise. You will
+      need to access to their repository in orrder this chart works
     digest: 76b7049909a510b98930439c578b86bfcdaddc0cfd6135e1ca4169fea1894a87
     icon: https://toucantoco.com/img/logo-toucan-toco.png
     maintainers:
@@ -2972,7 +3004,8 @@ entries:
   - apiVersion: v2
     appVersion: v90.0.2
     created: "2021-05-29T07:45:22.089345187Z"
-    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    description: This chart install the toucantouco frontend on premise. You will
+      need to access to their repository in orrder this chart works
     digest: d60662ca6ebb7b5b41df05538bd0bd945181914d3fdf9af32d6063d08d99659e
     icon: https://toucantoco.com/img/logo-toucan-toco.png
     maintainers:
@@ -2988,7 +3021,8 @@ entries:
   - apiVersion: v2
     appVersion: v87.0.11
     created: "2021-03-19T23:24:26.102579005Z"
-    description: This chart install the toucantouco frontend on premise. You will need to access to their repository in orrder this chart works
+    description: This chart install the toucantouco frontend on premise. You will
+      need to access to their repository in orrder this chart works
     digest: 0b325770bf0e30cd2b9b5da629975fe3b680b51107d3739fa2d4c1e5a2cca0c0
     icon: https://toucantoco.com/img/logo-toucan-toco.png
     maintainers:
@@ -3001,4 +3035,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2021-01-14T15:59:07.072180817Z"
+generated: "2021-10-17T12:22:48.924642351Z"
