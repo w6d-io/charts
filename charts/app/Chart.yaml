@@ -17,9 +17,9 @@ dependencies:
 - name: mongodb
   version: 10.28.1
   repository: https://charts.bitnami.com/bitnami
-  condition: mongodb.enabled
+  condition: mongodb.install
 - name: redis
   version: 15.4.1
   repository: https://charts.bitnami.com/bitnami
-  condition: redis.enabled
+  condition: redis.install
 version: 1.3.0
