@@ -1,0 +1,88 @@
+{{- $allowedProvider := list "gitlab" "azure" "keycloak" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oauth-external-auth.fullname" . }}
+  labels:
+    {{- include "oauth-external-auth.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "oauth-external-auth.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- if or (not .Values.secretName) .Values.podAnnotations }}
+      annotations:
+      {{- end }}
+      {{- if not .Values.secretName }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- end }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "oauth-external-auth.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "oauth-external-auth.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          args:
+            - --provider={{ .Values.provider }}
+            - --email-domain= {{ .Values.emailDomain }}
+            - --upstream="file:///dev/null"
+            - --http-address=0.0.0.0:4180
+            {{- if and .Values.oidcIssuerUrl (has .Values.provider $allowedProvider ) }}
+            - --oidc-issuer-url={{ .Values.oidcIssuerUrl }}
+            {{- end }}
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              value: {{ .Values.clientId }}
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: client-secret
+                  name: {{ default (include "oauth-external-auth.fullname" .) .Values.secretName }}
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: cookie-secret
+                  name: {{ default (include "oauth-external-auth.fullname" .) .Values.secretName }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 4180
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
