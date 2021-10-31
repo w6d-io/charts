@@ -1,0 +1,17 @@
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}/oauth2
+  {{- end }}
+{{- end }}
+{{ if not .Values.secretName }}
+For more security preferred using an existing secret
+{{- end}}
+Do not forget to add the following annotations in the originals ingress definition
+annotations:
+  nginx.ingress.kubernetes.io/auth-url: "https://$host/oauth2/auth"
+  nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
+{{- end }}
+{{/* run missing check */}}
+{{ include "oauth-external-auth.missing" . }}
