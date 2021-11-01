@@ -1,0 +1,15 @@
+apiVersion: v2
+name: oauth-external-auth
+description: External OAuth Authentication for Ingress controller for Kubernetes using NGINX as a reverse proxy and load balancer
+keywords:
+  - ingress
+  - nginx
+  - oauth
+sources:
+  - https://github.com/w6d-io/charts/tree/main/charts/oauth-external-auth
+type: application
+maintainers:
+  - name: david972
+appVersion: "v7.2.0"
+icon: https://oauth2-proxy.github.io/oauth2-proxy/img/logos/OAuth2_Proxy_icon.svg
+version: 0.1.0

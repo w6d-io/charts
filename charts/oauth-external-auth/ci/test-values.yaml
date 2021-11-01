@@ -1,0 +1,3 @@
+clientId: test
+clientSecret: 32-LONG-SECRET-NOT-SECURE-AT-ALL
+cookieSecret: 32-LONG-SECRET-NOT-SECURE-AT-ALL
