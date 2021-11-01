@@ -25,9 +25,10 @@ serviceAccount:
 provider: google
 
 # oidcIssuerUrl must be set for keycloak (https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/oauth_provider/#keycloak-oidc-auth-provider)
-# and azure (https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/oauth_provider/#azure-auth-provider)
+# azure (https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/oauth_provider/#azure-auth-provider)
+# or oicd provider
 # if a self-hosted gitlab provider is used this field must be set too
-oidcIssuerUrl: ''
+oidcIssuerUrl: ''                   # http://exemple.com
 
 emailDomain: "*"
 # that must contain the client id from the provider
@@ -36,6 +37,14 @@ clientId: ''
 clientSecret: ''
 ## that must contain the secret used for securing the cookies
 cookieSecret: ''
+
+# with oidc provider this value must be set
+providerDisplayName: ''             # "k8s service"
+
+# with oidc provider this value must be set
+redirectUrl: ''                     # http://exemple.com/sign-in
+
+cookieSecure: true
 
 ## the secret name that contain client-secret and cookie-secret keys with the according values
 ## if set it would be override the values set above

@@ -37,12 +37,18 @@ spec:
         - name: {{ .Chart.Name }}
           args:
             - --provider={{ .Values.provider }}
-            - --email-domain= {{ .Values.emailDomain }}
+            - --email-domain={{ .Values.emailDomain }}
             - --upstream="file:///dev/null"
             - --http-address=0.0.0.0:4180
             {{- if and .Values.oidcIssuerUrl (has .Values.provider $allowedProvider ) }}
             - --oidc-issuer-url={{ .Values.oidcIssuerUrl }}
             {{- end }}
+            {{- if eq .Values.provider "oidc" }}
+            - --provider-display-name={{ .Values.providerDisplayName }}
+            - --redirect-url={{ .Values.redirectUrl }}
+            - --oidc-issuer-url={{ .Values.oidcIssuerUrl }}
+            {{- end }}
+            - --cookie-secure={{ .Values.cookieSecure }}
           env:
             - name: OAUTH2_PROXY_CLIENT_ID
               value: {{ .Values.clientId }}

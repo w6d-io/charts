@@ -12,4 +12,4 @@ maintainers:
   - name: david972
 appVersion: "v7.2.0"
 icon: https://oauth2-proxy.github.io/oauth2-proxy/img/logos/OAuth2_Proxy_icon.svg
-version: 0.1.0
+version: 0.2.0
