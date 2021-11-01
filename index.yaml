@@ -2772,6 +2772,27 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/kafka-connect-1.5.0/kafka-connect-1.5.0.tgz
     version: 1.5.0
+  oauth-external-auth:
+  - apiVersion: v2
+    appVersion: v7.2.0
+    created: "2021-11-01T15:26:20.651608226Z"
+    description: External OAuth Authentication for Ingress controller for Kubernetes
+      using NGINX as a reverse proxy and load balancer
+    digest: fdb07c8f9818a837c4d8e3a33dd753bda808b9819e516268749d49a2bf5950bb
+    icon: https://oauth2-proxy.github.io/oauth2-proxy/img/logos/OAuth2_Proxy_icon.svg
+    keywords:
+    - ingress
+    - nginx
+    - oauth
+    maintainers:
+    - name: david972
+    name: oauth-external-auth
+    sources:
+    - https://github.com/w6d-io/charts/tree/main/charts/oauth-external-auth
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/oauth-external-auth-0.1.0/oauth-external-auth-0.1.0.tgz
+    version: 0.1.0
   redisinsight:
   - apiVersion: v2
     appVersion: 1.7.0
@@ -3064,4 +3085,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2021-10-17T18:07:02.738370316Z"
+generated: "2021-11-01T15:26:20.652373365Z"
