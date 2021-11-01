@@ -13,10 +13,25 @@
 {{-   end }}
 {{- end -}}
 
+{{- define "oauth-external-auth.missing.oidc" -}}
+{{-  if eq .Values.provider "oidc" }}
+{{-    if not .Values.providerDisplayName  }}
+{{-      print "[OIDC]\tProvider display must be set with oidc provider by providerDisplayName\n" }}
+{{-    end }}
+{{-    if not .Values.redirectUrl  }}
+{{-      print "[OIDC]\tRedirect URL must be set with oidc provider by redirectUrl\n" }}
+{{-    end }}
+{{-    if not .Values.oidcIssuerUrl  }}
+{{-      print "[OIDC]\tOIDC Issuer URL must be set with oidc provider by oidcIssuerUrl\n" }}
+{{-    end }}
+{{-  end }}
+{{- end -}}
+
 {{- define "oauth-external-auth.missing" -}}
 {{- $missing := list -}}
 {{- $missing := append $missing (include "oauth-external-auth.missing.client" .) -}}
 {{- $missing := append $missing (include "oauth-external-auth.missing.cookie" .) -}}
+{{- $missing := append $missing (include "oauth-external-auth.missing.oidc" .) -}}
 
 {{- $missing := without $missing "" -}}
 {{- $message := join "" $missing -}}
