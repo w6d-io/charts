@@ -2614,6 +2614,22 @@ entries:
   kafka-connect:
   - apiVersion: v2
     appVersion: "1.5"
+    created: "2021-11-09T17:33:28.223873729Z"
+    description: install kafka connect instance from debezium
+    digest: f04f320567824467357d9fdfea8e0424eef634fb24a488d70f259a16d2d6d32c
+    icon: https://w6d-public.s3.eu-west-3.amazonaws.com/pictures/favicon.png
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: kafka-connect
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/kafka-connect-1.6.0/kafka-connect-1.6.0.tgz
+    version: 1.6.0
+  - apiVersion: v2
+    appVersion: "1.5"
     created: "2021-08-27T01:10:05.35146766Z"
     description: install kafka connect instance from debezium
     digest: 063b421dfa821edf76dac7d3738df7fd1004abb6e7bd7743772a6db91eab2777
@@ -3105,4 +3121,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2021-11-01T18:49:07.888371232Z"
+generated: "2021-11-09T17:33:28.224598583Z"
