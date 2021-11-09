@@ -108,8 +108,10 @@ spec:
                 - /scripts/connector.sh
       {{- end }}
         volumeMounts:
+        {{- if .Values.connector }}
         - mountPath: /data
           name: connector
+        {{- end }}
         - mountPath: /scripts
           name: scripts
         {{- with .Values.volumeMounts }}
@@ -119,10 +121,12 @@ spec:
       {{- with .Values.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end}}
+      {{- if .Values.connector }}
       - name: connector
         secret:
           defaultMode: 0444
           secretName: {{ include "kafka-connect.fullname" . }}
+      {{- end }}
       - name: scripts
         configMap:
           defaultMode: 0555
