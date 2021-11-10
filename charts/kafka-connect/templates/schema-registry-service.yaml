@@ -6,10 +6,10 @@ metadata:
   labels:
     {{- include "kafka-connect.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ .Values.schema_registry.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: 8083
+    - port: {{ .Values.schema_registry.port }}
+      targetPort: {{ .Values.schema_registry.port }}
       protocol: TCP
       name: {{ .Chart.Name }}
   selector:
