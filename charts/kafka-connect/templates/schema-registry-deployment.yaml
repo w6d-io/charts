@@ -44,6 +44,6 @@ spec:
             - name: SCHEMA_REGISTRY_LISTENERS
               value: http://0.0.0.0:{{ .Values.schema_registry.port }}
             - name: SCHEMA_REGISTRY_DEBUG
-              value: "true"
+              value: {{ .Values.schema_registry.debug | quote }}
 {{- end }}
 
