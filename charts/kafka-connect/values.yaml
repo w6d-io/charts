@@ -98,4 +98,6 @@ volumes: []
 
 schema_registry:
   enabled: false
+  type: ClusterIP
   port: 8080
+  debug: false
