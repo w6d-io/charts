@@ -86,6 +86,7 @@ ingress:
   issuer: ''
   class: 'nginx'
   prefix: 'nginx.ingress.kubernetes.io'
+  className: '' # ingressClassName field https://kubernetes.github.io/ingress-nginx/#what-is-ingressclassname-field
   extraPaths: []
 
 persistence: []

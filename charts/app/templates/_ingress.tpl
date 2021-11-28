@@ -37,3 +37,10 @@ Return the appropriate apiVersion for Ingress.
 {{- end }}
 {{- end -}}
 
+{{- define "ingress.className" -}}
+{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" -}}
+{{- if .Values.ingress.className -}}
+ingressClassName: {{ .Values.ingress.className }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
