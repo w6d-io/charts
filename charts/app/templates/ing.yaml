@@ -5,7 +5,7 @@ kind: Ingress
 metadata:
   annotations:
     externaldns: {{ default "disabled" .Values.ingress.externaldns }}
-    {{- if .Values.ingress.class }}
+    {{- if and .Values.ingress.class (not $className) }}
     kubernetes.io/ingress.class: {{ .Values.ingress.class }}
     {{- end }}
     {{- if .Values.ingress.issuer }}
