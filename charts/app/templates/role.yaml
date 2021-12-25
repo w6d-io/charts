@@ -30,4 +30,24 @@ rules:
   - get
   - update
   - patch
+  {{- range .Values.role.rules -}}
+- apiGroups:
+  {{- toYaml .apiGroups | nindent 2 }}
+  {{- if .resources }}
+  resources:
+  {{- toYaml .resources | nindent 2 }}
+  {{- end }}
+  {{- if .resourceNames }}
+  resourceNames:
+  {{- toYaml .resourceNames | nindent 2 }}
+  {{- end }}
+  {{- if .nonResourceURLs }}
+  nonResourceURLs:
+  {{- toYaml .nonResourceURLs | nindent 2 }}
+  {{- end }}
+  {{- if .verbs }}
+  verbs:
+  {{- toYaml .verbs | nindent 2 }}
+  {{- end }}
+  {{- end }}
 {{- end }}
