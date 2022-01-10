@@ -15,11 +15,11 @@ maintainers:
 icon: https://gitlab.w6d.io/favicon.ico
 dependencies:
 - name: mongodb
-  version: 10.28.1
+  version: 10.31.1
   repository: https://charts.bitnami.com/bitnami
   condition: mongodb.install
 - name: redis
-  version: 15.4.1
+  version: 15.7.1
   repository: https://charts.bitnami.com/bitnami
   condition: redis.install
-version: 1.4.2
+version: 1.4.3
