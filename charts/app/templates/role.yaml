@@ -3,8 +3,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-  name: role-{{ template "app.fullname" . }}-svc
+    {{- include "common.labels.standard" . | nindent 4 }}
+  name: role-{{ include "common.names.fullname" . }}-svc
 rules:
 - apiGroups:
   - ""
@@ -19,8 +19,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-  name: role-{{ template "app.fullname" . }}-pod
+    {{- include "common.labels.standard" . | nindent 4 }}
+  name: role-{{ include "common.names.fullname" . }}-pod
 rules:
 - apiGroups:
   - ""
@@ -31,7 +31,7 @@ rules:
   - update
   - patch
 {{- if .Values.role.rules }}
-{{- range .Values.role.rules -}}
+{{- range .Values.role.rules }}
 - apiGroups:
   {{- toYaml .apiGroups | nindent 2 }}
   {{- if .resources }}

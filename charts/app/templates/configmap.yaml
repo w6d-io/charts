@@ -1,5 +1,5 @@
-{{- $labels := (include "app.labels" .) }}
-{{- $fullname := (include "app.fullname" .) }}
+{{- $labels := (include "common.labels.standard" .) }}
+{{- $fullname := (include "common.names.fullname" .) }}
 {{- range .Values.configs }}
 {{- $name := .name | lower | replace "_" "-" }}
 ---
@@ -7,12 +7,12 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    {{- $labels | nindent 4 }}
+    {{- (include "common.labels.standard" $) | nindent 4 }}
   name: {{ printf "%s-%s" $fullname $name }}
 data:
-  {{- if eq (default "enabled" .subPath) "enabled" }}
-  {{ .key }}: {{ toYaml .value | indent 2 }}
+  {{- if not (empty .subPath) }}
+  {{ .key }}: {{ toYaml .value }}
   {{- else }}
-  {{- toYaml .value | nindent 2 }}
+  {{- toYaml .value | nindent 2}}
   {{- end }}
 {{- end }}
