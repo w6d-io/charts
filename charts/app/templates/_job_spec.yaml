@@ -1,0 +1,13 @@
+{{- with .ttlSecondsAfterFinished }}
+ttlSecondsAfterFinished: {{ . }}
+{{- end -}}
+{{- with .backoffLimit }}
+backoffLimit: {{ . }}
+{{- end -}}
+{{- with .parallelism }}
+parallelism: {{ . }}
+{{- end -}}
+{{- with .completions }}
+completions: {{ . }}
+{{- end -}}
+

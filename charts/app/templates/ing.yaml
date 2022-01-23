@@ -1,55 +1,31 @@
 {{- if and .Values.ingress.enabled .Values.ingress.host }}
-{{- $className := (include "ingress.className" .) }}
-apiVersion: {{ template "ingress.apiVersion" .}}
+apiVersion: {{ include "common.capabilities.ingress.apiVersion" .}}
 kind: Ingress
 metadata:
   annotations:
-    externaldns: {{ default "disabled" .Values.ingress.externaldns }}
-    {{- if and .Values.ingress.class (not $className) }}
-    kubernetes.io/ingress.class: {{ .Values.ingress.class }}
-    {{- end }}
-    {{- if .Values.ingress.issuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.issuer }}
-    kubernetes.io/tls-acme: "true"
-    {{- else }}
-    kubernetes.io/tls-acme: "false"
-    {{- end }}
-    {{ .Values.ingress.prefix }}/ssl-redirect: "true"
-    {{- if .Values.ingress.annotations }}
-      {{ toYaml .Values.ingress.annotations | nindent 4 }}
-    {{- end }}
+    {{- (include "common.ingress.annotations" (dict "ingress" .Values.ingress "context" $)) | nindent 4 }}
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-  name: {{ template "app.fullname" . }}
+    {{- include "common.labels.standard" . | nindent 4 }}
+  name: {{ include "common.names.fullname" . }}
 spec:
-  {{- if $className }}
-    {{- $className | nindent 2 }}
-  {{- end}}
+  {{- include "common.ingress.className" (dict "ingress" .Values.ingress "context" $) | nindent 2}}
   rules:
   - host: {{ .Values.ingress.host }}
     http:
       paths:
       - path: {{ .Values.ingress.path }}
-        {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" }}
+        {{- if eq (include "common.ingress.supportsPathType" .) "true" }}
         pathType: Prefix
-        backend:
-          service:
-              name: {{ .Values.service.name }}
-              port:
-                number: {{ .Values.service.externalPort }}
-        {{- else }}
-        backend:
-          serviceName: {{ .Values.service.name }}
-          servicePort: {{ .Values.service.externalPort }}
         {{- end }}
-        {{- if .Values.ingress.extraPaths }}
-        {{- include "ingress.extra.paths" . | nindent 6 }}
-        {{- end }}
-
+        backend:
+          {{- (include "common.ingress.backend" (dict "serviceName" .Values.service.name "serviceTarget" .Values.service.externalPort "context" $)) | nindent 10 }}
+      {{- if .Values.ingress.extraPaths }}
+      {{- (include "common.ingress.paths" (dict "paths" .Values.ingress.extraPaths "context" $)) | nindent 6 }}
+      {{- end }}
   tls:
   - hosts:
     - {{ .Values.ingress.host }}
-    {{- if .Values.ingress.issuer }}
-    secretName: {{ template "app.name" . }}-tls
+    {{- if .Values.ingress.secretName }}
+    secretName: {{ include "common.names.name" . }}-tls
     {{- end }}
 {{- end }}
