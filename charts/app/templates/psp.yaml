@@ -3,13 +3,13 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  {{- if .Values.annotations }}
+  {{- with .Values.annotations }}
   annotations:
-  {{ toYaml .Values.annotations | nindent 4 }}
+  {{ toYaml . | nindent 4 }}
   {{- end }}
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-  name: {{ template "app.fullname" . }}
+    {{- include "common.labels.standard" . | nindent 4 }}
+  name: {{ include "common.names.fullname" . }}
 spec:
   privileged: false  # Don't allow privileged pods!
   allowPrivilegeEscalation: false # prevent from setuid
