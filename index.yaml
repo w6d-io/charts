@@ -2756,6 +2756,26 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/ci-status-0.1.0/ci-status-0.1.0.tgz
     version: 0.1.0
+  common:
+  - apiVersion: v2
+    created: "2022-01-23T14:09:48.251267858Z"
+    description: A Library Helm Chart for grouping common logic between wildcard charts.
+      This chart is not deployable by itself.
+    digest: 7fc3d0c9f694a6571148c1ec303d618516b68aa4cb919cd94e601966ffb4fc65
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: common
+    sources:
+    - https://charts.w6d.io
+    type: library
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/common-0.1.0/common-0.1.0.tgz
+    version: 0.1.0
   kafka-connect:
   - apiVersion: v2
     appVersion: "1.5"
@@ -3282,4 +3302,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2022-01-11T16:52:29.255015987Z"
+generated: "2022-01-23T14:09:48.251901264Z"
