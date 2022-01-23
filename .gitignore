@@ -2,3 +2,4 @@
 .idea
 .cr-release-packages/
 /config.json
+tmp/
