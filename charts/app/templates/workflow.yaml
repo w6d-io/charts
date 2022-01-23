@@ -1,0 +1,170 @@
+{{- $image := (include "common.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) ) }}
+{{- $volumes := list }}
+{{- if .Values.lifecycle.enabled }}
+{{-   $volumes = append $volumes (dict "name" "init-tools" "path" "/init-tools" "kind" "emptyDir" "options" (dict)) }}
+{{- end }}
+{{- if .Values.volumes }}
+{{-   $volumes = concat $volumes .Values.volumes }}
+{{- end }}
+{{- if .Values.volumeClaimTemplates }}
+{{-   $volumes = concat $volumes .Values.volumeClaimTemplates }}
+{{- end }}
+{{- if .Values.secrets }}
+{{-   range $secret := mustDeepCopy .Values.secrets }}
+{{-     if eq (default "env" $secret.kind) "volume" }}
+{{-       $_ := set $secret "kind" "secret" }}
+{{-       $volumes = append $volumes $secret }}
+{{-     end }}
+{{-   end -}}
+{{- end }}
+
+{{- if .Values.configs }}
+{{-   range $config := .Values.configs }}
+{{-     $_ := set $config "kind" "configMap" }}
+{{-     $volumes = append $volumes $config }}
+{{-   end }}
+{{- end }}
+
+{{- if .Values.persistence }}
+{{-   $volumes = concat $volumes .Values.persistence}}
+{{- end }}
+{{- $env := .Values.env }}
+{{- $secrets := .Values.secrets }}
+{{- $configs := .Values.configs }}
+{{- $fullname := (include "common.names.fullname" .) }}
+{{- $kind := include "common.workflow.kind" (dict "kind" .Values.kind) }}
+{{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
+apiVersion: {{ include "common.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
+kind: {{ $kind }}
+metadata:
+  {{- with .Values.annotations }}
+  annotations:
+  {{-   toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+  name: {{ include "common.names.fullname" . }}-2
+spec:
+  {{- if eq $kind "Job" }}
+    {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values | nindent 2 }}
+  {{- end }}
+  {{- if and (not (eq $kind "Job")) (not (eq $kind "DaemonSet")) }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  {{- if not (eq $kind "Job") }}
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+  {{- end }}
+  {{- if eq $kind "StatefulSet" }}
+  serviceName: {{ $serviceName }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels.matchLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{-   toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if .Values.metrics.enabled }}
+        prometheus.io/path: {{ .Values.metrics.path }}
+        prometheus.io/port: {{ .Values.metrics.port | quote }}
+        prometheus.io/scrape: "true"
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{-   toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.revision.enabled }}
+        revision: {{ .Release.Revision | quote }}
+        {{- end }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "common.serviceAccountName" . }}
+      {{- with .Values.securityContext }}
+      securityContext:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $pullSecret := dict "images" (list .Values.image) "global" .Values.global "context" $ }}
+      {{- if $.Values.dockerSecret }}
+      {{- if $.Values.dockerSecret.config }}
+      {{- $_ := set $pullSecret "dockerSecret" (printf "pull-%s" $fullname) }}
+      {{- end }}
+      {{- end }}
+      {{- include "common.images.renderPullSecrets" $pullSecret | nindent 6}}
+      {{- if or .Values.initContainers .Values.lifecycle.enabled }}
+      initContainers:
+      {{-    if .Values.lifecycle.enabled }}
+      - image: w6dio/init-tools:v1.0.1
+        name: init-tools
+        imagePullPolicy: Always
+        command: ["cp"]
+        args:
+          - "/opt/bin/setsvc"
+          - "/init-tools/setsvc"
+        volumeMounts:
+      {{-     include "common.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
+      {{-   end }}
+      {{-   $dictionnary := dict "context" $ }}
+      {{-   $_ := set $dictionnary "secrets" $secrets }}
+      {{-   $_ := set $dictionnary "configs" $configs }}
+      {{-   $_ := set $dictionnary "volumes" $volumes }}
+      {{-   $_ := set $dictionnary "env" $env }}
+      {{-   range .Values.initContainers }}
+      {{-     $_ := set $dictionnary "image" .image }}
+      {{-     $_ := set $dictionnary "name" .name }}
+      {{-     $_ := set $dictionnary "command" .command }}
+      {{-     $_ := set $dictionnary "args" .args }}
+      {{-     $_ := set $dictionnary "imagePullPolicy" .imagePullPolicy }}
+      {{-     include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 6 }}
+      {{-   end }}
+      {{- end }}
+      containers:
+      {{- $dictionnary := dict "image" $image }}
+      {{- if .Values.lifecycle.enabled }}
+      {{- $_ := set $dictionnary "lifecycle" (include "app.lifecycle.setsvc" (dict "service_name" .Values.service.name "context" $)) }}
+      {{- end }}
+      {{- $_ := set $dictionnary "context" $ }}
+      {{- $_ := set $dictionnary "volumes" $volumes }}
+      {{- $_ := set $dictionnary "name" (include "common.names.name" $) }}
+      {{- $_ := set $dictionnary "env" $env }}
+      {{- $_ := set $dictionnary "configs" $configs }}
+      {{- $_ := set $dictionnary "secrets" $secrets }}
+      {{- $_ := set $dictionnary "imagePullPolicy" .Values.imagePullPolicy }}
+      {{- $_ := set $dictionnary "extraContainerPort" .Values.extraContainerPort }}
+      {{- $_ := set $dictionnary "livenessProbe" .Values.livenessProbe }}
+      {{- $_ := set $dictionnary "readinessProbe" .Values.readinessProbe }}
+      {{- $_ := set $dictionnary "resources" .Values.resources }}
+      {{- $_ := set $dictionnary "service" .Values.service }}
+      {{- $_ := set $dictionnary "command" .Values.containerCommand }}
+      {{- $_ := set $dictionnary "args" .Values.containerArgs }}
+      {{- $_ := set $dictionnary "metrics" .Values.metrics }}
+      {{- $_ := set $dictionnary "extraContainerPort" .Values.extraContainerPort }}
+      {{- include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 6 }}
+      {{- if eq $kind "Job" }}
+      restartPolicy: {{ default "Never" .Values.restartPolicy }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end}}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $volumes }}
+      volumes:
+        {{- include "common.volumes.volumes" (dict "volumes" . "context" $) | nindent 8 }}
+      {{- end }}
+  {{- if eq $kind "StatefulSet" }}
+  {{-   with .Values.updateStrategy }}
+  updateStrategy:
+  {{-     toYaml . | nindent 4 }}
+  {{-   end }}
+  {{-   include "common.volumes.volumeClaimTemplates" (dict "volumes" $volumes) | nindent 2 }}
+  {{- end }}
