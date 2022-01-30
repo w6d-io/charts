@@ -2790,6 +2790,25 @@ entries:
     version: 0.1.0
   common:
   - apiVersion: v2
+    created: "2022-01-30T21:43:01.903247605Z"
+    description: A Library Helm Chart for grouping common logic between wildcard charts.
+      This chart is not deployable by itself.
+    digest: c3423dc5afd99fc063e72309671847baaa5487fd917c08bbb5a5e8464261e308
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: common
+    sources:
+    - https://charts.w6d.io
+    type: library
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/common-0.1.1/common-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
     created: "2022-01-23T14:09:48.251267858Z"
     description: A Library Helm Chart for grouping common logic between wildcard charts.
       This chart is not deployable by itself.
@@ -3334,4 +3353,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2022-01-23T15:34:51.182778904Z"
+generated: "2022-01-30T21:43:01.904089411Z"
