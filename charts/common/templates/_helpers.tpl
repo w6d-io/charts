@@ -20,11 +20,7 @@ Usage:
 {{ include "common.serviceAccountName" . }}
 */}}
 {{- define "common.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
 {{- default (include "common.names.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
 {{- end }}
 
 {{/*
