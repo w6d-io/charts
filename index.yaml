@@ -3061,6 +3061,22 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/oauth-external-auth-0.1.0/oauth-external-auth-0.1.0.tgz
     version: 0.1.0
+  rbac:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2022-03-12T17:28:21.810435639Z"
+    description: Custom RBAC aggreation and binding
+    digest: ef300016ce0e74beb6a44e127713c8230441f7c09a61a1671cebe1fdeb4e7562
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: rbac
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/rbac-0.1.0/rbac-0.1.0.tgz
+    version: 0.1.0
   redisinsight:
   - apiVersion: v2
     appVersion: 1.7.0
@@ -3353,4 +3369,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2022-01-30T21:43:01.904089411Z"
+generated: "2022-03-12T17:28:21.81149713Z"
