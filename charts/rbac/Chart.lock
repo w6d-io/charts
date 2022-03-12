@@ -1,6 +1,0 @@
-dependencies:
-- name: common
-  repository: https://charts.w6d.io
-  version: 0.1.1
-digest: sha256:6904ed8bb62ce3e1012d16e49440693bc00b01c2ca716463d3897c86108c2e97
-generated: "2022-03-09T20:04:46.06651+01:00"
