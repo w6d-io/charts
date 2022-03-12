@@ -1,0 +1,18 @@
+{{- range .Values.bind }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: {{ if eq .scope "cluster" }}Cluster{{ end }}RoleBinding
+metadata:
+  name: {{ .name }}
+  {{- if not (eq .scope "cluster") }}
+  namespace: {{ .namespace }}
+  {{- end }}
+roleRef:
+  kind: ClusterRole
+  name: {{ required "aggregation is mandatory" .aggregation }}-agg
+  apiGroup: rbac.authorization.k8s.io
+{{- with .subjects }}
+subjects:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

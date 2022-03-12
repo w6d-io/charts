@@ -1,0 +1,300 @@
+aggregations: []
+bind: []
+roles:
+  - name: w6d.admin
+    groups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - name: w6d.ns.read
+    groups: [""]
+    resources:
+      - namespaces
+    verbs:
+      - read
+  - name: w6d.ns.write
+    groups: [""]
+    resources:
+      - namespaces
+    verbs:
+      - write
+  - name: w6d.pods.read
+    groups: [""]
+    resources:
+      - pods
+    verbs:
+      - read
+  - name: w6d.pods.write
+    groups: [""]
+    resources:
+      - pods
+    verbs:
+      - write
+  - name: w6d.workload.read
+    groups:
+      - "apps"
+    resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicatsets
+    verbs:
+      - read
+  - name: w6d.workload.write
+    groups:
+      - "apps"
+    resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicatsets
+    verbs:
+      - write
+  - name: w6d.workload.scale
+    groups:
+      - "apps"
+    resources:
+      - deployments
+      - statefulsets
+      - replicatsets
+    verbs:
+      - read
+      - write
+  - name: w6d.logs
+    groups: [""]
+    resources:
+      - pods
+      - pods/logs
+    verbs:
+      - read
+  - name: w6d.pods.exec
+    groups: [""]
+    resources:
+      - pods/exec
+      - pods/attach
+      - pods/portforward
+    verbs:
+      - write
+  - name: w6d.sa.read
+    groups: [""]
+    resources:
+      - serviceaccounts
+    verbs:
+      - read
+  - name: w6d.sa.write
+    groups: [""]
+    resources:
+      - serviceaccounts
+    verbs:
+      - write
+  - name: w6d.configmaps.read
+    groups: [""]
+    resources:
+      - configmaps
+    verbs:
+      - read
+  - name: w6d.configmaps.write
+    groups: [""]
+    resources:
+      - configmaps
+    verbs:
+      - write
+  - name: w6d.secrets.read
+    groups: [""]
+    resources:
+      - secrets
+    verbs:
+      - read
+  - name: w6d.secrets.write
+    groups: [""]
+    resources:
+      - secrets
+    verbs:
+      - write
+  - name: w6d.services.read
+    groups: [""]
+    resources:
+      - services
+    verbs:
+      - read
+  - name: w6d.services.write
+    groups: [""]
+    resources:
+      - services
+    verbs:
+      - write
+  - name: w6d.endpoints.read
+    groups: [""]
+    resources:
+      - endpoints
+    verbs:
+      - read
+  - name: w6d.endpoints.write
+    groups: [""]
+    resources:
+      - endpoints
+    verbs:
+      - write
+  - name: w6d.pv.read
+    groups: [""]
+    resources:
+      - persistentvolumes
+    verbs:
+      - read
+  - name: w6d.pv.write
+    groups: [""]
+    resources:
+      - persistentvolumes
+    verbs:
+      - write
+  - name: w6d.pvc.read
+    groups: [""]
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - read
+  - name: w6d.pvc.write
+    groups: [""]
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - write
+  - name: w6d.ing.read
+    groups:
+      - "networking.k8s.io"
+      - "extensions"
+    resources:
+      - ingresses
+    verbs:
+      - read
+  - name: w6d.ing.write
+    groups:
+      - "networking.k8s.io"
+      - "extensions"
+    resources:
+      - ingresses
+    verbs:
+      - write
+  - name: w6d.storageclasse.read
+    groups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs:
+      - read
+  - name: w6d.storageclasse.write
+    groups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs:
+      - write
+  - name: w6d.roles.read
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - roles
+    verbs:
+      - read
+  - name: w6d.roles.write
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - roles
+    verbs:
+      - write
+  - name: w6d.rolebindings.read
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - rolebindings
+    verbs:
+      - read
+  - name: w6d.rolebindings.write
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - rolebindings
+    verbs:
+      - write
+  - name: w6d.clusterroles.read
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterroles
+    verbs:
+      - read
+  - name: w6d.clusterroles.write
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterroles
+    verbs:
+      - write
+  - name: w6d.clusterrolebindings.read
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterrolebindings
+    verbs:
+      - read
+  - name: w6d.clusterrolebindings.write
+    groups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterrolebindings
+    verbs:
+      - write
+  - name: w6d.events.read
+    groups: [""]
+    resources:
+      - events
+    verbs:
+      - read
+  - name: w6d.events.write
+    groups: [""]
+    resources:
+      - events
+    verbs:
+      - write
+  - name: w6d.crd.read
+    groups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - read
+  - name: w6d.crd.write
+    groups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - write
+  - name: w6d.admission.read
+    groups: ["admissionregistration.k8s.io"]
+    resources:
+      - validatingwebhookconfigurations
+      - mutatingwebhookconfigurations
+    verbs:
+      - read
+  - name: w6d.admission.write
+    groups: ["admissionregistration.k8s.io"]
+    resources:
+      - validatingwebhookconfigurations
+      - mutatingwebhookconfigurations
+    verbs:
+      - write
+  - name: w6d.ciops.read
+    groups: ["ci.w6d.io"]
+    resources:
+      - plays
+      - limitcis
+      - steps
+    verbs:
+      - read
+  - name: w6d.ciops.write
+    groups: ["ci.w6d.io"]
+    resources:
+      - plays
+      - limitcis
+      - steps
+    verbs:
+      - write
+  - name: w6d.metrics
+    groups: ["metrics.k8s.io"]
+    resources:
+      - nodes
+      - pods
+    verbs:
+      - read
