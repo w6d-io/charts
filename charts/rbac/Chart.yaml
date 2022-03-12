@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rbac
+description: Custom RBAC aggreation and binding
+type: application
+appVersion: "0.1.0"
+version: 0.1.0
