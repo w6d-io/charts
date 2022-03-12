@@ -1,0 +1,12 @@
+{{- range .Values.aggregations }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.w6d.io/aggregate-to-{{ .name }}: "true"
+metadata:
+  name: {{ .name }}-agg
+rules: []
+{{- end }}
