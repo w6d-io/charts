@@ -17,14 +17,12 @@
 {{-     end }}
 {{-   end -}}
 {{- end }}
-
 {{- if .Values.configs }}
 {{-   range $config := .Values.configs }}
 {{-     $_ := set $config "kind" "configMap" }}
 {{-     $volumes = append $volumes $config }}
 {{-   end }}
 {{- end }}
-
 {{- if .Values.persistence }}
 {{-   $volumes = concat $volumes .Values.persistence}}
 {{- end }}
@@ -43,7 +41,7 @@ metadata:
   {{- end }}
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "common.names.fullname" . }}-2
+  name: {{ include "common.names.fullname" . }}
 spec:
   {{- if eq $kind "Job" }}
     {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values | nindent 2 }}
@@ -85,7 +83,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.serviceAccount.create -}}
+      {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "common.serviceAccountName" . }}
       {{- end }}
       {{- with .Values.securityContext }}
@@ -161,7 +159,7 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "common.volumes.volumes" (dict "volumes" . "context" $) | nindent 8 }}
+        {{- include "common.volumes.volumes" (dict "fullname" (include "common.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}
