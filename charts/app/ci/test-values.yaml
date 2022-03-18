@@ -16,6 +16,7 @@ configs:
   - key: config-3.yaml
     kind: volume
     name: CONFIG-3
+    subPath: config-3.yaml
     path: /data/etc
     value: |
       config-3: |
