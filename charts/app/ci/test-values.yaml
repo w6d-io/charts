@@ -1,12 +1,25 @@
 configs:
   - key: config.yaml
     kind: volume
-    subPath: triggers.yaml
+    subPath: config.yaml
     name: CONFIG
     path: /data/etc
     value: |-
       config:
         content: "config test"
+  - key: config-2.yaml
+    kind: volume
+    subPath: config-2.yaml
+    name: CONFIG-2
+    path: /data/etc
+    value: config
+  - key: config-3.yaml
+    kind: volume
+    name: CONFIG-3
+    path: /data/etc
+    value: |
+      config-3: |
+        test: config-3
 secrets:
   - key: secret-volume.yaml
     kind: volume
@@ -17,6 +30,10 @@ secrets:
       secret:
         token: "token-secret"
         password: "password-test"
+  - key: secret-env.yaml
+    kind: env
+    name: SECRET_VOLUME
+    value: "password-test-env"
 env:
   - name: ENV_ONE
     value: "1"
