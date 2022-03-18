@@ -34,6 +34,12 @@ secrets:
     kind: env
     name: SECRET_ENV
     value: "password-test-env"
+persistence:
+  - name: test-pvc
+    mode: "ReadWriteOnce"
+    size: 10Gi
+    path: /test
+
 env:
   - name: ENV_ONE
     value: "1"
