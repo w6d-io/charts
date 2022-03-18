@@ -51,22 +51,6 @@ nameOverride: test
 metrics:
   enabled: true
   port: 8082
-mongodb:
-  auth:
-    database: test
-    password: password-for-testing
-    rootPassword: root-password-for-testing
-    username: test
-  fullnameOveride: test-mongodb
-  install: true
-podLabels:
-  application: test
-redis:
-  auth:
-    password: password-fot-testing
-  fullnameOveride: test-redis
-  install: true
-
 service:
   internalPort: 8080
   name: test
