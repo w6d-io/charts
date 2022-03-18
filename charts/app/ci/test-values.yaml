@@ -36,6 +36,7 @@ secrets:
     value: "password-test-env"
 persistence:
   - name: test-pvc
+    kind: persistentVolumeClaim
     mode: "ReadWriteOnce"
     size: 10Gi
     path: /test

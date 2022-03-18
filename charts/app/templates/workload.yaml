@@ -159,7 +159,7 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "common.volumes.volumes" (dict "volumes" . "context" $) | nindent 8 }}
+        {{- include "common.volumes.volumes" (dict "fullname" (include "common.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}
