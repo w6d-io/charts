@@ -1,0 +1,60 @@
+configs:
+  - key: config.yaml
+    kind: volume
+    subPath: config.yaml
+    name: CONFIG
+    path: /data/etc
+    value: |-
+      config:
+        content: "config test"
+  - key: config-2.yaml
+    kind: volume
+    subPath: config-2.yaml
+    name: CONFIG-2
+    path: /data/etc
+    value: config
+  - key: config-3.yaml
+    kind: volume
+    name: CONFIG-3
+    subPath: config-3.yaml
+    path: /data/etc
+    value: |
+      config-3: |
+        test: config-3
+secrets:
+  - key: secret-volume.yaml
+    kind: volume
+    name: SECRET_VOLUME
+    subPath: secret-volume.yaml
+    path: /data/config
+    value: |-
+      secret:
+        token: "token-secret"
+        password: "password-test"
+  - key: secret-env
+    kind: env
+    name: SECRET_ENV
+    value: "password-test-env"
+persistence:
+  - name: test-pvc
+    kind: persistentVolumeClaim
+    mode: "ReadWriteOnce"
+    size: 10Gi
+    path: /test
+
+env:
+  - name: ENV_ONE
+    value: "1"
+  - name: ENV_TWO
+    value: text
+fullnameOverride: test-chart
+nameOverride: test
+metrics:
+  enabled: true
+  port: 8082
+service:
+  internalPort: 8080
+  name: test
+serviceAccount:
+  create: true
+  name: test

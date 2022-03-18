@@ -11,8 +11,9 @@ metadata:
   name: {{ printf "%s-%s" $fullname $name }}
 data:
   {{- if not (empty .subPath) }}
-  {{ .key }}: {{ toYaml .value }}
+  {{ .key }}: |
+    {{- .value | nindent 4}}
   {{- else }}
-  {{- toYaml .value | nindent 2}}
+  {{- .value | nindent 2}}
   {{- end }}
 {{- end }}
