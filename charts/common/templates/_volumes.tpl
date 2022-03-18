@@ -28,6 +28,7 @@ Return volumes
 Usage:
   {{ include "common.volumes.volumes" (dict "volumes" .Values.path.to.volumes "context" $) }}
 Params:
+  - fullname
   - volumes:
       Params:
       - name # use for volume name
@@ -36,17 +37,17 @@ Params:
       - claimName # optional : only for persistentVolumeClaim kind default is `name`
   - context
 Examples:
-  {{ include "common.volumes.volumes" (dict "volumes" (list (dict "path" "/data" "name" "config" "subPath" "config.yaml" "kind" "configMap")) "context" $)}}
+  {{ include "common.volumes.volumes" (dict "fullname" $fullname "volumes" (list (dict "path" "/data" "name" "config" "subPath" "config.yaml" "kind" "configMap")) "context" $)}}
 */}}
 {{- define "common.volumes.volumes" -}}
-{{- $fullname := (include "common.names.fullname" .context) -}}
+{{- $fullname := .fullname -}}
 {{- range .volumes -}}
 {{- if not (eq .kind "volumeClaimTemplates") -}}
 {{- $name := .name | lower | replace "_" "-" }}
 - name: {{ $name }}
   {{ .kind }}:{{ if eq .kind "emptyDir"}} {{ toYaml .options }}{{ end }}
   {{- if mustHas .kind (list "secret" "configMap") }}
-    {{ get (dict "configMap" "name" "secret" "secretName") .kind }}: {{ printf "%s-%s" $fullname $name }}
+    {{ get (dict "configMap" "name" "secret" "secretName") .kind }}: {{ $fullname }}{{if eq .kind "configMap" }}{{ printf "-%s"  $name }}{{ end }}
     {{- if .mode }}
     defaultMode: {{ .mode }}
     {{- end }}
