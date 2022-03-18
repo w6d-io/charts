@@ -30,9 +30,9 @@ secrets:
       secret:
         token: "token-secret"
         password: "password-test"
-  - key: secret-env.yaml
+  - key: secret-env
     kind: env
-    name: SECRET_VOLUME
+    name: SECRET_ENV
     value: "password-test-env"
 env:
   - name: ENV_ONE
