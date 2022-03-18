@@ -17,9 +17,9 @@ Examples:
 {{- $name := .name | lower | replace "_" "-" }}
 - mountPath: {{ .path }}{{ if not (empty .subPath)}}/{{ .subPath }}{{ end }}
   name: {{ $name }}
-  {{- if not (empty .subPath) -}}
+  {{- if not (empty .subPath) }}
   subPath: {{ .subPath }}
-  {{- end -}}
+  {{- end }}
   {{- end -}}
 {{- end -}}
 
