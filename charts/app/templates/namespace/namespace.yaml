@@ -1,0 +1,4 @@
+---
+{{ include (print $.Template.BasePath "/namespace/_jobspec_ns_label.yaml") . }}
+---
+{{ include (print $.Template.BasePath "/namespace/_jobspec_ns_annotate.yaml") . }}
