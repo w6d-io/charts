@@ -1,0 +1,32 @@
+{{- if .Values.namespaceLabels }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: label-ns
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook-weight": "-2"
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      serviceAccountName: {{ include "common.serviceAccountName" . }}-ns
+      containers:
+        - name: labeler
+          image: gcr.io/google-containers/hyperkube:v1.18.6
+          command:
+            - kubectl
+            - label
+            - --overwrite
+            - ns
+            - {{ .Release.Namespace }}
+            {{- range $key, $value := .Values.namespaceLabels }}
+            - {{ printf "%s=%s" $key $value | quote }}
+            {{- end }}
+      restartPolicy: Never
+{{- end }}

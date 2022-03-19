@@ -108,8 +108,8 @@ spec:
           - "/opt/bin/setsvc"
           - "/init-tools/setsvc"
         volumeMounts:
-      {{-     include "common.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
-      {{-   end }}
+      {{-      include "common.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
+      {{-    end }}
       {{-   $dictionnary := dict "context" $ }}
       {{-   $_ := set $dictionnary "secrets" $secrets }}
       {{-   $_ := set $dictionnary "configs" $configs }}

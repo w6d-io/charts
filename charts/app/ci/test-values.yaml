@@ -58,3 +58,14 @@ service:
 serviceAccount:
   create: true
   name: test
+
+namespaceAnnotations:
+  test.w6d.io: "value"
+  test-2.w6d.io: |
+    {
+      "test": "ok"
+    }
+
+namespaceLabels:
+  test.w6d.io: "value"
+  test-2.w6d.io: "value"

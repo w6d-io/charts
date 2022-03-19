@@ -30,4 +30,3 @@ subjects:
   name: {{ include "common.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 {{- end}}
-
