@@ -36,4 +36,4 @@ spec:
   {{- end }}
   type: {{ default "ClusterIP" .Values.service.type }}
   selector:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
