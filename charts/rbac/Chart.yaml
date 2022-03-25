@@ -2,10 +2,10 @@ apiVersion: v2
 name: rbac
 description: Custom RBAC aggreation and binding
 type: application
-appVersion: "0.1.0"
 maintainers:
   - name: Wildcard
     email: support@w6d.io
   - name: david972
     email: david.alexandre@w6d.io
-version: 0.1.0
+appVersion: "0.1.1"
+version: 0.1.1
