@@ -1,13 +1,13 @@
 {{ $aggregations := .Values.aggregations }}
 {{- range .Values.roles }}
-{{- $labels := include "rbac.labels.aggregate" (dict "name" .name "aggregations" $aggregations ) }}
+{{- $labels := include "rbac.labels.aggregate" (dict "roleName" .name "aggregations" $aggregations ) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .name | quote }}
-  {{- if $labels }}
-  labels: {{ print $labels | nindent 4 }}
+  {{- with $labels }}
+  labels: {{ print . | nindent 4 }}
   {{- end }}
 rules:
   - apiGroups:
