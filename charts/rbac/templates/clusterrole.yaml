@@ -16,19 +16,52 @@ rules:
       {{- toYaml .resources | nindent 6 }}
     verbs:
     {{- range .verbs }}
-    {{- if eq "write" . }}
+    {{-   if eq "write" . }}
       - create
       - delete
       - update
       - patch
-    {{- end }}
-    {{- if eq "read" . }}
+    {{-   end }}
+    {{-   if eq "read" . }}
       - get
       - list
       - watch
-    {{- end }}
-    {{ if eq "*" . }}
+    {{-   end }}
+    {{-   if eq "*" . }}
       - "*"
+    {{-   end }}
     {{- end }}
+{{- end }}
+{{- range .Values.extraRoles }}
+{{- $labels := include "rbac.labels.aggregate" (dict "roleName" .name "aggregations" $aggregations ) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .name | quote }}
+  {{- with $labels }}
+  labels: {{ print . | nindent 4 }}
+  {{- end }}
+rules:
+  - apiGroups:
+      {{- toYaml .groups | nindent 6 }}
+    resources:
+      {{- toYaml .resources | nindent 6 }}
+    verbs:
+    {{- range .verbs }}
+    {{-   if eq "write" . }}
+    - create
+    - delete
+    - update
+    - patch
+    {{-   end }}
+    {{-   if eq "read" . }}
+    - get
+    - list
+    - watch
+    {{-   end }}
+    {{-   if eq "*" . }}
+    - "*"
+    {{-   end }}
     {{- end }}
 {{- end }}

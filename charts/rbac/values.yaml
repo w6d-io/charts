@@ -1,5 +1,6 @@
 aggregations: []
 bind: []
+extraRoles: []
 roles:
   - name: w6d.admin
     groups:
@@ -66,7 +67,7 @@ roles:
     groups: [""]
     resources:
       - pods
-      - pods/logs
+      - pods/log
     verbs:
       - read
   - name: w6d.pods.exec
