@@ -92,6 +92,18 @@ ingress:
   className: ''         # ingressClassName field https://kubernetes.github.io/ingress-nginx/#what-is-ingressclassname-field
   extraPaths: []
 
+cert:
+  enabled: false
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: ""
+  dnsNames: []
+  # - example.net
+  # - example.com
+  # - example.io
+
 persistence: []
 livenessProbe: {}
 readinessProbe: {}
