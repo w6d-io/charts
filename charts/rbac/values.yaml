@@ -40,7 +40,7 @@ roles:
       - deployments
       - statefulsets
       - daemonsets
-      - replicatsets
+      - replicasets
     verbs:
       - read
   - name: w6d.workload.write
@@ -50,7 +50,7 @@ roles:
       - deployments
       - statefulsets
       - daemonsets
-      - replicatsets
+      - replicasets
     verbs:
       - write
   - name: w6d.workload.scale
@@ -59,7 +59,7 @@ roles:
     resources:
       - deployments
       - statefulsets
-      - replicatsets
+      - replicasets
     verbs:
       - read
       - write
