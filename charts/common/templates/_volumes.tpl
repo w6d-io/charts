@@ -33,7 +33,7 @@ Params:
       Params:
       - name # use for volume name
       - mode # default mode
-      - kind # secret, configMap, persistentVolumeClaim
+      - kind # secret, configMap, persistentVolumeClaim, csi
       - claimName # optional : only for persistentVolumeClaim kind default is `name`
   - context
 Examples:
@@ -51,9 +51,10 @@ Examples:
     {{- if .mode }}
     defaultMode: {{ .mode }}
     {{- end }}
-  {{- end }}
-  {{- if eq .kind "persistentVolumeClaim" }}
+  {{- else if eq .kind "persistentVolumeClaim" }}
     claimName: {{default (printf "%s-%s" $fullname $name) .claimName}}
+  {{- else if eq .kind "csi" }}
+    {{- toYaml .csi | nindent 4 }}
   {{- end }}
 {{- end }}
 {{- end -}}
