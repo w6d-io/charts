@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled -}}
-{{- $name := include "service.name" . -}}
-{{- $svcPort := include "service.port" . -}}
+{{- $name := .Values.service.name -}}
+{{- $svcPort := .Values.service.externalPort -}}
 {{- $className := (include "ingress.className" . ) }}
 {{- $host := include "ingress.host" . }}
 apiVersion: {{ template "ingress.apiVersion" . }}
