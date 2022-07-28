@@ -35,7 +35,7 @@ Usage:
 env:
 {{- end }}
 {{- if .env -}}
-{{- tpl .env . | nindent 2 }}
+{{- tpl .env .context | nindent 2 }}
 {{- end }}
 
 {{- with .secrets }}
