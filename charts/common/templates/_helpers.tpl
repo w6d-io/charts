@@ -34,8 +34,8 @@ Usage:
 {{- if or .env .configs .secrets }}
 env:
 {{- end }}
-{{- if .Values.env -}}
-{{- tpl .Values.env . | nindent 2 }}
+{{- if .env -}}
+{{- tpl .env . | nindent 2 }}
 {{- end }}
 
 {{- with .secrets }}
