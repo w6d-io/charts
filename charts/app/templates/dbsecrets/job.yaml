@@ -1,0 +1,4 @@
+---
+{{ include (print $.Template.BasePath "/dbsecrets/_jobspec_create.yaml") . }}
+---
+{{ include (print $.Template.BasePath "/dbsecrets/_jobspec_delete.yaml") . }}
