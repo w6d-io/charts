@@ -2,6 +2,8 @@ image:
   repository: reg-ext.stradaworld.com/strada/stradaplatform/entityadminmodule/backend
   pullPolicy: IfNotPresent
 
+name: apiea
+
 global:
   id: "default-id"
   namespace: "apiea"
@@ -18,9 +20,6 @@ global:
     uam: ""
     tfds: ""
     tfd: ""
-  app:
-    serviceName: apiea
-    servicePort: 8080
   generateSecret:
     enabled: false
 
