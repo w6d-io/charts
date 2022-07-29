@@ -1,0 +1,17 @@
+{{- if not .Values.global.generateSecret.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.names.name" . }}-script
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,pre-delete
+    "helm.sh/hook-weight": "-3"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+data:
+  create-secrets: |
+    {{- include (print $.Template.BasePath "/dbsecrets/_create_secrets.sh.tpl") . | nindent 4 }}
+  delete_secrets: |
+    {{- include (print $.Template.BasePath "/dbsecrets/_delete_secrets.sh.tpl") . | nindent 4 }}
+{{- end }}

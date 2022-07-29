@@ -1,0 +1,2 @@
+---
+{{ include (print $.Template.BasePath "/liquibase/_jobspec_dbinit.yaml") . }}
