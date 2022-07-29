@@ -1,0 +1,19 @@
+- image: {{ include "liquibase.image" . }}
+  imagePullPolicy: {{ default "" .imagePullPolicy | quote }}
+  {{- with .Values.liquibase.command }}
+  command:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.liquibase.args }}
+  args:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: liquibase
+  {{- with .Values.liquibase.env }}
+  env:
+    {{- tpl . $ | nindent 4 }}
+  {{- end }}
+  {{- with .Values.liquibase.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

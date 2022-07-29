@@ -1,6 +1,65 @@
 ---
 replicaCount: 1
 
+name: "-"
+
+global:
+  id: ""
+  namespace: ""
+  database:
+    host: ""
+    adminpassword: ""
+    password: ""
+    postgres_password: ""
+    component: ""
+  domain:
+    kafka: ""
+    auth0: ""
+    s3: ""
+    uam: ""
+    tfds: ""
+    tfd: ""
+  generateSecret:
+    enabled: false
+
+liquibase:
+  enabled: false
+  env: |-
+    - name: DB_DATABASE
+      value: {{ include "global.database.database" . | quote }}
+    - name: DB_HOST
+      value: {{ include "global.database.host" .  | quote }}
+    - name: DB_PORT
+      value: "5432"
+    - name: DB_USERNAME
+      value: {{ include "global.database.adminuser" . | quote }}
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: dlm-postgres-password
+          name: {{ include "common.names.fullname" $ }}
+    - name: DB_VERSION
+      value: {{ (coalesce .Values.dbversion .Values.version .Chart.AppVersion) | quote }}
+  resources: {}
+  command:
+    - bash
+    - -c
+    - |
+      set -e
+      cd /db
+      if [ -z "${DB_VERSION}" ]
+      then
+        liquibase --url jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE} \
+            --username ${DB_USERNAME} \
+            --password ${DB_PASSWORD} \
+            update
+      else
+          liquibase --url jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE} \
+            --username ${DB_USERNAME} \
+            --password ${DB_PASSWORD} \
+              update-to-tag ${DB_VERSION}
+      fi
+
 ## add revision in annotation to force restart on rollout
 revision:
   enabled: false
@@ -75,7 +134,7 @@ resources: {}
 #    memory: 128Mi
 
 service:
-  name: 'app'
+  name: "-"
   internalPort: 8080
   externalPort: 8080
   type: ClusterIP
@@ -113,6 +172,14 @@ metrics:
   path: '/metrics'
   port: 8080
 
+env: ""
+#env: |
+#  - name: PG_HOST
+#    value: {{ include "global.database.host" .  | quote }}
+#  - name: PG_DATABASE
+#    value: {{ include "global.database.database" . | quote }}
+#  - name: PG_USERNAME
+#    value: {{ include "global.database.username" . | quote }}
 
 configs: []
 # - key: 'config.yaml'
@@ -140,6 +207,12 @@ nodeSelector: {}
 
 volumeMounts: {}
 volumes: {}
+
+autoscaling:
+  enabled: false
+#  minReplicas: 1
+#  maxReplicas: 100
+#  targetCPUUtilizationPercentage: 80
 
 mongodb:
   install: false

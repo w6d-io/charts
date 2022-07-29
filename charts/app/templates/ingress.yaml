@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled -}}
+{{- $name := .Values.service.name -}}
+{{- $svcPort := .Values.service.externalPort -}}
+{{- $className := (include "ingress.className" . ) }}
+{{- $host := include "ingress.host" . }}
+apiVersion: {{ template "ingress.apiVersion" . }}
+kind: Ingress
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $className }}
+    {{- $className | nindent 2 }}
+  {{- end }}
+  tls:
+    - hosts:
+        - {{ $host }}
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            backend:
+            {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" }}
+              service:
+                name: {{ $name }}
+                port:
+                  number: {{ $svcPort }}
+            pathType: Prefix
+            {{- else }}
+              serviceName: {{ $name }}
+              servicePort: {{ $svcPort }}
+            {{- end }}
+{{- end }}

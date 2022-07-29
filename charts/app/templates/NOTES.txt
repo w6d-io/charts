@@ -1,16 +1,17 @@
 Deployment information:
   - Kind          : {{ default "deployment" .Values.kind }}
   - Release       : {{ .Release.Name }}
-  - Chart         : {{ include "common.names.chart" . }}
+  - Chart         : {{ printf "%s/%s" .Chart.Name .Chart.Version }}
+  - Version       : {{ printf "%s" (.Values.version | default .Chart.AppVersion) }}
   - Service name  : {{ .Values.service.name }}
   - Namespace     : {{ .Release.Namespace }}
-  - image         : {{ (include "common.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) ) }}
+  - image         : {{ include "common.image" . }}
   - replicas      : {{ .Values.replicaCount }}
-  - internal host : {{ printf "%s.%s.svc.cluster.local:%v" (include "common.names.service" (dict "name" .Values.service.name "context" $)) .Release.Namespace .Values.service.externalPort }}
+  - internal host : {{ printf "%s.%s.svc.cluster.local:%v" .Values.service.name .Release.Namespace .Values.service.externalPort }}
 {{- if and .Values.ingress.enabled .Values.ingress.host }}
   - url           : https://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
 {{- if .Values.ingress.class }}
-  - Ingress class : {{ .Values.ingress.class }}
+  - Ingress class : {{ default .Values.ingress.class .Values.ingress.className }}
 {{- end }}
 {{- end }}
 
@@ -23,4 +24,3 @@ Labels:
 Annotations:
   {{ toYaml . | indent 2 }}
 {{- end }}
-

@@ -1,19 +1,13 @@
-{{- $labels := (include "common.labels.standard" .) }}
-{{- $fullname := (include "common.names.fullname" .) }}
-{{- range .Values.configs }}
-{{- $name := .name | lower | replace "_" "-" }}
+{{- if .Values.configs }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    {{- (include "common.labels.standard" $) | nindent 4 }}
-  name: {{ printf "%s-%s" $fullname $name }}
+    {{- include "common.labels.standard" . | nindent 4 }}
+  name: {{ template "common.names.fullname" . }}
 data:
-  {{- if not (empty .subPath) }}
-  {{ .key }}: |
-    {{- .value | nindent 4}}
-  {{- else }}
-  {{- .value | nindent 2}}
-  {{- end }}
+{{- range .Values.configs }}
+  {{ .key }}: {{ toYaml .value | indent 2 }}
+{{- end }}
 {{- end }}
