@@ -1,4 +1,5 @@
-- image: {{ include "liquibase.image" . }}
+{{- $image := (include "liquibase.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) ) }}
+- image: {{ $image }}
   imagePullPolicy: {{ default "" .imagePullPolicy | quote }}
   {{- with .Values.liquibase.command }}
   command:

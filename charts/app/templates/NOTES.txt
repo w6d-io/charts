@@ -2,10 +2,10 @@ Deployment information:
   - Kind          : {{ default "deployment" .Values.kind }}
   - Release       : {{ .Release.Name }}
   - Chart         : {{ printf "%s/%s" .Chart.Name .Chart.Version }}
-  - Version       : {{ printf "%s" (.Values.version | default .Chart.AppVersion) }}
+  - Version       : {{ printf "%s" .Values.image.tag }}
   - Service name  : {{ .Values.service.name }}
   - Namespace     : {{ .Release.Namespace }}
-  - image         : {{ include "common.image" . }}
+  - image         : {{ include "common.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) }}
   - replicas      : {{ .Values.replicaCount }}
   - internal host : {{ printf "%s.%s.svc.cluster.local:%v" .Values.service.name .Release.Namespace .Values.service.externalPort }}
 {{- if and .Values.ingress.enabled .Values.ingress.host }}
