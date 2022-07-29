@@ -55,15 +55,18 @@
 {{- end -}}
 
 {{- define "global.database.database" -}}
-{{ printf "%s.%s" .Values.global.namespace (required "global.database.component is required" .Values.global.database.component) }}
+{{ $dbname:=(printf "%s.%s" .Values.global.namespace (required "global.database.component is required" .Values.global.database.component)) }}
+{{ default $name .Values.global.database.name }}
 {{- end -}}
 
 {{- define "global.database.username" -}}
-{{ printf "%s_%s_app" .Values.global.namespace (include "common.component" .) }}
+{{ $name:=(printf "%s_%s_app" .Values.global.namespace (include "common.component" .))}}
+{{ default $name .Values.global.database.username }}
 {{- end -}}
 
 {{- define "global.database.adminuser" -}}
-{{ printf "%s_%s_admin" .Values.global.namespace (include "common.component" .) }}
+{{ $name:=(printf "%s_%s_admin" .Values.global.namespace (include "common.component" .)) }}
+{{ default $name .Values.global.database.adminuser }}
 {{- end -}}
 
 {{- define "global.database.password" -}}
