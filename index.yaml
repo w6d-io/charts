@@ -3,6 +3,40 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v1.9.0-alpha.58
+    created: "2022-07-29T13:59:58.150648672Z"
+    dependencies:
+    - name: common
+      repository: https://charts.w6d.io
+      version: '>=0.1.9'
+    - condition: mongodb.install
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: 10.31.1
+    - condition: redis.install
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 15.7.1
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: 34ac9f2d245c2a3727036a872039061a5c4d54a396cded557b530473bd783d22
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    - https://gitlab.w6d.io/strada/stradaplatform
+    - https://gitlab.w6d.io/strada/stradaplatform/applicationservices/facturation
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-2.1.4/app-2.1.4.tgz
+    version: 2.1.4
+  - apiVersion: v2
+    appVersion: v1.9.0-alpha.58
     created: "2022-07-29T13:27:43.859378152Z"
     dependencies:
     - name: common
@@ -3905,4 +3939,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2022-07-29T13:27:43.860252364Z"
+generated: "2022-07-29T13:59:58.151626985Z"
