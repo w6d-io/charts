@@ -185,10 +185,8 @@ roles:
       - jobs
       - cronjobs
     verbs:
-      - create
-      - delete
-      - update
-      - patch
+      - read
+      - write
   - name: w6d.storageclasse.read
     groups: ["storage.k8s.io"]
     resources:
