@@ -43,6 +43,6 @@ function create_secret_if_needed(){
   fi
 }
 
-create_secret_if_needed {{ template "common.names.fullname" . }} --from-literal=postgres-password={{ required "global.database.password is required" (include "global.database.password" .) }}
-create_secret_if_needed {{ template "common.names.fullname" . }} --from-literal=dlm-postgres-password={{ required "global.database.adminpassword is required" (include "global.database.adminpassword" .) }}
+create_secret_if_needed {{ template "common.names.fullname" . }} --from-literal=postgres-password={{ required "global.database.password is required" (include "global.database.password" .) | quote }}
+create_secret_if_needed {{ template "common.names.fullname" . }} --from-literal=dlm-postgres-password={{ required "global.database.adminpassword is required" (include "global.database.adminpassword" .) | quote }}
 label_secret {{ template "common.names.fullname" . }} {{ include "common.component" . | quote }}
