@@ -178,6 +178,17 @@ roles:
       - ingresses
     verbs:
       - write
+  - name: w6d.jobs.edit
+    groups:
+      - "batch"
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - create
+      - delete
+      - update
+      - patch
   - name: w6d.storageclasse.read
     groups: ["storage.k8s.io"]
     resources:
