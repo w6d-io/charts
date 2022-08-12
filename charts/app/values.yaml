@@ -172,7 +172,7 @@ metrics:
   path: '/metrics'
   port: 8080
 
-env: ""
+env: "-"
 # env: |
 #   - name: PG_HOST
 #     value: {{ include "global.database.host" .  | quote }}
