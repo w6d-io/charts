@@ -173,13 +173,13 @@ metrics:
   port: 8080
 
 env: ""
-#env: |
-#  - name: PG_HOST
-#    value: {{ include "global.database.host" .  | quote }}
-#  - name: PG_DATABASE
-#    value: {{ include "global.database.database" . | quote }}
-#  - name: PG_USERNAME
-#    value: {{ include "global.database.username" . | quote }}
+# env: |
+#   - name: PG_HOST
+#     value: {{ include "global.database.host" .  | quote }}
+#   - name: PG_DATABASE
+#     value: {{ include "global.database.database" . | quote }}
+#   - name: PG_USERNAME
+#     value: {{ include "global.database.username" . | quote }}
 
 configs: []
 # - key: 'config.yaml'
