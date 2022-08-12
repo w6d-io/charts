@@ -1,4 +1,4 @@
-{{- if not .Values.global.generateSecret.enabled }}
+{{- if and (not .Values.global.generateSecret.enabled ) .Values.liquibase.enabled  }}
 apiVersion: batch/v1
 kind: Job
 metadata:
