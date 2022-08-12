@@ -7,10 +7,10 @@ pushd $(mktemp -d)
 
 function label_secret(){
   local secret_name=$1
-  local strada_name=$2
+  local label_name=$2
   kubectl --namespace=$namespace label \
     --overwrite \
-    secret $secret_name "app.kubernetes.io/managed-by"="Helm" "strada.fr/name"="$strada_name" {{ include "common.labels.standard" . | replace ": " "=" | replace "\r\n" " " | replace "\n" " " }}
+    secret $secret_name "app.kubernetes.io/managed-by"="Helm" "app.kubernetes.io/extra-name"="$label_name" {{ include "common.labels.standard" . | replace ": " "=" | replace "\r\n" " " | replace "\n" " " }}
   kubectl --namespace=$namespace annotate \
     --overwrite \
     secret $secret_name "meta.helm.sh/release-name"={{ print .Release.Name }} "meta.helm.sh/release-namespace"=$namespace
