@@ -34,7 +34,7 @@ Usage:
 {{- if or .env .configs .secrets }}
 env:
 {{- end }}
-{{- if and .env (not (eq "-")) -}}
+{{- if and .env (not (eq .env "-")) -}}
 {{- tpl .env .context | nindent 2 }}
 {{- end }}
 
