@@ -50,7 +50,7 @@ liquibase:
       if [ -z "${DB_VERSION}" ]
       then
         liquibase --url jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE} \
-            --username ${DB_USERNAME} \
+            --username ${DB_USERNAME} \ 
             --password ${DB_PASSWORD} \
             update
       else
