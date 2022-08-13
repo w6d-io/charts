@@ -37,7 +37,7 @@ liquibase:
       valueFrom:
         secretKeyRef:
           key: dlm-postgres-password
-          name: {{ include "common.names.fullname" $ }}
+          name: {{ include "common.names.fullname" $ }}-db
     - name: DB_VERSION
       value: {{ (coalesce .Values.dbversion .Values.version .Chart.AppVersion) | quote }}
   resources: {}
@@ -50,7 +50,7 @@ liquibase:
       if [ -z "${DB_VERSION}" ]
       then
         liquibase --url jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE} \
-            --username ${DB_USERNAME} \
+            --username ${DB_USERNAME} \ 
             --password ${DB_PASSWORD} \
             update
       else
