@@ -4,7 +4,7 @@ Kubernetes standard labels
 */}}
 {{- define "common.labels.standard" -}}
 app.kubernetes.io/name: {{ include "common.names.name" . }}
-app.kubernetes.io/version: {{ .Chart.AppVersion }}
+app.kubernetes.io/version: {{ default .Chart.AppVersion | .Values.version }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ include "common.names.chart" . }}
 {{- end -}}
