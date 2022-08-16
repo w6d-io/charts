@@ -44,3 +44,10 @@ ingressClassName: {{ coalesce .Values.ingress.className .Values.ingress.class }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "common.component" -}}
+{{ .Values.global.database.component }}
+{{- end -}}
