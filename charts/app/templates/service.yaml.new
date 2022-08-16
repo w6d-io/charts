@@ -12,4 +12,4 @@ spec:
       protocol: TCP
       name: {{ .Chart.Name }}
   selector:
-    {{- include "common.labels.selector" . | nindent 4 }}
+    {{- include "common.labels.matchLabels" . | nindent 4 }}

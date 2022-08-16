@@ -7,8 +7,6 @@ keywords:
 home: https://www.w6d.io
 sources:
   - https://charts.w6d.io
-  - https://gitlab.w6d.io/strada/stradaplatform
-  - https://gitlab.w6d.io/strada/stradaplatform/applicationservices/facturation
 maintainers:
   - name: Wildcard
     email: support@w6d.io
@@ -17,7 +15,7 @@ maintainers:
 icon: https://gitlab.w6d.io/favicon.ico
 dependencies:
 - name: common
-  version: ">=0.1.9"
+  version: ">=0.1.11"
   repository: https://charts.w6d.io
 - name: mongodb
   version: 10.31.1
@@ -27,4 +25,4 @@ dependencies:
   version: 15.7.1
   repository: https://charts.bitnami.com/bitnami
   condition: redis.install
-version: 2.1.4
+version: 2.1.5

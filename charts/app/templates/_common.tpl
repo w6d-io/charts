@@ -37,22 +37,6 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 {{- end -}}
 
-
-{{- define "common.labels.standard" -}}
-helm.sh/chart: {{ include "common.names.chart" . }}
-{{ include "common.labels.selector" . }}
-createdfor: "strada"
-strada.fr/managed-by: {{ .Release.Service }}
-strada.fr/label: {{ default "" .Values.global.label | replace " " "_" | quote }}
-{{- end -}}
-
-{{- define "common.labels.selector" -}}
-strada.fr/name: {{ include "common.names.name" . }}
-strada.fr/instance: {{ .Release.Name }}
-strada.fr/customerid: {{ default "" .Values.global.id }}
-{{- end -}}
-
-
 {{/*
 Create the name of the service account to use
 Usage:

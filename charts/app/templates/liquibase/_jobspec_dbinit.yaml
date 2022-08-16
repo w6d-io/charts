@@ -33,14 +33,14 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: postgres-password
-                  name: {{ include "common.names.name" . | quote }}
+                  name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
             - name: db_admin_username
               value: {{ include "global.database.adminuser" . | quote }}
             - name: db_admin_password
               valueFrom:
                 secretKeyRef:
                   key: dlm-postgres-password
-                  name: {{ include "common.names.name" . | quote }}
+                  name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:

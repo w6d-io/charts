@@ -37,7 +37,7 @@ liquibase:
       valueFrom:
         secretKeyRef:
           key: dlm-postgres-password
-          name: {{ include "common.names.fullname" $ }}
+          name: {{ include "common.names.fullname" $ }}-db
     - name: DB_VERSION
       value: {{ (coalesce .Values.dbversion .Values.version .Chart.AppVersion) | quote }}
   resources: {}
@@ -75,7 +75,7 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
-  name: ""
+  name: "app"
 
 role:
   rules: null
@@ -172,14 +172,14 @@ metrics:
   path: '/metrics'
   port: 8080
 
-env: ""
-#env: |
-#  - name: PG_HOST
-#    value: {{ include "global.database.host" .  | quote }}
-#  - name: PG_DATABASE
-#    value: {{ include "global.database.database" . | quote }}
-#  - name: PG_USERNAME
-#    value: {{ include "global.database.username" . | quote }}
+env: "-"
+# env: |
+#   - name: PG_HOST
+#     value: {{ include "global.database.host" .  | quote }}
+#   - name: PG_DATABASE
+#     value: {{ include "global.database.database" . | quote }}
+#   - name: PG_USERNAME
+#     value: {{ include "global.database.username" . | quote }}
 
 configs: []
 # - key: 'config.yaml'
