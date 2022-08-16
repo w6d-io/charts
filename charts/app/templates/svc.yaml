@@ -8,13 +8,13 @@ metadata:
   name: {{ $serviceName }}
 spec:
   ports:
-  - name: {{ $serviceName | trunc 14 }}
+  - name: {{ $serviceName | trunc 14 | trimSuffix "-" }}
     port: {{ .Values.service.externalPort }}
     protocol: TCP
     {{- if .Values.service.nodePort }}
     nodePort: {{ .Values.service.nodePort }}
     {{- end }}
-    targetPort: {{ default (include "common.names.name" . | trunc 14) (default .Values.service.internalPort .Values.service.targetPort) }}
+    targetPort: {{ default (include "common.names.name" . | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
   {{- if .Values.metrics.enabled }}
     {{- if ne (.Values.metrics.port | int) (.Values.service.internalPort | int ) }}
   - name: metrics
@@ -25,13 +25,13 @@ spec:
   {{- end }}
   {{- if .Values.extraContainerPort }}
     {{- range .Values.extraContainerPort }}
-  - name: {{ .name | trunc 14 }}
+  - name: {{ .name | trunc 14 | trimSuffix "-" }}
     port: {{ .port }}
     {{- if .nodePort }}
     nodePort: {{ .nodePort }}
     {{- end }}
     protocol: {{ default "TCP" .protocol }}
-    targetPort: {{ default (.name | trunc 14) .target }}
+    targetPort: {{ default (.name | trunc 14 | trimSuffix "-") .target }}
     {{- end }}
   {{- end }}
   type: {{ default "ClusterIP" .Values.service.type }}
