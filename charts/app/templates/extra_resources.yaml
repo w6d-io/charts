@@ -1,0 +1,6 @@
+{{- if .Values.extraResources }}
+apiVersion: v1
+kind: List
+items:
+{{- tpl .Values.extraResources $ | nindent 0 }}
+{{- end }}

@@ -69,3 +69,11 @@ namespaceAnnotations:
 namespaceLabels:
   test.w6d.io: "value"
   test-2.w6d.io: "value"
+
+extraResources: |
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ include "common.names.name" $ }}
+    data:
+      test: "test"
