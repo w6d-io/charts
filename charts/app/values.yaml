@@ -214,6 +214,35 @@ autoscaling:
 #  maxReplicas: 100
 #  targetCPUUtilizationPercentage: 80
 
+extraResources: ""
+# extraResources: |-
+#  - apiVersion: networking.k8s.io/v1
+#    kind: Ingress
+#    metadata:
+#      labels:
+#        {{- include "common.labels.standard" . | nindent 4 }}
+#          {{- with .Values.ingress.annotations }}
+#          annotations:
+#            {{- toYaml . | nindent 4 }}
+#          {{- end }}
+#      name: {{ include "common.names.fullname" $ }}
+#    spec:
+#      ingressClassName: ing-w6d
+#      rules:
+#      - host: test.w6d.io
+#        http:
+#          paths:
+#          - backend:
+#              service:
+#                name: test
+#                port:
+#                  number: 8080
+#            path: /
+#            pathType: Prefix
+#      tls:
+#      - hosts:
+#        - test.w6d.io
+
 mongodb:
   install: false
 
