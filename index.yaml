@@ -3,6 +3,38 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v1.9.0-alpha.58
+    created: "2022-08-16T09:45:06.326876541Z"
+    dependencies:
+    - name: common
+      repository: https://charts.w6d.io
+      version: '>=0.1.12'
+    - condition: mongodb.install
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: 10.31.1
+    - condition: redis.install
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 15.7.1
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: d8638852fce0734399df33f7b74e1f87787518de1f580db161f20e2220f98370
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-2.1.8/app-2.1.8.tgz
+    version: 2.1.8
+  - apiVersion: v2
+    appVersion: v1.9.0-alpha.58
     created: "2022-08-16T09:41:03.224122566Z"
     dependencies:
     - name: common
@@ -4092,4 +4124,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2022-08-16T09:42:23.639545437Z"
+generated: "2022-08-16T09:45:06.327764949Z"
