@@ -10,8 +10,16 @@
 {{- .Values.global.domain.name -}}
 {{- end -}}
 
+{{- define "global.kafka" -}}
+{{- .Values.global.domain.kafka -}}
+{{- end -}}
+
 {{- define "global.domain.auth0" -}}
 {{- .Values.global.domain.auth0 -}}
+{{- end -}}
+
+{{- define "global.domain.s3" -}}
+{{- .Values.global.domain.s3 -}}
 {{- end -}}
 
 {{- define "global.domain.uam" -}}
@@ -26,12 +34,16 @@
 {{- .Values.global.domain.tms -}}
 {{- end -}}
 
-{{- define "global.domain.graphql" -}}
-{{- .Values.global.domain.graphql -}}
+{{- define "global.domain.tfds" -}}
+{{- .Values.global.domain.tfds -}}
 {{- end -}}
 
-{{- define "global.kafka" -}}
-{{- .Values.global.domain.kafka -}}
+{{- define "global.domain.tfd" -}}
+{{- .Values.global.domain.tfd -}}
+{{- end -}}
+
+{{- define "global.domain.graphql" -}}
+{{- .Values.global.domain.graphql -}}
 {{- end -}}
 
 {{- define "global.id" -}}
