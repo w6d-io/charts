@@ -2,9 +2,6 @@
 {{/*
  TENANT define
 */}}
-{{- define "global.subdomain" -}}
-{{- .Values.global.namespace -}}
-{{- end -}}
 
 {{- define "global.domain" -}}
 {{- .Values.global.domain.name -}}
