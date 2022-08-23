@@ -26,6 +26,10 @@
 {{- .Values.global.domain.uam -}}
 {{- end -}}
 
+{{- define "global.domain.cam" -}}
+{{- .Values.global.domain.cam -}}
+{{- end -}}
+
 {{- define "global.domain.eam" -}}
 {{- .Values.global.domain.eam -}}
 {{- end -}}
@@ -42,8 +46,32 @@
 {{- .Values.global.domain.tfd -}}
 {{- end -}}
 
+{{- define "global.domain.swfd" -}}
+{{- .Values.global.domain.swfd -}}
+{{- end -}}
+
+{{- define "global.domain.if" -}}
+{{- .Values.global.domain.if -}}
+{{- end -}}
+
 {{- define "global.domain.graphql" -}}
 {{- .Values.global.domain.graphql -}}
+{{- end -}}
+
+{{- define "global.domain.storage" -}}
+{{- .Values.global.domain.storage -}}
+{{- end -}}
+
+{{- define "global.domain.efact" -}}
+{{- .Values.global.domain.efact -}}
+{{- end -}}
+
+{{- define "global.domain.tar" -}}
+{{- .Values.global.domain.tar -}}
+{{- end -}}
+
+{{- define "global.domain.settings" -}}
+{{- .Values.global.domain.settings -}}
 {{- end -}}
 
 {{- define "global.id" -}}
