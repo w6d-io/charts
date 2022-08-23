@@ -12,13 +12,6 @@ global:
     password: ""
     postgres_password: ""
     component: ""
-  domain:
-    kafka: ""
-    auth0: ""
-    s3: ""
-    uam: ""
-    tfds: ""
-    tfd: ""
   generateSecret:
     enabled: false
 
@@ -71,6 +64,8 @@ image:
 serviceAccount:
   # Specifies whether a service account should be created
   create: false
+  # Specifies whether a service account token should be created as of 1.24 kubernetes version
+  token: true
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
