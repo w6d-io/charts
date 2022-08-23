@@ -47,8 +47,8 @@
 {{- .Values.global.domain.swfd -}}
 {{- end -}}
 
-{{- define "global.domain.if" -}}
-{{- .Values.global.domain.if -}}
+{{- define "global.domain.ifapi" -}}
+{{- .Values.global.domain.ifapi -}}
 {{- end -}}
 
 {{- define "global.domain.graphql" -}}
