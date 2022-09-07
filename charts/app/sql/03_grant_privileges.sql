@@ -8,7 +8,7 @@ REVOKE ALL ON DATABASE "{{db_name}}" FROM PUBLIC;
 CREATE SCHEMA cap;
 
 ---
-GRANT CREATE, CONNECT ON DATABASE "{{db_name}}" TO {{db_username}};
+GRANT CREATE, CONNECT, TEMPORARY ON DATABASE "{{db_name}}" TO {{db_username}};
 
 -- readwrite in public schema
 GRANT USAGE, CREATE ON SCHEMA public TO {{db_username}};
