@@ -243,3 +243,6 @@ mongodb:
 
 redis:
   install: false
+
+pdb:
+  enabled: false
