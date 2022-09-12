@@ -7,11 +7,11 @@ metadata:
     {{- include "common.labels.standard" . | nindent 4 }}
   name: {{- include "common.names.fullname" . }}
 spec:
-  {{- if .Values.minAvailable }}
-  minAvailable: {{ .Values.minAvailable }}
+  {{- if .Values.pdb.minAvailable }}
+  minAvailable: {{ .Values.pdb.minAvailable }}
   {{- end }}
-  {{- if .Values.maxUnavailable }}
-  maxUnavailable: {{ .Values.maxUnavailable }}
+  {{- if .Values.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
   {{- end }}
   selector:
     matchLabels:
