@@ -5,7 +5,7 @@ kind: PodDisruptionBudget
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-    name: {{ template "common.names.fullname" . }}
+  name: {{ template "common.names.fullname" . }}
 spec:
   {{- if .Values.pdb.minAvailable }}
   minAvailable: {{ .Values.pdb.minAvailable }}
