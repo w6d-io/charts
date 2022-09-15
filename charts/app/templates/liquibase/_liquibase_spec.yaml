@@ -27,11 +27,6 @@
         secretKeyRef:
           key: dlm-postgres-password
           name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
-    - name: PGPASSWORD
-      valueFrom:
-        secretKeyRef:
-          key: postgres-password
-          name: {{ printf "%s-init" .Release.Name }}
   command:
     - bash
     - -c
