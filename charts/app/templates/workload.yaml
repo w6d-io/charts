@@ -1,4 +1,4 @@
-{{- $image := (include "common.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) ) }}
+{{- $image := (include "common.images.image" ( dict "imageRoot" .Values.image ) ) }}
 {{- $volumes := list }}
 {{- if .Values.lifecycle.enabled }}
 {{-   $volumes = append $volumes (dict "name" "init-tools" "path" "/init-tools" "kind" "emptyDir" "options" (dict)) }}
@@ -90,7 +90,7 @@ spec:
       securityContext:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- $pullSecret := dict "images" (list .Values.image) "global" .Values.global "context" $ }}
+      {{- $pullSecret := dict "images" (list .Values.image) "context" $ }}
       {{- if $.Values.dockerSecret }}
       {{- if $.Values.dockerSecret.config }}
       {{- $_ := set $pullSecret "dockerSecret" (printf "pull-%s" $fullname) }}

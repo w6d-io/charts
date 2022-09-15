@@ -1,19 +1,47 @@
-{{- $image := (include "liquibase.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) ) }}
+{{- $image := (include "liquibase.images.image" ( dict "imageRoot" .Values.image ) ) }}
 - image: {{ $image }}
   imagePullPolicy: {{ default "" .imagePullPolicy | quote }}
-  {{- with .Values.liquibase.command }}
-  command:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
   {{- with .Values.liquibase.args }}
   args:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   name: liquibase
-  {{- with .Values.liquibase.env }}
   env:
-    {{- tpl . $ | nindent 4 }}
-  {{- end }}
+    - name: db_host
+      value: {{ .Values.database.host  | quote }}
+    - name: db_name
+      value: {{ .Values.database.name | quote }}
+    - name: db_username
+      value: {{ .Values.database.adminuser | default "postgres" | quote }}
+    - name: db_password
+      valueFrom:
+        secretKeyRef:
+          key: dlm-postgres-password
+          name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
+    - name: db_admin_username
+      value: {{ .Values.database.adminuser | quote }}
+    - name: db_version
+      value: {{ (coalesce .Values.dbversion .Values.version .Chart.AppVersion) | quote }}
+    - name: db_admin_password
+      valueFrom:
+        secretKeyRef:
+          key: dlm-postgres-password
+          name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: postgres-password
+          name: {{ printf "%s-init" .Release.Name }}
+  command:
+    - bash
+    - -c
+    - |
+      set -e
+      cd /db
+      liquibase --url jdbc:postgresql://${db_host}:5432/${db_name} \
+        --username ${db_username} \
+        --password ${db_password} \
+        update    
   {{- with .Values.liquibase.resources }}
   resources:
     {{- toYaml . | nindent 4 }}

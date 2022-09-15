@@ -44,7 +44,7 @@ function create_secret_if_needed(){
 }
 
 create_secret_if_needed {{ template "common.names.fullname" . }} \
---from-literal=postgres-password={{ required "global.database.password is required" (include "global.database.password" .) | quote }} \
---from-literal=dlm-postgres-password={{ required "global.database.adminpassword is required" (include "global.database.adminpassword" .) | quote }}
+--from-literal=postgres-password={{ required "database.password is required" .Values.database.password | quote }} \
+--from-literal=dlm-postgres-password={{ required "database.adminpassword is required" .Values.database.adminpassword | quote }}
 
 label_secret {{ template "common.names.fullname" . }} {{ include "common.component" . | quote }}

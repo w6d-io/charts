@@ -3,57 +3,20 @@ replicaCount: 1
 
 name: "-"
 
-global:
-  id: ""
-  namespace: ""
-  database:
-    host: ""
-    adminpassword: ""
-    password: ""
-    postgres_password: ""
-    component: ""
-  generateSecret:
-    enabled: false
+id: ""
+namespace: ""
+database:
+  host: ""
+  adminpassword: ""
+  password: ""
+  postgres_password: ""
+  component: ""
+generateSecret:
+  enabled: false
 
 liquibase:
   enabled: false
-  env: |-
-    - name: DB_DATABASE
-      value: {{ include "global.database.database" . | quote }}
-    - name: DB_HOST
-      value: {{ include "global.database.host" .  | quote }}
-    - name: DB_PORT
-      value: "5432"
-    - name: DB_USERNAME
-      value: {{ include "global.database.adminuser" . | quote }}
-    - name: DB_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          key: dlm-postgres-password
-          name: {{ include "common.names.fullname" $ }}-db
-    - name: DB_VERSION
-      value: {{ (coalesce .Values.dbversion .Values.version .Chart.AppVersion) | quote }}
-  resources: {}
-  command:
-    - bash
-    - -c
-    - |
-      set -e
-      cd /db
-      if [ -z "${DB_VERSION}" ]
-      then
-        liquibase --url jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE} \
-            --username ${DB_USERNAME} \
-            --password ${DB_PASSWORD} \
-            update
-      else
-          liquibase --url jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE} \
-            --username ${DB_USERNAME} \
-            --password ${DB_PASSWORD} \
-              update-to-tag ${DB_VERSION}
-      fi
 
-## add revision in annotation to force restart on rollout
 revision:
   enabled: false
 
@@ -62,14 +25,9 @@ image:
   tag: 'alpine'
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: false
-  # Specifies whether a service account token should be created as of 1.24 kubernetes version
   token: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: "app"
 
 role:
@@ -78,55 +36,10 @@ role:
 podSecurityPolicy:
   enabled: false
 
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-networkPolicies: []
-  # - name: allow-http # must respect the dns format
-  #   types:
-  #     - Ingress
-  #     - Egress
-  #   ingress:
-  #   - from:
-  #     - namespaceSelector:
-  #         matchLabels:
-  #           project: myproject
-  #     ports:
-  #     - protocol: TCP
-  #       port: 8080
-  #   egress:
-  #   - to:
-  #     - podSelector:
-  #         matchLabels:
-  #           app: redis
-  #     ports:
-  #     - protocol: TCP
-  #       port: 6379
-
 lifecycle:
   enabled: false
 
-annotations: {}
-
-podLabels: {}
-
-initContainers: []
-
 resources: {}
-#  limits:
-#    cpu: 100m
-#    memory: 128Mi
-#  requests:
-#    cpu: 10m
-#    memory: 128Mi
 
 service:
   name: "-"
@@ -154,13 +67,6 @@ cert:
     name: letsencrypt-prod
   secretName: ""
   dnsNames: []
-  # - example.net
-  # - example.com
-  # - example.io
-
-persistence: []
-livenessProbe: {}
-readinessProbe: {}
 
 metrics:
   enabled: false
@@ -168,35 +74,10 @@ metrics:
   port: 8080
 
 env: "-"
-# env: |
-#   - name: PG_HOST
-#     value: {{ include "global.database.host" .  | quote }}
-#   - name: PG_DATABASE
-#     value: {{ include "global.database.database" . | quote }}
-#   - name: PG_USERNAME
-#     value: {{ include "global.database.username" . | quote }}
 
 configs: []
-# - key: 'config.yaml'
-#   value: |
-#     ---
-#     data: 'inconfig'
-#   name: CONFIG
-#   path: /data/cfg
 
 secrets: []
-#  - name: PASSWORD
-#    value: 'my_password'
-#    kind: 'env'
-#    key: 'password'
-#  - key: 'secret.yaml'
-#    value: |
-#      ---
-#      secret:
-#        address: https://localhost
-#        password: XjXg2tCtYBDxBRze8Lqa
-#    name: SECRET
-#    kind: 'volume'
 
 nodeSelector: {}
 
@@ -205,38 +86,8 @@ volumes: {}
 
 autoscaling:
   enabled: false
-#  minReplicas: 1
-#  maxReplicas: 100
-#  targetCPUUtilizationPercentage: 80
 
 extraResources: ""
-# extraResources: |-
-#  - apiVersion: networking.k8s.io/v1
-#    kind: Ingress
-#    metadata:
-#      labels:
-#        {{- include "common.labels.standard" . | nindent 4 }}
-#          {{- with .Values.ingress.annotations }}
-#          annotations:
-#            {{- toYaml . | nindent 4 }}
-#          {{- end }}
-#      name: {{ include "common.names.fullname" $ }}
-#    spec:
-#      ingressClassName: ing-w6d
-#      rules:
-#      - host: test.w6d.io
-#        http:
-#          paths:
-#          - backend:
-#              service:
-#                name: test
-#                port:
-#                  number: 8080
-#            path: /
-#            pathType: Prefix
-#      tls:
-#      - hosts:
-#        - test.w6d.io
 
 mongodb:
   install: false

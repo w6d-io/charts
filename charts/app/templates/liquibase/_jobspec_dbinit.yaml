@@ -24,18 +24,18 @@ spec:
         - name: init-db
           env:
             - name: db_host
-              value: {{ include "global.database.host" .  | quote }}
+              value: {{ .Values.database.host | quote }}
             - name: db_name
-              value: {{ include "global.database.database" . | quote }}
+              value: {{ .Values.database.name | quote }}
             - name: db_username
-              value: {{ include "global.database.username" . | default "postgres" | quote }}
+              value: {{ .Values.database.username | default "postgres" | quote }}
             - name: db_password
               valueFrom:
                 secretKeyRef:
                   key: postgres-password
                   name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
             - name: db_admin_username
-              value: {{ include "global.database.adminuser" . | quote }}
+              value: {{ .Values.database.adminuser | quote }}
             - name: db_admin_password
               valueFrom:
                 secretKeyRef:

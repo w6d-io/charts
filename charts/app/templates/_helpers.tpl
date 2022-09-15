@@ -1,6 +1,6 @@
 {{/* vim: set filetype=mustache: */}}
 
 {{- define "ingress.host" -}}
-{{- $defaultHost := printf "%s-%s.%s" .Values.name .Release.Namespace (include "global.domain" .) }}
+{{- $defaultHost := printf "%s-%s.%s" .Values.name .Release.Namespace .Values.domain }}
 {{- default $defaultHost .Values.ingress.host }}
 {{- end }}
