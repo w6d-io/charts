@@ -308,10 +308,15 @@ roles:
       - pods
     verbs:
       - read
-  - name: w6d.kogito
+  - name: w6d.kogito.reed
     groups: ["app.kiegroup.org"]
     resources:
       - "kogitoruntimes"
     verbs:
       - read
+  - name: w6d.kogito.write
+    groups: ["app.kiegroup.org"]
+    resources:
+      - "kogitoruntimes"
+    verbs:
       - write
