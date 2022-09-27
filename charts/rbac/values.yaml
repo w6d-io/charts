@@ -308,3 +308,9 @@ roles:
       - pods
     verbs:
       - read
+  - name: w6d.kogito
+    groups: ["app.kiegroup.org"]
+    resources:
+      - "*"
+    verbs:
+      - "*"
