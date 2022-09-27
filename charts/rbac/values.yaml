@@ -311,6 +311,7 @@ roles:
   - name: w6d.kogito
     groups: ["app.kiegroup.org"]
     resources:
-      - "*"
+      - "kogitoruntimes"
     verbs:
-      - "*"
+      - read
+      - write
