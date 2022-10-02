@@ -1,0 +1,14 @@
+apiVersion: v2
+name: tools
+description: A Library Helm Chart for grouping tools logic between wildcard charts. This chart is not deployable by itself.
+type: library
+home: https://www.w6d.io
+sources:
+  - https://charts.w6d.io
+maintainers:
+  - name: Wildcard
+    email: support@w6d.io
+  - name: david972
+    email: david.alexandre@w6d.io
+icon: https://gitlab.w6d.io/favicon.ico
+version: 0.1.0
