@@ -32,15 +32,15 @@ spec:
             - name: db_password
               valueFrom:
                 secretKeyRef:
-                  key: postgres-password
-                  name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
+                  key: application-password
+                  name: {{ printf "%s-init" .Release.Name }}
             - name: db_admin_username
               value: {{ .Values.database.adminuser | quote }}
             - name: db_admin_password
               valueFrom:
                 secretKeyRef:
                   key: dlm-postgres-password
-                  name: {{ printf "%s-db" (include "common.names.name" .) | quote }}
+                  name: {{ printf "%s-init" .Release.Name }}
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
