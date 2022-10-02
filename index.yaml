@@ -4434,6 +4434,26 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/tekton-0.1.0/tekton-0.1.0.tgz
     version: 0.1.0
+  tools:
+  - apiVersion: v2
+    created: "2022-10-02T18:13:37.796576753Z"
+    description: A Library Helm Chart for grouping tools logic between wildcard charts.
+      This chart is not deployable by itself.
+    digest: 817f2c0b7273b15a610d690cc0693ecef3cb2d56e999d47bc59535d36aeb385b
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: tools
+    sources:
+    - https://charts.w6d.io
+    type: library
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/tools-0.1.0/tools-0.1.0.tgz
+    version: 0.1.0
   toucantoco-backend:
   - apiVersion: v2
     appVersion: v90.0.1
@@ -4683,4 +4703,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2022-10-02T17:58:48.761862078Z"
+generated: "2022-10-02T18:13:37.798000591Z"
