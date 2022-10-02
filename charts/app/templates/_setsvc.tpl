@@ -7,5 +7,5 @@ postStart:
   exec:
     command:
       - /init-tools/setsvc
-      - {{ include "common.names.service" (dict "name" .service_name "context" .context) }}
+      - {{ include "tools.names.service" (dict "name" .service_name "context" .context) }}
 {{- end }}

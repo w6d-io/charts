@@ -8,8 +8,8 @@ metadata:
   {{ toYaml . | nindent 4 }}
   {{- end }}
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "common.names.fullname" . }}
+    {{- include "tools.labels.standard" . | nindent 4 }}
+  name: {{ include "tools.names.fullname" . }}
 spec:
   privileged: false  # Don't allow privileged pods!
   allowPrivilegeEscalation: false # prevent from setuid

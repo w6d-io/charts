@@ -1,4 +1,4 @@
-{{- $image := (include "common.images.image" ( dict "imageRoot" .Values.image ) ) }}
+{{- $image := (include "tools.images.image" ( dict "imageRoot" .Values.image ) ) }}
 {{- $volumes := list }}
 {{- if .Values.lifecycle.enabled }}
 {{-   $volumes = append $volumes (dict "name" "init-tools" "path" "/init-tools" "kind" "emptyDir" "options" (dict)) }}
@@ -29,10 +29,10 @@
 {{- $env := .Values.env }}
 {{- $secrets := .Values.secrets }}
 {{- $configs := .Values.configs }}
-{{- $fullname := (include "common.names.fullname" .) }}
-{{- $kind := include "common.workflow.kind" (dict "kind" .Values.kind) }}
-{{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
-apiVersion: {{ include "common.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
+{{- $fullname := (include "tools.names.fullname" .) }}
+{{- $kind := include "tools.workflow.kind" (dict "kind" .Values.kind) }}
+{{- $serviceName := (include "tools.names.service" (dict "name" .Values.service.name "context" $)) }}
+apiVersion: {{ include "tools.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
 kind: {{ $kind }}
 metadata:
   {{- with .Values.annotations }}
@@ -40,8 +40,8 @@ metadata:
   {{-   toYaml . | nindent 4 }}
   {{- end }}
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "common.names.fullname" . }}
+    {{- include "tools.labels.standard" . | nindent 4 }}
+  name: {{ include "tools.names.fullname" . }}
 spec:
   {{- if eq $kind "Job" }}
     {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values | nindent 2 }}
@@ -52,7 +52,7 @@ spec:
   {{- if not (eq $kind "Job") }}
   selector:
     matchLabels:
-      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      {{- include "tools.labels.matchLabels" . | nindent 6 }}
   {{- end }}
   {{- if eq $kind "StatefulSet" }}
   serviceName: {{ $serviceName }}
@@ -60,7 +60,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "common.labels.matchLabels" . | nindent 8 }}
+        {{- include "tools.labels.matchLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{-   toYaml . | nindent 8 }}
         {{- end }}
@@ -84,7 +84,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "common.serviceAccountName" . }}
+      serviceAccountName: {{ include "app.serviceAccountName" . }}
       {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
@@ -96,7 +96,7 @@ spec:
       {{- $_ := set $pullSecret "dockerSecret" (printf "pull-%s" $fullname) }}
       {{- end }}
       {{- end }}
-      {{- include "common.images.renderPullSecrets" $pullSecret | nindent 6}}
+      {{- include "tools.images.renderPullSecrets" $pullSecret | nindent 6}}
       {{- if or .Values.initContainers .Values.lifecycle.enabled .Values.liquibase.enabled }}
       initContainers:
       {{- if .Values.liquibase.enabled }}
@@ -111,7 +111,7 @@ spec:
           - "/opt/bin/setsvc"
           - "/init-tools/setsvc"
         volumeMounts:
-      {{-      include "common.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
+      {{-      include "tools.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
       {{-    end }}
       {{-   $dictionnary := dict "context" $ }}
       {{-   $_ := set $dictionnary "secrets" $secrets }}
@@ -134,7 +134,7 @@ spec:
       {{- end }}
       {{- $_ := set $dictionnary "context" $ }}
       {{- $_ := set $dictionnary "volumes" $volumes }}
-      {{- $_ := set $dictionnary "name" (include "common.names.name" $) }}
+      {{- $_ := set $dictionnary "name" (include "app.names.name" $) }}
       {{- $_ := set $dictionnary "env" $env }}
       {{- $_ := set $dictionnary "configs" $configs }}
       {{- $_ := set $dictionnary "secrets" $secrets }}
@@ -162,12 +162,12 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "common.volumes.volumes" (dict "fullname" (include "common.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
+        {{- include "tools.volumes.volumes" (dict "fullname" (include "tools.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}
   updateStrategy:
   {{-     toYaml . | nindent 4 }}
   {{-   end }}
-  {{-   include "common.volumes.volumeClaimTemplates" (dict "volumes" $volumes) | nindent 2 }}
+  {{-   include "tools.volumes.volumeClaimTemplates" (dict "volumes" $volumes) | nindent 2 }}
   {{- end }}

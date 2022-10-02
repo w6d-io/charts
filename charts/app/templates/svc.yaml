@@ -1,10 +1,10 @@
-{{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
+{{- $serviceName := (include "tools.names.service" (dict "name" .Values.service.name "context" $)) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "tools.labels.standard" . | nindent 4 }}
   name: {{ $serviceName }}
 spec:
   ports:
@@ -14,7 +14,7 @@ spec:
     {{- if .Values.service.nodePort }}
     nodePort: {{ .Values.service.nodePort }}
     {{- end }}
-    targetPort: {{ default (include "common.names.name" . | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
+    targetPort: {{ default (include "app.names.name" . | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
   {{- if .Values.metrics.enabled }}
     {{- if ne (.Values.metrics.port | int) (.Values.service.internalPort | int ) }}
   - name: metrics
@@ -36,4 +36,4 @@ spec:
   {{- end }}
   type: {{ default "ClusterIP" .Values.service.type }}
   selector:
-    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    {{- include "tools.labels.matchLabels" . | nindent 4 }}

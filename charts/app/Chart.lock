@@ -1,12 +1,12 @@
 dependencies:
-- name: common
+- name: tools
   repository: https://charts.w6d.io
-  version: 0.1.13
+  version: 0.1.0
 - name: mongodb
   repository: https://charts.bitnami.com/bitnami
   version: 10.31.1
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 15.7.1
-digest: sha256:855d95b10fbb0ed49fe8c06bd7a861923615876d2544570e67ceefe485b22d50
-generated: "2022-08-16T12:35:33.072823+02:00"
+digest: sha256:827d98310fd94980264773a30fe4401965127a7fef4f330b23031c32f03b2268
+generated: "2022-10-02T20:16:43.236352+02:00"

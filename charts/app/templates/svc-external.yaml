@@ -1,12 +1,12 @@
 {{- if and .Values.externalsvc .Values.externalsvc.namespaceTarget }}
-  {{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
+  {{- $serviceName := (include "tools.names.service" (dict "name" .Values.service.name "context" $)) }}
   {{- $externalName := printf "%s.%s.%s" $serviceName .Release.Namespace "svc.cluster.local" }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "tools.labels.standard" . | nindent 4 }}
   name: {{ $serviceName }}
   namespace: {{ .Values.externalsvc.namespaceTarget }}
 spec:

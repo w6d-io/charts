@@ -4,7 +4,7 @@ kind: Job
 metadata:
   name: annotate-ns
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "tools.labels.standard" . | nindent 4 }}
   annotations:
     "helm.sh/hook-weight": "-2"
     "helm.sh/hook": pre-install,pre-upgrade
@@ -15,7 +15,7 @@ spec:
   parallelism: 1
   template:
     spec:
-      serviceAccountName: {{ include "common.serviceAccountName" . }}-ns
+      serviceAccountName: {{ include "app.serviceAccountName" . }}-ns
       containers:
         - name: annotater
           image: gcr.io/google-containers/hyperkube:v1.18.6

@@ -17,9 +17,9 @@
   name: {{ .name | trunc 14 | trimSuffix "-" }}
   {{- with .volumes }}
   volumeMounts:
-    {{- include "common.volumes.volumeMounts" (dict "volumes" . ) | nindent 4 }}
+    {{- include "tools.volumes.volumeMounts" (dict "volumes" . ) | nindent 4 }}
   {{- end }}
-  {{- include "common.workflow.env" (dict "env" .env "secrets" .secrets "configs" .configs "context" .context) | nindent 2}}
+  {{- include "tools.workflow.env" (dict "env" .env "secrets" .secrets "configs" .configs "context" .context) | nindent 2}}
   {{- with .livenessProbe }}
   livenessProbe:
     {{ toYaml . | nindent 4 }}
@@ -38,7 +38,7 @@
     {{- $metrics := .metrics }}
     {{- with .service }}
     - containerPort: {{ .internalPort }}
-      {{- $name := include "common.names.service" (dict "name" .name "context" $context) }}
+      {{- $name := include "tools.names.service" (dict "name" .name "context" $context) }}
       {{- if typeIs "string" .targetPort }}
       {{- $name = .targetPort }}
       {{- end }}
