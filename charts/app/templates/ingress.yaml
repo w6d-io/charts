@@ -36,4 +36,18 @@ spec:
               serviceName: {{ $name }}
               servicePort: {{ $svcPort }}
             {{- end }}
+          {{- range .Values.ingress.extraPaths }}
+          - path: {{ .path }}
+            backend:
+            {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" }}
+            service:
+              name: {{ $name }}
+              port:
+                number: {{ $svcPort }}
+            pathType: Prefix
+            {{- else }}
+              serviceName: {{ $name }}
+              servicePort: {{ $svcPort }}
+            {{- end }}
+          {{- end }}
 {{- end }}

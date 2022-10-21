@@ -9,6 +9,10 @@ metadata:
     {{- include "common.labels.standard" $ | nindent 4 }}
   name: {{ printf "%s-%s" (include "common.names.fullname" $) $name }}
 data:
-  {{ .key }}: {{ toYaml .value | indent 2 }}
+  {{- if not (empty .subPath) }}
+  {{ .key }}: {{- toYaml .value | indent 2 }}
+  {{- else }}
+  {{ .value | nindent 2}}
+  {{- end }}
 {{- end }}
 {{- end }}
