@@ -25,4 +25,4 @@ dependencies:
   version: 15.7.1
   repository: https://charts.bitnami.com/bitnami
   condition: redis.install
-version: 2.3.3
+version: 2.3.4
