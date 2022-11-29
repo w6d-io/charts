@@ -29,7 +29,7 @@
 {{- $env := .Values.env }}
 {{- $secrets := .Values.secrets }}
 {{- $configs := .Values.configs }}
-{{- $fullname := (include "common.names.fullname" .) }}
+{{- $fullname := (include "global.names.fullname" .) }}
 {{- $kind := include "common.workflow.kind" (dict "kind" .Values.kind) }}
 {{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
 apiVersion: {{ include "common.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
@@ -41,7 +41,7 @@ metadata:
   {{- end }}
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "common.names.fullname" . }}
+  name: {{ include "global.names.fullname" . }}
 spec:
   {{- if eq $kind "Job" }}
     {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values | nindent 2 }}
@@ -84,7 +84,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "common.serviceAccountName" . }}
+      serviceAccountName: {{ include "global.serviceAccountName" . }}
       {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
@@ -134,7 +134,7 @@ spec:
       {{- end }}
       {{- $_ := set $dictionnary "context" $ }}
       {{- $_ := set $dictionnary "volumes" $volumes }}
-      {{- $_ := set $dictionnary "name" (include "common.names.name" $) }}
+      {{- $_ := set $dictionnary "name" (include "global.names.name" $) }}
       {{- $_ := set $dictionnary "env" $env }}
       {{- $_ := set $dictionnary "configs" $configs }}
       {{- $_ := set $dictionnary "secrets" $secrets }}
@@ -162,7 +162,7 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "common.volumes.volumes" (dict "fullname" (include "common.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
+        {{- include "common.volumes.volumes" (dict "fullname" (include "global.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}

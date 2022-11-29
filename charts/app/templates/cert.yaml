@@ -4,14 +4,14 @@ kind: Certificate
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "common.names.fullname" . }}
+  name: {{ include "global.names.fullname" . }}
 spec:
   dnsNames:
     {{- range .Values.cert.dnsNames }}
     - {{ . }}
     {{- end }}
   issuerRef: {{ toYaml .Values.cert.issuerRef | nindent 4}}
-  secretName: {{ default (printf "%s-tls" (include "common.names.fullname" .) ) .Values.cert.secretName }}
+  secretName: {{ default (printf "%s-tls" (include "global.names.fullname" .) ) .Values.cert.secretName }}
   usages:
     - digital signature
     - key encipherment

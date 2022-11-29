@@ -46,8 +46,8 @@ The command removes all the Kubernetes components associated with the chart and 
 | Name                | Description                                        | Value |
 |---------------------|----------------------------------------------------|-------|
 | `kubeVersion`       | Override Kubernetes version                        | `""`  |
-| `nameOverride`      | String to partially override common.names.fullname | `""`  |
-| `fullnameOverride`  | String to fully override common.names.fullname     | `""`  |
+| `nameOverride`      | String to partially override global.names.fullname | `""`  |
+| `fullnameOverride`  | String to fully override global.names.fullname     | `""`  |
 
 ### App parameters
 

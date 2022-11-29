@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "common.names.name" . }}-db-init
+  name: {{ include "global.names.name" . }}-db-init
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
   annotations:
@@ -47,7 +47,7 @@ spec:
                   key: postgres-password
                   name: {{ printf "%s-init" .Release.Name }}
             - name: component
-              value: {{ include "common.component" . }}
+              value: {{ include "global.component" . }}
             - name: namespace
               valueFrom:
                 fieldRef:
@@ -64,8 +64,8 @@ spec:
       volumes:
         - name: scripts
           configMap:
-            name: {{ include "common.names.name" . }}-dbscript
+            name: {{ include "global.names.name" . }}-dbscript
         - name: sql
           configMap:
-            name: {{ include "common.names.name" . }}-sql
+            name: {{ include "global.names.name" . }}-sql
 {{- end }}

@@ -74,6 +74,6 @@ extraResources: |
   - apiVersion: v1
     kind: ConfigMap
     metadata:
-      name: {{ include "common.names.name" $ }}
+      name: {{ include "global.names.name" $ }}
     data:
       test: "test"
