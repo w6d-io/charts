@@ -9,7 +9,7 @@ metadata:
   {{- end }}
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "common.names.fullname" . }}
+  name: {{ include "global.names.fullname" . }}
 spec:
   privileged: false  # Don't allow privileged pods!
   allowPrivilegeEscalation: false # prevent from setuid
