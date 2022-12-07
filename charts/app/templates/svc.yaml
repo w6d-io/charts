@@ -5,6 +5,10 @@ kind: Service
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   name: {{ $serviceName }}
 spec:
   ports:

@@ -1,0 +1,32 @@
+{{- if .Values.serviceExtra }}
+{{- if .Values.serviceExtra.ports }}
+{{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+  {{- with .Values.serviceExtra.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ $serviceName }}-extra
+spec:
+  {{- if eq (default "ClusterIP" .Values.serviceExtra.type) "LoadBalancer" }}
+  externalTrafficPolicy: {{ default "Cluster" .Values.serviceExtra.externalTrafficPolicy }}
+  {{- end }}
+  ports:
+  {{- range .Values.serviceExtra.ports }}
+  - name: {{ .name }}
+    port: {{ .port }}
+    {{- if .nodePort }}
+    nodePort: {{ .nodePort }}
+    {{- end }}
+    protocol: {{ default "TCP" .protocol }}
+    targetPort: {{ default .name .target }}
+  {{- end }}
+  type: {{ default "ClusterIP" .Values.serviceExtra.type }}
+  selector:
+    {{- include "app.selectorLabels" . | nindent 4 }}
+{{- end }}
+{{- end }}
