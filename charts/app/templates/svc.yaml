@@ -18,7 +18,7 @@ spec:
     {{- if .Values.service.nodePort }}
     nodePort: {{ .Values.service.nodePort }}
     {{- end }}
-    targetPort: {{ default (include "common.names.name" . | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
+    targetPort: {{ default (include "global.names.name" . | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
   {{- if .Values.metrics.enabled }}
     {{- if ne (.Values.metrics.port | int) (.Values.service.internalPort | int ) }}
   - name: metrics
