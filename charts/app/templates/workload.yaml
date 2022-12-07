@@ -149,6 +149,10 @@ spec:
       {{- $_ := set $dictionnary "metrics" .Values.metrics }}
       {{- $_ := set $dictionnary "extraContainerPort" .Values.extraContainerPort }}
       {{- include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 6 }}
+      {{- range .Values.sidecars}}
+      {{- $_ := set . "context" $ }}
+      {{- include (print $.Template.BasePath "/_container_spec.yaml") . | nindent 6 }}
+      {{- end }}
       {{- if eq $kind "Job" }}
       restartPolicy: {{ default "Never" .Values.restartPolicy }}
       {{- end }}
