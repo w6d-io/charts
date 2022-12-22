@@ -1,6 +1,8 @@
 -- Privileges
---
+-- grant rights to postgres user for init
+GRANT {{db_admin_username}} TO postgres;
 
+--
 REVOKE CREATE on SCHEMA public FROM PUBLIC;
 REVOKE ALL ON DATABASE "{{db_name}}" FROM PUBLIC;
 
