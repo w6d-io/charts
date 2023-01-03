@@ -5,14 +5,14 @@ kind: RoleBinding
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: rolebinding-{{ include "global.names.fullname" . }}-svc
+  name: rolebinding-{{ include "app.names.fullname" . }}-svc
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: role-{{ include "global.names.fullname" . }}-svc
+  name: role-{{ include "app.names.fullname" . }}-svc
 subjects:
 - kind: ServiceAccount
-  name: {{ include "global.serviceAccountName" . }}
+  name: {{ include "app.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -20,13 +20,13 @@ kind: RoleBinding
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: rolebinding-{{ include "global.names.fullname" . }}-pod
+  name: rolebinding-{{ include "app.names.fullname" . }}-pod
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: role-{{ include "global.names.fullname" . }}-pod
+  name: role-{{ include "app.names.fullname" . }}-pod
 subjects:
 - kind: ServiceAccount
-  name: {{ include "global.serviceAccountName" . }}
+  name: {{ include "app.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 {{- end}}

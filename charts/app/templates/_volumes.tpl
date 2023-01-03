@@ -23,7 +23,7 @@ Return secret volumeMounts
 Return secret volumes
 */}}
 {{- define "volumes.secretVolumes" -}}
-{{- $fullname := (include "global.names.fullname" .) -}}
+{{- $fullname := (include "app.names.fullname" .) -}}
 {{- if .Values.secrets -}}
 {{- range $elem := .Values.secrets -}}
 {{- if eq ( coalesce $elem.kind "env" ) "volume" }}
@@ -64,7 +64,7 @@ Return configmap volumeMounts
 Return configmap volumes
 */}}
 {{- define "volumes.configmapVolumes" -}}
-{{- $fullname := (include "global.names.fullname" .) -}}
+{{- $fullname := (include "app.names.fullname" .) -}}
 {{- if .Values.configs -}}
 {{- range $elem := .Values.configs }}
 - name: {{ $elem.name | lower | replace "_" "-" }}

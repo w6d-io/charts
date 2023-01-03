@@ -29,7 +29,7 @@
 {{- $env := .Values.env }}
 {{- $secrets := .Values.secrets }}
 {{- $configs := .Values.configs }}
-{{- $fullname := (include "global.names.fullname" .) }}
+{{- $fullname := (include "app.names.fullname" .) }}
 {{- $kind := include "common.workflow.kind" (dict "kind" .Values.kind) }}
 {{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
 apiVersion: {{ include "common.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
@@ -41,7 +41,7 @@ metadata:
   {{- end }}
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ include "global.names.fullname" . }}
+  name: {{ include "app.names.fullname" . }}
 spec:
   {{- if eq $kind "Job" }}
     {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values | nindent 2 }}
@@ -70,6 +70,11 @@ spec:
         prometheus.io/port: {{ .Values.metrics.port | quote }}
         prometheus.io/scrape: "true"
         {{- end }}
+        {{- if .Values.vault.enabled }}
+        vault.security.banzaicloud.io/vault-addr: {{ .Values.vault.url | quote }}
+        vault.security.banzaicloud.io/vault-role: {{ default (include "app.serviceAccountName" .) .Values.vault.role | quote }}
+        vault.security.banzaicloud.io/vault-skip-verify: "true"
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{-   toYaml . | nindent 8 }}
         {{- end }}
@@ -84,7 +89,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "global.serviceAccountName" . }}
+      serviceAccountName: {{ include "app.serviceAccountName" . }}
       {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
@@ -134,7 +139,7 @@ spec:
       {{- end }}
       {{- $_ := set $dictionnary "context" $ }}
       {{- $_ := set $dictionnary "volumes" $volumes }}
-      {{- $_ := set $dictionnary "name" (include "global.names.name" $) }}
+      {{- $_ := set $dictionnary "name" (include "app.names.name" $) }}
       {{- $_ := set $dictionnary "env" $env }}
       {{- $_ := set $dictionnary "configs" $configs }}
       {{- $_ := set $dictionnary "secrets" $secrets }}
@@ -166,7 +171,7 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "common.volumes.volumes" (dict "fullname" (include "global.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
+        {{- include "common.volumes.volumes" (dict "fullname" (include "app.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}

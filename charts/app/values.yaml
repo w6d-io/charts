@@ -25,10 +25,9 @@ image:
   tag: 'alpine'
 
 serviceAccount:
-  create: false
+  create: true
   token: true
   annotations: {}
-  name: "app"
 
 role:
   rules: null
@@ -97,3 +96,7 @@ redis:
 
 pdb:
   enabled: false
+
+vault:
+  enabled: true
+  url: http://vault.vault:8200

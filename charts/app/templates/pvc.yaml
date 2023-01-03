@@ -1,6 +1,6 @@
 {{- if .Values.persistence -}}
   {{- $labels := (include "common.labels.standard" .) }}
-  {{- $fullname := (include "global.names.fullname" .) }}
+  {{- $fullname := (include "app.names.fullname" .) }}
 {{ range .Values.persistence }}
 ---
 apiVersion: v1

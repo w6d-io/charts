@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "global.names.name" . }}-sql
+  name: {{ include "app.names.name" . }}-sql
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
   annotations:
@@ -16,7 +16,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "global.names.name" . }}-dbscript
+  name: {{ include "app.names.name" . }}-dbscript
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
   annotations:

@@ -9,13 +9,13 @@ metadata:
     "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "-4"
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
-  name: rolebinding-{{ include "global.names.name" . }}-ns
+  name: rolebinding-{{ include "app.names.name" . }}-ns
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: role-{{ include "global.names.name" . }}-ns
+  name: role-{{ include "app.names.name" . }}-ns
 subjects:
   - kind: ServiceAccount
-    name: {{ include "global.serviceAccountName" . }}-ns
+    name: {{ include "app.serviceAccountName" . }}-ns
     namespace: {{ .Release.Namespace }}
 {{- end }}
