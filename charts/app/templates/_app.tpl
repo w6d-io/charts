@@ -2,19 +2,19 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "global.component" -}}
+{{- define "app.component" -}}
 {{ .Values.database.component }}
 {{- end -}}
 
-{{- define "global.names.name" -}}
-{{- $name := printf "%s-%s" (include "global.component" .) .Chart.Name }}
+{{- define "app.names.name" -}}
+{{- $name := printf "%s-%s" (include "app.component" .) .Chart.Name }}
 {{- default $name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "global.names.chart" -}}
+{{- define "app.names.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
@@ -23,11 +23,11 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "global.names.fullname" -}}
+{{- define "app.names.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | lower | trimSuffix "-" -}}
 {{- else -}}
-{{- $shortname := printf "%s-%s" (include "global.component" .) .Chart.Name }}
+{{- $shortname := printf "%s-%s" (include "app.component" .) .Chart.Name }}
 {{- $name := default $shortname .Values.nameOverride -}}
 {{- if contains $name .Release.Name -}}
 {{- .Release.Name | trunc 63 | lower | trimSuffix "-" -}}
@@ -40,13 +40,13 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create the name of the service account to use
 Usage:
-{{ include "global.serviceAccountName" . }}
+{{ include "app.serviceAccountName" . }}
 */}}
-{{- define "global.serviceAccountName" -}}
-{{- default (include "global.names.name" .) .Values.serviceAccount.name }}
+{{- define "app.serviceAccountName" -}}
+{{- default (include "app.names.name" .) .Values.serviceAccount.name }}
 {{- end }}
 
 
-{{- define "global.image" -}}
+{{- define "app.image" -}}
 {{- printf "%s:%s" .Values.image.repository (.Values.version | default .Chart.AppVersion) }}
 {{- end }}

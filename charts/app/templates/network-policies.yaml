@@ -1,7 +1,7 @@
 {{- if .Values.networkPolicies }}
   {{- $labels := (include "common.labels.standard" .) }}
-  {{- $fullname := (include "global.names.fullname" .) }}
-  {{- $name := (include "global.names.name" .) }}
+  {{- $fullname := (include "app.names.fullname" .) }}
+  {{- $name := (include "app.names.name" .) }}
   {{- range .Values.networkPolicies }}
 ---
 apiVersion: networking.k8s.io/v1

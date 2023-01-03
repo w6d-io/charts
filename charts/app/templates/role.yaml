@@ -5,7 +5,7 @@ kind: Role
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: role-{{ include "global.names.fullname" . }}-svc
+  name: role-{{ include "app.names.fullname" . }}-svc
 rules:
 - apiGroups:
   - ""
@@ -21,7 +21,7 @@ kind: Role
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: role-{{ include "global.names.fullname" . }}-pod
+  name: role-{{ include "app.names.fullname" . }}-pod
 rules:
 - apiGroups:
   - ""

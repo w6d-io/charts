@@ -17,7 +17,7 @@
       valueFrom:
         secretKeyRef:
           key: dlm-postgres-password
-          name: {{ printf "%s-db" (include "global.names.name" .) | quote }}
+          name: {{ printf "%s-db" (include "app.names.name" .) | quote }}
     - name: db_admin_username
       value: {{ .Values.database.adminuser | quote }}
     - name: db_version
@@ -26,7 +26,7 @@
       valueFrom:
         secretKeyRef:
           key: dlm-postgres-password
-          name: {{ printf "%s-db" (include "global.names.name" .) | quote }}
+          name: {{ printf "%s-db" (include "app.names.name" .) | quote }}
   command:
     - bash
     - -c
