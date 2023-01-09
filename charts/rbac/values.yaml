@@ -320,3 +320,15 @@ roles:
       - "kogitoruntimes"
     verbs:
       - write
+  - name: w6d.pdb.read
+    groups: ["policy"]
+    resources:
+      - "poddisruptionbudgets"
+    verbs:
+      - read
+  - name: w6d.pdb.write
+    groups: ["policy"]
+    resources:
+      - "poddisruptionbudgets"
+    verbs:
+      - write
