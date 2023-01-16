@@ -7,7 +7,7 @@ kind: Service
 metadata:
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  name: {{ $serviceName }}
+  name: {{ .Values.externalsvc.name | default $serviceName }}
   namespace: {{ .Values.externalsvc.namespaceTarget }}
 spec:
   type: ExternalName
