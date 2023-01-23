@@ -50,3 +50,11 @@ Usage:
 {{- define "app.image" -}}
 {{- printf "%s:%s" .Values.image.repository (.Values.version | default .Chart.AppVersion) }}
 {{- end }}
+
+{{- define "app.annotations.standard" -}}
+{{- if .Values.vault.enabled -}}
+vault.security.banzaicloud.io/vault-addr: {{ .Values.vault.url | quote }}
+vault.security.banzaicloud.io/vault-role: {{ default (include "app.serviceAccountName" .) .Values.vault.role | quote }}
+vault.security.banzaicloud.io/vault-skip-verify: "true"
+{{- end -}}
+{{- end -}}
