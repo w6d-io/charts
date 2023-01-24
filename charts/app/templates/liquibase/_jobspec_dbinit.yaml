@@ -17,6 +17,8 @@ spec:
   parallelism: 1
   template:
     metadata:
+      annotations:
+        {{- include "app.annotations.standard" . | nindent 8 }}
       labels:
         {{- include "common.labels.standard" . | nindent 8 }}
     spec:
