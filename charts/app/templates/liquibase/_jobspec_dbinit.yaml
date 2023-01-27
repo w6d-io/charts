@@ -23,7 +23,7 @@ spec:
         {{- include "common.labels.standard" . | nindent 8 }}
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "app.serviceAccountName" . }}
+      serviceAccountName: {{ include "app.serviceAccountName" . }}-db
       {{- end }}
       restartPolicy: Never
       containers:
