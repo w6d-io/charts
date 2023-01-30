@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ printf "label-ns-%s" (randalphanum 5 | lower) }}
+  name: {{ printf "label-ns-%s" (randAlphaNum 5 | lower) }}
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
   annotations:
