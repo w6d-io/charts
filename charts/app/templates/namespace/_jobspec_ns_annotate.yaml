@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: annotate-ns
+  name: { { printf "annotate-ns-%s" (randalphanum 5 | lower) } }
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
   annotations:
