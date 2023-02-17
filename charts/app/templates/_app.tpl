@@ -7,8 +7,8 @@ Expand the name of the chart.
 {{- end -}}
 
 {{- define "app.names.name" -}}
-{{- $name := printf "%s-%s" (include "app.component" .) .Chart.Name }}
-{{- default $name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- $name := .Chart.Name }}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
