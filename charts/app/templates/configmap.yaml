@@ -12,7 +12,7 @@ data:
   {{- if not (empty .subPath) }}
   {{ .key }}: {{- toYaml .value | indent 2 }}
   {{- else }}
-  {{ .value | nindent 2}}
+  {{- .value | nindent 2 }}
   {{- end }}
 {{- end }}
 {{- end }}
