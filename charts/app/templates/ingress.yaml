@@ -9,8 +9,9 @@ metadata:
   name: {{ $name }}
   labels:
     {{- include "common.labels.standard" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+  {{- include "ingress.annotations" (dict "ingress" .Values.ingress "context" $) | nindent 4}}
+  {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
