@@ -56,5 +56,6 @@ Usage:
 vault.security.banzaicloud.io/vault-addr: {{ .Values.vault.url | quote }}
 vault.security.banzaicloud.io/vault-role: {{ default (include "app.serviceAccountName" .) .Values.vault.role | quote }}
 vault.security.banzaicloud.io/vault-skip-verify: "true"
+vault.security.banzaicloud.io/vault-role: {{ printf "strada/data/%s" (default (include "app.serviceAccountName" .) .Values.vault.role) }}
 {{- end -}}
 {{- end -}}
