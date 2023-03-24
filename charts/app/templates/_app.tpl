@@ -60,4 +60,3 @@ vault.security.banzaicloud.io/vault-skip-verify: "true"
 vault.security.banzaicloud.io/vault-env-from-path: {{ printf "strada/data/%s" (default (include "app.serviceAccountName" .) .Values.vault.role) }}
 {{- end -}}
 {{- end -}}
-{{- end -}}
