@@ -45,9 +45,6 @@ ingressClassName: {{ coalesce .Values.ingress.className .Values.ingress.class }}
 {{- end -}}
 {{- end -}}
 
-{{/*
-Expand the name of the chart.
-*/}}
-{{- define "app.component" -}}
-{{ .Values.database.component }}
+{{- define "ingress.annotations" -}}
+externaldns: {{ default "disabled" .ingress.externaldns }}
 {{- end -}}
