@@ -100,3 +100,5 @@ pdb:
 vault:
   enabled: true
   url: http://vault.vault:8200
+  envFrom:
+    enabled: false
