@@ -101,7 +101,7 @@ spec:
       {{- if or .Values.initContainers .Values.lifecycle.enabled .Values.liquibase.enabled }}
       initContainers:
       {{- if .Values.liquibase.enabled }}
-        {{- include (print $.Template.BasePath "/liquibase/_liquibase_spec.yaml") . | nindent 8 }}
+        {{- include (print $.Template.BasePath "/liquibase/_liquibase_spec.yaml") . | nindent 6 }}
       {{- end }}
       {{-    if .Values.lifecycle.enabled }}
       - image: w6dio/init-tools:v1.0.1
