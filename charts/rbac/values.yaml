@@ -332,3 +332,15 @@ roles:
       - "poddisruptionbudgets"
     verbs:
       - write
+  - name: w6d.app.read
+    groups: ["argoproj.io"]
+    resources:
+      - "applications"
+    verbs:
+      - read
+  - name: w6d.app.write
+    groups: ["argoproj.io"]
+    resources:
+      - "applications"
+    verbs:
+      - write
