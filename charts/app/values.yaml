@@ -103,3 +103,4 @@ vault:
   url: http://vault.vault:8200
   envFrom:
     enabled: false
+    path: strada/data
