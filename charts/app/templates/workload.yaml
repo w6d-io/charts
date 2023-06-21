@@ -66,6 +66,7 @@ spec:
         {{- end }}
       annotations:
         {{- include "app.annotations.standard" . | nindent 8 }}
+        {{- include "app.annotations.workload" . | nindent 8 }}
         {{- if .Values.metrics.enabled }}
         prometheus.io/path: {{ .Values.metrics.path }}
         prometheus.io/port: {{ .Values.metrics.port | quote }}
