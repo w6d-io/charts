@@ -104,3 +104,6 @@ vault:
   envFrom:
     enabled: false
     path: strada/data
+
+linkerd:
+  enabled: false

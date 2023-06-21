@@ -52,7 +52,10 @@ Usage:
 {{- end }}
 
 {{- define "app.annotations.standard" -}}
-{{- if .Values.vault.enabled -}}
+{{- if .Values.linkerd.enabled -}}
+linkerd.io/inject: "enabled"
+{{- end -}}
+{{- if .Values.vault.enabled }}
 vault.security.banzaicloud.io/vault-addr: {{ .Values.vault.url | quote }}
 vault.security.banzaicloud.io/vault-role: {{ default (include "app.serviceAccountName" .) .Values.vault.role | quote }}
 vault.security.banzaicloud.io/vault-skip-verify: "true"

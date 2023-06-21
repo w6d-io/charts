@@ -25,4 +25,4 @@ dependencies:
   repository: https://charts.bitnami.com/bitnami
   condition: redis.install
 appVersion: v2.5.17
-version: 2.5.17
+version: 2.5.18
