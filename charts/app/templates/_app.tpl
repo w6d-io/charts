@@ -43,7 +43,7 @@ Usage:
 {{ include "app.serviceAccountName" . }}
 */}}
 {{- define "app.serviceAccountName" -}}
-{{- default (include "app.names.name" .) .Values.serviceAccount.name }}
+{{- replace "." "-" (default (include "app.names.name" .) .Values.serviceAccount.name) -}}
 {{- end }}
 
 
