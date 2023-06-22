@@ -46,10 +46,6 @@ Usage:
 {{- replace "." "-" (default (include "app.names.name" .) .Values.serviceAccount.name) -}}
 {{- end }}
 
-{{- define "app.vaultRoleName" -}}
-{{- default (include "app.names.name" .) .Values.serviceAccount.name -}}
-{{- end }}
-
 {{- define "app.image" -}}
 {{- printf "%s:%s" .Values.image.repository (.Values.version | default .Chart.AppVersion) }}
 {{- end }}
@@ -57,10 +53,10 @@ Usage:
 {{- define "app.annotations.standard" -}}
 {{- if .Values.vault.enabled -}}
 vault.security.banzaicloud.io/vault-addr: {{ .Values.vault.url | quote }}
-vault.security.banzaicloud.io/vault-role: {{ default (include "app.vaultRoleName" .) .Values.vault.role | quote }}
+vault.security.banzaicloud.io/vault-role: {{ default (include "app.serviceAccountName" .) .Values.vault.role | quote }}
 vault.security.banzaicloud.io/vault-skip-verify: "true"
 {{- if .Values.vault.envFrom.enabled }}
-vault.security.banzaicloud.io/vault-env-from-path: {{ printf "%s/%s" .Values.vault.envFrom.path (default (include "app.vaultRoleName" .) .Values.vault.role) }}
+vault.security.banzaicloud.io/vault-env-from-path: {{ printf "%s/%s" .Values.vault.envFrom.path (default (include "app.serviceAccountName" .) .Values.vault.role) }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
