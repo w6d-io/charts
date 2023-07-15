@@ -187,13 +187,13 @@ roles:
     verbs:
       - read
       - write
-  - name: w6d.storageclasse.read
+  - name: w6d.storageclasses.read
     groups: ["storage.k8s.io"]
     resources:
       - storageclasses
     verbs:
       - read
-  - name: w6d.storageclasse.write
+  - name: w6d.storageclasses.write
     groups: ["storage.k8s.io"]
     resources:
       - storageclasses
@@ -336,11 +336,13 @@ roles:
     groups: ["argoproj.io"]
     resources:
       - "applications"
+      - "applicationsets"
     verbs:
       - read
   - name: w6d.app.write
     groups: ["argoproj.io"]
     resources:
       - "applications"
+      - "applicationsets"
     verbs:
       - write
