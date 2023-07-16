@@ -11,6 +11,7 @@ database:
   password: ""
   postgres_password: ""
   component: ""
+  enabled: false
 generateSecret:
   enabled: false
 
