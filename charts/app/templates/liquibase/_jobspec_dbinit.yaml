@@ -1,4 +1,5 @@
-{{- if .Values.liquibase.enabled }}
+# disabled done elsewhere
+{{- if false }}
 apiVersion: batch/v1
 kind: Job
 metadata:
