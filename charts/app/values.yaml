@@ -59,6 +59,7 @@ ingress:
   className: ''         # ingressClassName field https://kubernetes.github.io/ingress-nginx/#what-is-ingressclassname-field
   extraPaths: []
   annotations: {}
+  secretName: ''
 
 cert:
   enabled: false
