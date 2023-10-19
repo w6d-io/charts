@@ -34,8 +34,8 @@
       set -e
       cd /db
       liquibase --url jdbc:postgresql://${db_host}:5432/${db_name} \
-        --username ${db_username} \
-        --password ${db_password} \
+        --username "${db_username}" \
+        --password "${db_password}" \
         update    
   {{- with .Values.liquibase.resources }}
   resources:
