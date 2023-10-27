@@ -51,7 +51,7 @@
     - containerPort: {{ $metrics.port }}
       name: metrics
       protocol: TCP
-      {{- if $metrics.hosPort }}
+      {{- if $metrics.hostPort }}
       hostPort: {{ $metrics.hostPort }}
       {{- end }}
       {{- end }}
