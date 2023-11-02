@@ -1,4 +1,4 @@
-{{- $image := (include "common.images.image" ( dict "imageRoot" .Values.image ) ) }}
+{{- $image := (include "helper.images.image" ( dict "imageRoot" .Values.image ) ) }}
 {{- $volumes := list }}
 {{- if .Values.lifecycle.enabled }}
 {{-   $volumes = append $volumes (dict "name" "init-tools" "path" "/init-tools" "kind" "emptyDir" "options" (dict)) }}
@@ -30,9 +30,9 @@
 {{- $secrets := .Values.secrets }}
 {{- $configs := .Values.configs }}
 {{- $fullname := (include "app.names.fullname" .) }}
-{{- $kind := include "common.workflow.kind" (dict "kind" .Values.kind) }}
-{{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
-apiVersion: {{ include "common.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
+{{- $kind := include "helper.workflow.kind" (dict "kind" .Values.kind) }}
+{{- $serviceName := (include "helper.names.service" (dict "name" .Values.service.name "context" $)) }}
+apiVersion: {{ include "helper.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
 kind: {{ $kind }}
 metadata:
   {{- with .Values.annotations }}
@@ -40,7 +40,7 @@ metadata:
   {{-   toYaml . | nindent 4 }}
   {{- end }}
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   name: {{ include "app.names.fullname" . }}
 spec:
   {{- if eq $kind "Job" }}
@@ -52,7 +52,7 @@ spec:
   {{- if not (eq $kind "Job") }}
   selector:
     matchLabels:
-      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      {{- include "helper.labels.matchLabels" . | nindent 6 }}
   {{- end }}
   {{- if and (eq $kind "Deployment") .Values.strategy }}
   strategy:
@@ -64,7 +64,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "common.labels.matchLabels" . | nindent 8 }}
+        {{- include "helper.labels.matchLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{-   toYaml . | nindent 8 }}
         {{- end }}
@@ -102,7 +102,7 @@ spec:
       {{- $_ := set $pullSecret "dockerSecret" (printf "pull-%s" $fullname) }}
       {{- end }}
       {{- end }}
-      {{- include "common.images.renderPullSecrets" $pullSecret | nindent 6}}
+      {{- include "helper.images.renderPullSecrets" $pullSecret | nindent 6}}
       {{- if or .Values.initContainers .Values.lifecycle.enabled .Values.liquibase.enabled }}
       initContainers:
       {{- if .Values.liquibase.enabled }}
@@ -117,7 +117,7 @@ spec:
           - "/opt/bin/setsvc"
           - "/init-tools/setsvc"
         volumeMounts:
-      {{-      include "common.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
+      {{-      include "helper.volumes.volumeMounts" (dict "volumes" $volumes ) | nindent 10 }}
       {{-    end }}
       {{-   $dictionnary := dict "context" $ }}
       {{-   $_ := set $dictionnary "secrets" $secrets }}
@@ -172,12 +172,12 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "common.volumes.volumes" (dict "fullname" (include "app.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
+        {{- include "helper.volumes.volumes" (dict "fullname" (include "app.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}
   updateStrategy:
   {{-     toYaml . | nindent 4 }}
   {{-   end }}
-  {{-   include "common.volumes.volumeClaimTemplates" (dict "volumes" $volumes) | nindent 2 }}
+  {{-   include "helper.volumes.volumeClaimTemplates" (dict "volumes" $volumes) | nindent 2 }}
   {{- end }}

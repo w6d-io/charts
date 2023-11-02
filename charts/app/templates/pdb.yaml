@@ -4,7 +4,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   name: {{ template "app.names.fullname" . }}
 spec:
   {{- if .Values.pdb.minAvailable }}
@@ -15,5 +15,5 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      {{- include "helper.labels.matchLabels" . | nindent 6 }}
 {{- end -}}

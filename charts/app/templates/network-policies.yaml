@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicies }}
-  {{- $labels := (include "common.labels.standard" .) }}
+  {{- $labels := (include "helper.labels.standard" .) }}
   {{- $fullname := (include "app.names.fullname" .) }}
   {{- $name := (include "app.names.name" .) }}
   {{- range .Values.networkPolicies }}
@@ -17,7 +17,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      {{- include "common.labels.matchLabels" $ | nindent 6}}
+      {{- include "helper.labels.matchLabels" $ | nindent 6}}
   policyTypes:
     {{- toYaml .types | nindent 4 }}
   {{- if .ingress }}

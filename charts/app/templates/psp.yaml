@@ -8,7 +8,7 @@ metadata:
   {{ toYaml . | nindent 4 }}
   {{- end }}
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   name: {{ include "app.names.fullname" . }}
 spec:
   privileged: false  # Don't allow privileged pods!
