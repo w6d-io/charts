@@ -16,13 +16,5 @@ dependencies:
 - name: common
   version: ">=0.1.13"
   repository: https://charts.w6d.io
-- name: mongodb
-  version: 13.6.2
-  repository: https://charts.bitnami.com/bitnami
-  condition: mongodb.install
-- name: redis
-  version: 17.3.17
-  repository: https://charts.bitnami.com/bitnami
-  condition: redis.install
-appVersion: v2.6.4
-version: 2.6.4
+appVersion: v2.6.6
+version: 2.6.6
