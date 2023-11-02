@@ -1,5 +1,5 @@
 {{- if .Values.persistence -}}
-  {{- $labels := (include "common.labels.standard" .) }}
+  {{- $labels := (include "helper.labels.standard" .) }}
   {{- $fullname := (include "app.names.fullname" .) }}
 {{ range .Values.persistence }}
 ---
@@ -15,7 +15,7 @@ spec:
   resources:
     requests:
       storage: {{ default "1Gi" .size }}
-  {{- include "common.storage.class" ( dict "persistence" . ) | nindent 2 }}
+  {{- include "helper.storage.class" ( dict "persistence" . ) | nindent 2 }}
   volumeMode: {{ default "Filesystem" .volumeMode }}
 {{- end -}}
 {{- end -}}

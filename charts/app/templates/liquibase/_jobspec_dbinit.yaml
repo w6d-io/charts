@@ -5,7 +5,7 @@ kind: Job
 metadata:
   name: {{ include "app.names.name" . }}-db-init
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   annotations:
     {{- include "app.annotations.standard" . | nindent 4 }}
     "helm.sh/hook": pre-install,pre-upgrade
@@ -21,7 +21,7 @@ spec:
       annotations:
         {{- include "app.annotations.standard" . | nindent 8 }}
       labels:
-        {{- include "common.labels.standard" . | nindent 8 }}
+        {{- include "helper.labels.standard" . | nindent 8 }}
     spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "app.serviceAccountName" . }}-db

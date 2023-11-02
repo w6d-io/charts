@@ -6,7 +6,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    {{- include "common.labels.standard" $ | nindent 4 }}
+    {{- include "helper.labels.standard" $ | nindent 4 }}
   name: {{ printf "%s-%s" (include "app.names.fullname" $) $name }}
 data:
   {{- if not (empty .subPath) }}

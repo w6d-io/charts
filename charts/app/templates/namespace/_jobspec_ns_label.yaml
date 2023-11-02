@@ -4,7 +4,7 @@ kind: Job
 metadata:
   name: {{ printf "label-ns-%s" (randAlphaNum 5 | lower) }}
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   annotations:
     "helm.sh/hook-weight": "-2"
     "helm.sh/hook": pre-install,pre-upgrade

@@ -1,10 +1,10 @@
-{{- $serviceName := (include "common.names.service" (dict "name" .Values.service.name "context" $)) }}
+{{- $serviceName := (include "helper.names.service" (dict "name" .Values.service.name "context" $)) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -40,4 +40,4 @@ spec:
   {{- end }}
   type: {{ default "ClusterIP" .Values.service.type }}
   selector:
-    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    {{- include "helper.labels.matchLabels" . | nindent 4 }}

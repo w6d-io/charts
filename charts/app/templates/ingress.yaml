@@ -8,7 +8,7 @@ kind: Ingress
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "common.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" . | nindent 4 }}
   annotations:
   {{- include "ingress.annotations" (dict "ingress" .Values.ingress "context" $) | nindent 4}}
   {{- with .Values.ingress.annotations }}
