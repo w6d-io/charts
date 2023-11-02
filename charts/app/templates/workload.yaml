@@ -54,6 +54,10 @@ spec:
     matchLabels:
       {{- include "common.labels.matchLabels" . | nindent 6 }}
   {{- end }}
+  {{- if and (eq $kind "Deployment") .Values.strategy }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  {{- end }}
   {{- if eq $kind "StatefulSet" }}
   serviceName: {{ $serviceName }}
   {{- end }}

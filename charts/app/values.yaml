@@ -5,6 +5,7 @@ name: "-"
 
 id: ""
 namespace: ""
+
 database:
   host: ""
   adminpassword: ""
@@ -12,11 +13,15 @@ database:
   postgres_password: ""
   component: ""
   enabled: false
+
 generateSecret:
   enabled: false
 
 liquibase:
   enabled: false
+
+strategy: {}
+#  type: Recreate
 
 revision:
   enabled: false
