@@ -17,10 +17,14 @@ Deployment information:
 
 {{- with .Values.podLabels }}
 Labels:
-  {{ toYaml . | indent 2 }}
+  {{- toYaml . | indent 2 }}
 {{- end }}
 
 {{- with .Values.podAnnotations }}
 Annotations:
-  {{ toYaml . | indent 2 }}
+  {{- toYaml . | indent 2 }}
+{{- end }}
+
+{{- if .Values.defaultContainer }}
+DefaultContainer: {{ .Values.defaultContainer }}
 {{- end }}

@@ -66,3 +66,9 @@ vault.security.banzaicloud.io/vault-env-from-path: {{ printf "%s/%s" .Values.vau
 linkerd.io/inject: "enabled"
 {{- end -}}
 {{- end -}}
+
+{{- define  "app.annotations.defaultContainer" -}}
+{{- if .Values.defaultContainer }}
+kubectl.kubernetes.io/default-container: {{ include "app.names.name" $ }}
+{{- end -}}
+{{- end -}}

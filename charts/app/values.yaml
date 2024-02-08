@@ -41,6 +41,11 @@ role:
 podSecurityPolicy:
   enabled: false
 
+podAnnotations: {}
+podLabels: {}
+
+defaultContainer: ""
+
 lifecycle:
   enabled: false
 
