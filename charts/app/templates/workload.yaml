@@ -69,6 +69,7 @@ spec:
         {{-   toYaml . | nindent 8 }}
         {{- end }}
       annotations:
+        {{- include "app.annotations.defaultContainer" . | nindent 8 }}
         {{- include "app.annotations.standard" . | nindent 8 }}
         {{- include "app.annotations.workload" . | nindent 8 }}
         {{- if .Values.metrics.enabled }}
