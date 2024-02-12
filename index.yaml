@@ -4918,6 +4918,32 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/ci-status-0.1.0/ci-status-0.1.0.tgz
     version: 0.1.0
+  ciops:
+  - apiVersion: v2
+    appVersion: v0.6.0
+    created: "2024-02-12T11:49:47.775687947Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.1.0'
+    description: CI operator chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: c015cc452aa258a17c59e7a2f2a40ca1d47d6dbe26284bc2b825579c0b36afe2
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - ci
+    - operator
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ciops
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ciops-0.1.0/ciops-0.1.0.tgz
+    version: 0.1.0
   common:
   - apiVersion: v2
     created: "2022-08-16T10:33:33.775187833Z"
@@ -5928,4 +5954,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2024-02-08T20:28:39.522109787Z"
+generated: "2024-02-12T11:49:47.776069611Z"
