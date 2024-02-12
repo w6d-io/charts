@@ -27,6 +27,9 @@
 {{-   $volumes = concat $volumes .Values.persistence}}
 {{- end }}
 {{- $env := .Values.env }}
+{{- if .Values.extraEnv }}
+{{-   $env = append $env .Values.extraEnv }}
+{{- end }}
 {{- $secrets := .Values.secrets }}
 {{- $configs := .Values.configs }}
 {{- $fullname := (include "app.names.fullname" .) }}
@@ -98,11 +101,6 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- $pullSecret := dict "images" (list .Values.image) "context" $ }}
-      {{- if $.Values.dockerSecret }}
-      {{- if $.Values.dockerSecret.config }}
-      {{- $_ := set $pullSecret "dockerSecret" (printf "pull-%s" $fullname) }}
-      {{- end }}
-      {{- end }}
       {{- include "helper.images.renderPullSecrets" $pullSecret | nindent 6}}
       {{- if or .Values.initContainers .Values.lifecycle.enabled .Values.liquibase.enabled }}
       initContainers:
