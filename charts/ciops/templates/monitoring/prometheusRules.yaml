@@ -1,0 +1,17 @@
+{{- if .Values.rules }}
+{{-   range $name, $rule := .Values.rules }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $name }}
+  labels:
+    release: monk8s
+  {{- with $rule.labels }}
+    {{- toYaml $rule.labels | nindent 4 }}
+  {{- end }}
+spec:
+  groups:
+  {{- toYaml $rule.groups | nindent 4 }}
+{{-   end }}
+{{- end }}

@@ -1,0 +1,72 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: factbudgets.ci.w6d.io
+spec:
+  group: ci.w6d.io
+  names:
+    kind: FactBudget
+    listKind: FactBudgetList
+    plural: factbudgets
+    singular: factbudget
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.pipeline.concurrent
+      name: Concurrency
+      priority: 1
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: FactBudget is the Schema for the factbudgets API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: FactBudgetSpec defines the desired state of FactBudget
+            properties:
+              pipeline:
+                description: Pipeline budget for pipeline
+                properties:
+                  concurrent:
+                    description: Concurrent contains the number of pipeline running
+                      in concurrency
+                    format: int64
+                    type: integer
+                  pipelineRef:
+                    description: PipelineRef contains the pipeline to applies the
+                      budget. If empty all pipeline will be affected
+                    type: string
+                type: object
+            required:
+            - pipeline
+            type: object
+          status:
+            description: FactBudgetStatus defines the observed state of FactBudget
+            type: object
+        type: object
+    served: true
+    storage: true
+

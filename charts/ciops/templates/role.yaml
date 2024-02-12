@@ -1,0 +1,200 @@
+{{- $fullname := (include "ciops.names.fullname" .) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}
+rules:
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - factbudgets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - factbudgets/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - factbudgets/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - facts
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - facts/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - facts/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - pipelinesources
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - pipelinesources/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - ci.w6d.io
+    resources:
+      - pipelinesources/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ printf "%s-election" $fullname }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch

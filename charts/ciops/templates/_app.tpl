@@ -1,0 +1,74 @@
+{{/* vim: set filetype=mustache: */}}
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "ciops.component" -}}
+{{ .Values.database.component }}
+{{- end -}}
+
+{{- define "ciops.names.name" -}}
+{{- $name := .Chart.Name }}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create chart name and version as used by the chart label.
+*/}}
+{{- define "ciops.names.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
+*/}}
+{{- define "ciops.names.fullname" -}}
+{{- if .Values.fullnameOverride -}}
+{{- .Values.fullnameOverride | trunc 63 | lower | trimSuffix "-" -}}
+{{- else -}}
+{{- $shortname := printf "%s-%s" (include "ciops.component" .) .Chart.Name }}
+{{- $name := default $shortname .Values.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | lower | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | lower | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the service account to use
+Usage:
+{{ include "ciops.serviceAccountName" . }}
+*/}}
+{{- define "ciops.serviceAccountName" -}}
+{{- replace "." "-" (default (include "ciops.names.name" .) .Values.serviceAccount.name) -}}
+{{- end }}
+
+{{- define "ciops.image" -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.version | default .Chart.AppVersion) }}
+{{- end }}
+
+{{- define "ciops.annotations.standard" -}}
+{{- if .Values.vault.enabled -}}
+vault.security.banzaicloud.io/vault-addr: {{ .Values.vault.url | quote }}
+vault.security.banzaicloud.io/vault-role: {{ default (include "ciops.serviceAccountName" .) .Values.vault.role | quote }}
+vault.security.banzaicloud.io/vault-skip-verify: "true"
+{{- if .Values.vault.envFrom.enabled }}
+vault.security.banzaicloud.io/vault-env-from-path: {{ printf "%s/%s" .Values.vault.envFrom.path (default (include "ciops.serviceAccountName" .) .Values.vault.role) }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ciops.annotations.workload" -}}
+{{- if .Values.linkerd.enabled -}}
+linkerd.io/inject: "enabled"
+{{- end -}}
+{{- end -}}
+
+{{- define  "ciops.annotations.defaultContainer" -}}
+{{- if .Values.defaultContainer }}
+kubectl.kubernetes.io/default-container: {{ include "ciops.names.name" $ }}
+{{- end -}}
+{{- end -}}

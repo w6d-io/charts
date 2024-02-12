@@ -1,0 +1,53 @@
+{{- $fullname := (include "ciops.names.fullname" .) }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: fact.webhook.ci.w6d.io
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ printf "%s-webhook" $fullname }}
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-ci-w6d-io-v1alpha1-fact
+    failurePolicy: Fail
+    name: mfact.kb.io
+    rules:
+      - apiGroups:
+          - ci.w6d.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - facts
+    sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: fact.webhook.ci.w6d.io
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ printf "%s-webhook" $fullname }}
+        namespace: {{ .Release.Namespace }}
+        path: /validate-ci-w6d-io-v1alpha1-fact
+    failurePolicy: Fail
+    name: vfact.kb.io
+    rules:
+      - apiGroups:
+          - ci.w6d.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - facts
+    sideEffects: None
