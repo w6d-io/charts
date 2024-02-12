@@ -85,7 +85,8 @@ metrics:
   path: '/metrics'
   port: 8080
 
-env: "-"
+env: ""
+extraEnv: ""
 
 configs: []
 
@@ -119,3 +120,5 @@ vault:
 
 linkerd:
   enabled: false
+
+initContainers: []
