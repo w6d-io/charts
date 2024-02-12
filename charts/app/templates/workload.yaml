@@ -28,7 +28,10 @@
 {{- end }}
 {{- $env := .Values.env }}
 {{- if .Values.extraEnv }}
-{{-   $env = append $env .Values.extraEnv }}
+{{- if and $env (ne $env "-" ) }}
+{{-   $env = printf "%s\n%s" $env .Values.extraEnv }}
+{{- else }}
+{{-   $env = .Values.extraEnv }}
 {{- end }}
 {{- $secrets := .Values.secrets }}
 {{- $configs := .Values.configs }}
