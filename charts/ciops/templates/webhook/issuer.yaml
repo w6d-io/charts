@@ -1,0 +1,9 @@
+{{- $fullname := (include "ciops.names.fullname" .) }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    control-plane: ciops
+  name: {{ printf "%s-selfsigned-issuer" $fullname }}
+spec:
+  selfSigned: {}

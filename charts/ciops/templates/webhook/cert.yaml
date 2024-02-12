@@ -1,0 +1,15 @@
+{{- $fullname := (include "ciops.names.fullname" .) }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+  name: {{ printf "%s-webhook" $fullname }}
+spec:
+  dnsNames:
+    - {{ printf "%s-webhook.%s.svc" $fullname .Release.Namespace}}
+    - {{ printf "%s-webhook.%s.svc.cluster.local" $fullname .Release.Namespace}}
+  issuerRef:
+    name: {{ printf "%s-selfsigned-issuer" $fullname }}
+    kind: Issuer
+  secretName: {{ default (printf "%s-webhook-tls" $fullname ) }}

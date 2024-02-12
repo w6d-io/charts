@@ -1,0 +1,117 @@
+name: &name ciops
+fullnameOverride: *name
+nameOverride: *name
+
+global:
+  podSecurityPolicy:
+    enabled: false
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  metrics:
+    path: '/metrics'
+    port: 8080
+
+webhook:
+  config:
+    listen:
+      metrics: ":8080"
+      probe: ":8081"
+    webhook:
+      host: ""
+      port: 9443
+  affinity: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 75
+  defaultContainer: webhook
+  extraArgs: []
+  extraEnv: []
+  livenessProbe: {}
+  nodeSelector: {}
+  podAnnotations: {}
+  podLabels: {}
+  readinessProbe: {}
+  replicaCount: 2
+  resources: {}
+  securityContext: {}
+  strategy: {}
+  tolerations: {}
+  service:
+    annotations: {}
+    type: ClusterIP
+
+
+controller:
+  config:
+    listen:
+      metrics: ":8080"
+      probe: ":8081"
+    election:
+      enabled: true
+      resourceName: ""
+      namespace: ""
+    hooks: []
+    pipelinerun:
+      prefix: "pipelinerun"
+      workspaces:
+        - emptyDir: { }
+          name: ws
+      workspacePipelineTaskBinding:
+        - name: artifacts
+          subPath: artifacts
+          workspace: ws
+        - name: source
+          subPath: source
+          workspace: ws
+      podTemplate:
+        nodeSelector:
+          role: spot
+        tolerations:
+          - effect: NoSchedule
+            key: spotInstance
+            operator: Equal
+            value: "true"
+  affinity: {}
+  defaultContainer: controller
+  extraArgs: []
+  extraEnv: []
+  livenessProbe: {}
+  nodeSelector: {}
+  podAnnotations: {}
+  podLabels: {}
+  readinessProbe: {}
+  replicaCount: 2
+  resources: {}
+  securityContext: {}
+  strategy: {}
+  tolerations: {}
+
+
+rules: {}
+
+image:
+  repository: 'w6d/ciops'
+  tag: ''
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  token: true
+  annotations: {}
+
+pdb:
+  enabled: false
+
+vault:
+  enabled: false
+  url: "-"
+  envFrom:
+    enabled: false
+    path: "-"
+
+linkerd:
+  enabled: false

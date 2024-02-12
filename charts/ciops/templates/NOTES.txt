@@ -1,0 +1,15 @@
+{{- $fullname := (include "ciops.names.fullname" .) -}}
+Deployment information:
+  - Release       : {{ .Release.Name }}
+  - Chart         : {{ printf "%s/%s" .Chart.Name .Chart.Version }}
+  - Version       : {{ printf "%s" (default .Chart.AppVersion .Values.image.tag) }}
+  - Namespace     : {{ .Release.Namespace }}
+  - image         : {{ printf "%s:%s" "w6dio/ciops" (default .Chart.AppVersion .Values.image.tag) }}
+  - replicas      : {{ .Values.controller.replicaCount }}
+  - DefaultContainer: {{ .Values.controller.defaultContainer }}
+Webhook:
+  - Service name  : {{ printf "%s-webhook" $fullname }}
+  - replicas      : {{ .Values.webhook.replicaCount }}
+  - internal host : {{ printf "%s.%s.svc.cluster.local:%v" $fullname .Release.Namespace .Values.webhook.config.webhook.port }}
+  - DefaultContainer: {{ .Values.webhook.defaultContainer }}
+

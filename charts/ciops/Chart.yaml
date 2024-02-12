@@ -1,0 +1,21 @@
+apiVersion: v2
+name: ciops
+description: 'CI operator chart Created by David ALEXANDRE <david.alexandre@w6d.io>'
+keywords:
+  - ci
+  - operator
+home: https://www.w6d.io
+sources:
+  - https://charts.w6d.io
+maintainers:
+  - name: Wildcard
+    email: support@w6d.io
+  - name: david972
+    email: david.alexandre@w6d.io
+icon: https://gitlab.w6d.io/favicon.ico
+dependencies:
+- name: helper
+  version: ">=0.1.0"
+  repository: https://charts.w6d.io
+appVersion: v0.6.0
+version: 0.1.0

@@ -1,0 +1,21 @@
+{{- $fullname := (include "ciops.names.fullname" .) }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+  {{- with .Values.webhook.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ printf "%s-webhook" $fullname }}
+spec:
+  ports:
+  - name: webhook
+    port: {{ .Values.webhook.config.webhook.port }}
+    protocol: TCP
+    targetPort: {{ .Values.webhook.config.webhook.port }}
+  type: {{ default "ClusterIP" .Values.webhook.service.type }}
+  selector:
+    {{- include "helper.labels.matchLabels" . | nindent 4 }}
+    component: webhook

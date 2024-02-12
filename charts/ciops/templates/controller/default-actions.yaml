@@ -1,0 +1,220 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+  name: {{ printf "%s-default-actions" (include "ciops.names.fullname" .) }}
+data:
+  default-actions.yaml: |-
+    fields: []
+    actions:
+      - id: artefact-upload
+        displayName: "Upload Artefacts"
+        name: "upload-artefacts"
+        category: "artefact"
+        image: w6dio/s3cmd:v0.1.1
+        onError: continue
+        script: |
+          #!/usr/bin/env bash
+          if [ ! -d "$(workspaces.artifacts.path)" ]
+          then
+            echo "skipped: artifacts folder does not exist"
+            exit 0
+          fi
+          echo "upload artifacts"
+          s3cmd put --force $(workspaces.artifacts.path) s3://artifacts/${W6D_CI_PIPELINE_ARTIFACT_PATH}
+      - id: artefact-download
+        displayName: "Download artefacts"
+        name: "download-artefacts"
+        category: "artifact"
+        image: w6dio/s3cmd:v0.1.1
+        onError: continue
+        script: |
+          if [ ! -d "$(workspaces.artifacts.path)" ]
+          then
+            echo "skipped: artifacts folder does not exist"
+            exit 0
+          fi
+          ls -la $(workspaces.source.path)
+          echo "get artifacts"
+          s3cmd get --force s3://artifacts/${W6D_CI_PIPELINE_ARTIFACT_PATH} $(workspaces.artifacts.path)
+          echo "got $(find $(workspaces.artifacts.path) -type f | wc -l) file(S)"
+      - id: git-source
+        displayName: "Git source"
+        name: "git-source"
+        category: "git"
+        image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.21.0
+        params:
+          - default: ""
+            description: git url to clone
+            name: repoUrl
+            type: string
+          - default: ""
+            description: git revision to checkout (branch, tag, sha, ref…)
+            name: revision
+            type: string
+          - default: ""
+            description: (optional) git refspec to fetch before checking out revision
+            name: refspec
+            type: string
+          - default: "true"
+            description: defines if the resource should initialize and fetch the submodules
+            name: submodules
+            type: string
+          - default: "1"
+            description: performs a shallow clone where only the most recent commit(s) will
+              be fetched
+            name: depth
+            type: string
+          - default: "true"
+            description: defines if http.sslVerify should be set to true or false in the global
+              git config
+            name: sslVerify
+            type: string
+          - default: ""
+            description: subdirectory inside the "source" workspace to clone the git repo
+              into
+            name: subdirectory
+            type: string
+          - default: ""
+            description: defines which directories patterns to match or exclude when performing
+              a sparse checkout
+            name: sparseCheckoutDirectories
+            type: string
+          - default: "true"
+            description: clean out the contents of the repo's destination directory (if it
+              already exists) before trying to clone the repo there
+            name: deleteExisting
+            type: string
+          - default: ""
+            description: git HTTP proxy server for non-SSL requests
+            name: httpProxy
+            type: string
+          - default: ""
+            description: git HTTPS proxy server for SSL requests
+            name: httpsProxy
+            type: string
+          - default: ""
+            description: git no proxy - opt out of proxying HTTP/HTTPS requests
+            name: noProxy
+            type: string
+          - default: "false"
+            description: log the commands used during execution
+            name: verbose
+            type: string
+          - default: /tekton/home
+            name: userHome
+            type: string
+        env:
+          - name: HOME
+            value: $(params.userHome)
+          - name: PARAM_URL
+            value: $(params.repoUrl)
+          - name: PARAM_REVISION
+            value: $(params.revision)
+          - name: PARAM_REFSPEC
+            value: $(params.refspec)
+          - name: PARAM_SUBMODULES
+            value: $(params.submodules)
+          - name: PARAM_DEPTH
+            value: $(params.depth)
+          - name: PARAM_SSL_VERIFY
+            value: $(params.sslVerify)
+          - name: PARAM_SUBDIRECTORY
+            value: $(params.subdirectory)
+          - name: PARAM_DELETE_EXISTING
+            value: $(params.deleteExisting)
+          - name: PARAM_HTTP_PROXY
+            value: $(params.httpProxy)
+          - name: PARAM_HTTPS_PROXY
+            value: $(params.httpsProxy)
+          - name: PARAM_NO_PROXY
+            value: $(params.noProxy)
+          - name: PARAM_VERBOSE
+            value: $(params.verbose)
+          - name: PARAM_SPARSE_CHECKOUT_DIRECTORIES
+            value: $(params.sparseCheckoutDirectories)
+          - name: PARAM_USER_HOME
+            value: $(params.userHome)
+          - name: WORKSPACE_OUTPUT_PATH
+            value: $(workspaces.source.path)
+          - name: WORKSPACE_SSH_DIRECTORY_BOUND
+            value: $(workspaces.ssh-directory.bound)
+          - name: WORKSPACE_SSH_DIRECTORY_PATH
+            value: $(workspaces.ssh-directory.path)
+          - name: WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND
+            value: $(workspaces.basic-auth.bound)
+          - name: WORKSPACE_BASIC_AUTH_DIRECTORY_PATH
+            value: $(workspaces.basic-auth.path)
+          - name: WORKSPACE_SSL_CA_DIRECTORY_BOUND
+            value: $(workspaces.ssl-ca-directory.bound)
+          - name: WORKSPACE_SSL_CA_DIRECTORY_PATH
+            value: $(workspaces.ssl-ca-directory.path)
+        script: |
+          #!/usr/bin/env sh
+          set -eu
+
+          if [ "${PARAM_VERBOSE}" = "true" ] ; then
+            set -x
+          fi
+
+
+          if [ "${WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND}" = "true" ] ; then
+            cp "${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.git-credentials" "${PARAM_USER_HOME}/.git-credentials"
+            cp "${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.gitconfig" "${PARAM_USER_HOME}/.gitconfig"
+            chmod 400 "${PARAM_USER_HOME}/.git-credentials"
+            chmod 400 "${PARAM_USER_HOME}/.gitconfig"
+          fi
+
+          if [ "${WORKSPACE_SSH_DIRECTORY_BOUND}" = "true" ] ; then
+            cp -R "${WORKSPACE_SSH_DIRECTORY_PATH}" "${PARAM_USER_HOME}"/.ssh
+            chmod 700 "${PARAM_USER_HOME}"/.ssh
+            chmod -R 400 "${PARAM_USER_HOME}"/.ssh/*
+          fi
+
+          if [ "${WORKSPACE_SSL_CA_DIRECTORY_BOUND}" = "true" ] ; then
+            export GIT_SSL_CAPATH="${WORKSPACE_SSL_CA_DIRECTORY_PATH}"
+          fi
+          CHECKOUT_DIR="${WORKSPACE_OUTPUT_PATH}/${PARAM_SUBDIRECTORY}"
+
+          cleandir() {
+            # Delete any existing contents of the repo directory if it exists.
+            #
+            # We don't just "rm -rf ${CHECKOUT_DIR}" because ${CHECKOUT_DIR} might be "/"
+            # or the root of a mounted volume.
+            if [ -d "${CHECKOUT_DIR}" ] ; then
+              # Delete non-hidden files and directories
+              rm -rf "${CHECKOUT_DIR:?}"/*
+              # Delete files and directories starting with . but excluding ..
+              rm -rf "${CHECKOUT_DIR}"/.[!.]*
+              # Delete files and directories starting with .. plus any other character
+              rm -rf "${CHECKOUT_DIR}"/..?*
+            fi
+          }
+
+          if [ "${PARAM_DELETE_EXISTING}" = "true" ] ; then
+            cleandir
+          fi
+
+          test -z "${PARAM_HTTP_PROXY}" || export HTTP_PROXY="${PARAM_HTTP_PROXY}"
+          test -z "${PARAM_HTTPS_PROXY}" || export HTTPS_PROXY="${PARAM_HTTPS_PROXY}"
+          test -z "${PARAM_NO_PROXY}" || export NO_PROXY="${PARAM_NO_PROXY}"
+
+          echo "get source"
+          echo "repository ${PARAM_URL}"
+          echo "commit ${PARAM_REVISION}"
+          /ko-app/git-init \
+            -url="${PARAM_URL}" \
+            -revision="${PARAM_REVISION}" \
+            -refspec="${PARAM_REFSPEC}" \
+            -path="${CHECKOUT_DIR}" \
+            -sslVerify="${PARAM_SSL_VERIFY}" \
+            -submodules="${PARAM_SUBMODULES}" \
+            -depth="${PARAM_DEPTH}" \
+            -sparseCheckoutDirectories="${PARAM_SPARSE_CHECKOUT_DIRECTORIES}"
+          cd "${CHECKOUT_DIR}"
+          RESULT_SHA="$(git rev-parse HEAD)"
+          EXIT_CODE="$?"
+          if [ "${EXIT_CODE}" != 0 ] ; then
+            exit "${EXIT_CODE}"
+          fi

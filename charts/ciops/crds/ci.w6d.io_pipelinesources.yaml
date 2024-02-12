@@ -1,0 +1,409 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: pipelinesources.ci.w6d.io
+spec:
+  group: ci.w6d.io
+  names:
+    kind: PipelineSource
+    listKind: PipelineSourceList
+    plural: pipelinesources
+    shortNames:
+    - ps
+    singular: pipelinesource
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .status.pipelineName
+      name: Pipeline
+      priority: 1
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PipelineSource is the Schema for the pipelinesources API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Pipeline defines the desired state of Pipeline
+            properties:
+              artifacts:
+                description: Artifacts a boolean set to true if the pipeline has generated
+                  artifacts during the execution
+                type: boolean
+              commit:
+                description: Commit is the commit that trigger this pipeline
+                properties:
+                  id:
+                    description: ID the commit identifier
+                    type: string
+                  message:
+                    description: Message the commit message
+                    type: string
+                  ref:
+                    description: Ref the commit reference
+                    type: string
+                type: object
+              complete:
+                description: Complete a boolean to know if the pipeline configuration
+                  is complete
+                type: boolean
+              endTime:
+                description: EndTime timestamp when this pipeline has ended during
+                  the execution
+                format: int64
+                type: integer
+              eventId:
+                description: EventID is the event id that trigger this pipeline
+                type: string
+              fieldError:
+                description: FieldError list of error encountered into the pipeline
+                  configuration
+                properties:
+                  fields:
+                    description: Fields is a list of field where the issue is
+                    items:
+                      properties:
+                        id:
+                          description: ID of the resource where the error is
+                          type: string
+                        message:
+                          description: Message holds the main diagnostic message carried
+                            by this Field
+                          type: string
+                        path:
+                          description: Path of the resource
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              force:
+                description: Force a boolean to force pipeline recording
+                type: boolean
+              id:
+                description: ID is the pipeline identifier
+                type: string
+              logUri:
+                description: LogUri url where to get the log of the pipeline execution
+                type: string
+              name:
+                description: Name is the pipeline name
+                type: string
+              pipelineIdNumber:
+                description: PipelineIDNumber is the number of this pipeline
+                type: string
+              projectId:
+                description: ProjectID is the project identifier for this pipeline
+                format: int64
+                type: integer
+              stages:
+                description: Stages is the stages within thi pipeline
+                items:
+                  properties:
+                    endTime:
+                      description: EndTime timestamp when this stage has ended during
+                        the execution
+                      format: int64
+                      type: integer
+                    id:
+                      description: ID the stage identifier
+                      type: string
+                    name:
+                      description: Name
+                      type: string
+                    startTime:
+                      description: StartTime timestamp when this stage has started
+                        during the execution
+                      format: int64
+                      type: integer
+                    status:
+                      description: Status of this stage during the execution
+                      type: string
+                    tasks:
+                      description: Tasks
+                      items:
+                        properties:
+                          actions:
+                            description: Actions list of action of this task
+                            items:
+                              properties:
+                                componentId:
+                                  description: ComponentID the component id this action
+                                    is linked with
+                                  type: string
+                                data:
+                                  additionalProperties:
+                                    type: string
+                                  description: Data key/value
+                                  type: object
+                                endTime:
+                                  description: EndTime date when the action has ended
+                                    during the execution
+                                  format: int64
+                                  type: integer
+                                environments:
+                                  additionalProperties:
+                                    type: string
+                                  description: Environments key/value
+                                  type: object
+                                id:
+                                  description: ID the identifier of the action
+                                  type: string
+                                name:
+                                  description: Name contains the action aname
+                                  type: string
+                                params:
+                                  additionalProperties:
+                                    type: string
+                                  description: Params key/value
+                                  type: object
+                                ref:
+                                  description: Ref the action reference
+                                  type: string
+                                startTime:
+                                  description: StartTime date when the action has
+                                    started during the execution
+                                  format: int64
+                                  type: integer
+                                status:
+                                  description: Status of the action during the execution
+                                  type: string
+                              required:
+                              - componentId
+                              - id
+                              - name
+                              - ref
+                              type: object
+                            type: array
+                          conditions:
+                            description: Conditions determines if this task need to
+                              be run
+                            items:
+                              items:
+                                properties:
+                                  id:
+                                    description: Id condition identifier
+                                    type: string
+                                  ref:
+                                    description: Ref condition reference
+                                    type: string
+                                  type:
+                                    description: Type condition type
+                                    type: string
+                                  when:
+                                    description: When is the operand when the trigger
+                                      is true
+                                    type: string
+                                type: object
+                              type: array
+                            type: array
+                          endTime:
+                            description: EndTime timestamp when this task has ended
+                              during the execution
+                            format: int64
+                            type: integer
+                          id:
+                            description: ID task identifier
+                            type: string
+                          name:
+                            description: Name task name
+                            type: string
+                          skipOnFailure:
+                            description: SkipOnFailure whether to stop the pipeline
+                              on raising error
+                            type: boolean
+                          startTime:
+                            description: StartTime timestamp when this task has started
+                              during the execution
+                            format: int64
+                            type: integer
+                          status:
+                            description: Status of this action during the execution
+                            type: string
+                        required:
+                        - actions
+                        - id
+                        - name
+                        - skipOnFailure
+                        type: object
+                      type: array
+                  required:
+                  - id
+                  - name
+                  - tasks
+                  type: object
+                type: array
+              startTime:
+                description: StartTime timestamp when this pipeline has started during
+                  the execution
+                format: int64
+                type: integer
+              status:
+                description: Status of the pipeline during the execution
+                type: string
+              triggerId:
+                description: TriggerId is the trigger id that trigger this pipeline
+                type: string
+              triggers:
+                description: Triggers is when this pipeline will be triggered
+                items:
+                  properties:
+                    componentId:
+                      description: ComponentId the component id that the trigger is
+                        bound with
+                      type: string
+                    data:
+                      additionalProperties:
+                        type: string
+                      description: Data the key/value for this trigger
+                      type: object
+                    id:
+                      description: ID trigger identifier
+                      type: string
+                    ref:
+                      description: Ref trigger reference
+                      type: string
+                    type:
+                      description: Type trigger type
+                      type: string
+                  required:
+                  - componentId
+                  - data
+                  - id
+                  - ref
+                  - type
+                  type: object
+                type: array
+              type:
+                description: Type of the pipeline
+                type: string
+            required:
+            - id
+            - pipelineIdNumber
+            - projectId
+            - stages
+            - triggers
+            - type
+            type: object
+          status:
+            description: PipelineSourceStatus defines the observed state of PipelineSource
+            properties:
+              conditionTasks:
+                description: ConditionTasks contains the list of conditions task created
+                items:
+                  type: string
+                type: array
+              conditions:
+                description: Conditions represents the latest available observations
+                  of PipelineSource
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              message:
+                description: Message contains the pipeline message
+                type: string
+              pipelineName:
+                description: PipelineName contains the name of pipeline resource created
+                type: string
+              state:
+                description: State contains the current state of this Play resource.
+                  States Running, Failed, Succeeded, Errored
+                type: string
+              tasks:
+                description: Tasks contains the list of task created
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
