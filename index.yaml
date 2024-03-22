@@ -4993,6 +4993,31 @@ entries:
   ciops:
   - apiVersion: v2
     appVersion: v0.6.0
+    created: "2024-03-22T19:33:45.961216655Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.1.0'
+    description: CI operator chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: b30e08ce4ca9f49468f9bd87baab4f7d20ff5972dd6cec8fd15655ba2fb2b8ac
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - ci
+    - operator
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: ciops
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/ciops-0.1.1/ciops-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: v0.6.0
     created: "2024-02-12T11:49:47.775687947Z"
     dependencies:
     - name: helper
@@ -5265,6 +5290,31 @@ entries:
     - https://github.com/w6d-io/charts/releases/download/common-0.1.0/common-0.1.0.tgz
     version: 0.1.0
   dlm:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2024-03-22T19:33:46.090591146Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.1.0'
+    description: Database livecycle management chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: 4b4fbdffe32fdf295f3da0e5bbff1c02fd3cdcc369002e632689a89e768c9951
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - liquibase
+    - operator
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: dlm
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/dlm-0.1.4/dlm-0.1.4.tgz
+    version: 0.1.4
   - apiVersion: v2
     appVersion: 0.1.0
     created: "2024-03-22T19:24:56.898572414Z"
@@ -6127,4 +6177,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2024-03-22T19:24:56.898959138Z"
+generated: "2024-03-22T19:33:46.090924528Z"
