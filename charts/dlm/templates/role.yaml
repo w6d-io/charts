@@ -17,20 +17,20 @@ rules:
       - patch
       - update
       - watch
-      - apiGroups:
-          - dlm.w6d.io
-        resources:
-          - upgrades/finalizers
-        verbs:
-          - update
-      - apiGroups:
-          - dlm.w6d.io
-        resources:
-          - upgrades/status
-        verbs:
-          - get
-          - patch
-          - update
+  - apiGroups:
+      - dlm.w6d.io
+    resources:
+      - upgrades/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - dlm.w6d.io
+    resources:
+      - upgrades/status
+    verbs:
+      - get
+      - patch
+      - update
   - apiGroups:
       - v1
     resources:
