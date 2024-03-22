@@ -5267,6 +5267,31 @@ entries:
   dlm:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2024-03-22T19:24:56.898572414Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.1.0'
+    description: Database livecycle management chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: d98f830e88422116b566e9086b3207f38cc7e705f4e3526074bfd8516f538f1e
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - liquibase
+    - operator
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: dlm
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/dlm-0.1.3/dlm-0.1.3.tgz
+    version: 0.1.3
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2024-03-22T19:21:22.62110147Z"
     dependencies:
     - name: helper
@@ -6102,4 +6127,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2024-03-22T19:21:22.621534287Z"
+generated: "2024-03-22T19:24:56.898959138Z"
