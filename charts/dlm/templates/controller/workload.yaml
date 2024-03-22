@@ -57,6 +57,11 @@ spec:
       {{- end }}
       {{- $pullSecret := dict "images" (list .Values.image) "context" $ }}
       {{- include "helper.images.renderPullSecrets" $pullSecret | nindent 6}}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "dlm.names.fullname" . }}
+            defaultMode: 0644
       containers:
       - image: {{ printf "%s:%s" "w6dio/dlm" (default .Chart.AppVersion .Values.image.tag) }}
         imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
@@ -72,8 +77,6 @@ spec:
         - mountPath: /config/config.yaml
           name: cconfig
           subPath: config.yaml
-        - mountPath: /config/extra
-          name: config-extra
         env:
         - name: CONFIG
           value: /config/config.yaml
