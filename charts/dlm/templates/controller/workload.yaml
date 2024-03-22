@@ -75,7 +75,7 @@ spec:
         name: controller
         volumeMounts:
         - mountPath: /config/config.yaml
-          name: cconfig
+          name: config
           subPath: config.yaml
         env:
         - name: CONFIG
