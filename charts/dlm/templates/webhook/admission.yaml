@@ -1,0 +1,54 @@
+{{- $fullname := (include "dlm.names.fullname" .) }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: upgrade.webhook.dlm.w6d.io
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ printf "%s-webhook" $fullname }}
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-dlm-w6d-io-v1alpha1-upgrade
+    failurePolicy: Fail
+    name: mupgrade.kb.io
+    rules:
+      - apiGroups:
+          - dlm.w6d.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - upgrades
+    sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: upgrade.webhook.dlm.w6d.io
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ printf "%s-webhook" $fullname }}
+        namespace: {{ .Release.Namespace }}
+        path: /validate-dlm-w6d-io-v1alpha1-upgrade
+    failurePolicy: Fail
+    name: vupgrade.kb.io
+    rules:
+      - apiGroups:
+          - dlm.w6d.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - upgrades
+    sideEffects: None

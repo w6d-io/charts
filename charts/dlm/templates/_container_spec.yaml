@@ -1,0 +1,69 @@
+- image: w6dio/dlm:{{ default .Chart.AppVersion }}
+  {{- if .lifecycle }}
+  {{- with .lifecycle }}
+  lifecycle:
+  {{- . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  imagePullPolicy: {{ default "" .imagePullPolicy | quote }}
+  {{- with .command }}
+  command:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .args }}
+  args:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ .name | trunc 14 | trimSuffix "-" }}
+  {{- with .volumes }}
+  volumeMounts:
+    {{- include "helper.volumes.volumeMounts" (dict "volumes" . ) | nindent 4 }}
+  {{- end }}
+  {{- include "helper.workflow.env" (dict "env" .env "secrets" .secrets "configs" .configs "context" .context) | nindent 2}}
+  {{- with .livenessProbe }}
+  livenessProbe:
+    {{ toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .readinessProbe }}
+  readinessProbe:
+    {{ toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if or .metrics .service .extraContainerPort}}
+  ports:
+    {{- $context := .context }}
+    {{- $metrics := .metrics }}
+    {{- with .service }}
+    - containerPort: {{ .internalPort }}
+      {{- $name := include "helper.names.service" (dict "name" .name "context" $context) }}
+      {{- if typeIs "string" .targetPort }}
+      {{- $name = .targetPort }}
+      {{- end }}
+      name: {{ $name | trunc 14 | trimSuffix "-" }}
+      protocol: TCP
+      {{- if .hosPort }}
+      hostPort: {{ .hostPort }}
+      {{- end }}
+      {{- if and $metrics.enabled ( ne ($metrics.port | int) (.internalPort | int ) ) }}
+    - containerPort: {{ $metrics.port }}
+      name: metrics
+      protocol: TCP
+      {{- if $metrics.hostPort }}
+      hostPort: {{ $metrics.hostPort }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if .extraContainerPort }}
+      {{- range .extraContainerPort }}
+    - containerPort: {{ .port }}
+      name: {{ .name }}
+      protocol: {{ default "TCP" .protocol }}
+      {{- if .hostPort }}
+      hostPort: {{ .hostPort }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+  {{- end }}
