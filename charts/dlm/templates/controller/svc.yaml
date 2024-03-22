@@ -1,0 +1,21 @@
+{{- $fullname := (include "dlm.names.fullname" .) }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+  {{- with .Values.controller.api.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ printf "%s" $fullname }}
+spec:
+  ports:
+  - name: api
+    port: {{ .Values.controller.api.port }}
+    protocol: TCP
+    targetPort: {{ .Values.controller.api.port }}
+  type: {{ default "ClusterIP" .Values.controller.api.service.type }}
+  selector:
+    {{- include "helper.labels.matchLabels" . | nindent 4 }}
+    component: controller

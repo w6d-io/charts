@@ -1,0 +1,18 @@
+{{- if .Values.configs }}
+{{- range .Values.configs }}
+{{- $name := .name | lower | replace "_" "-" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+  name: {{ printf "%s-%s" (include "dlm.names.fullname" $) $name }}
+data:
+  {{- if not (empty .subPath) }}
+  {{ .key }}: {{- toYaml .value | indent 2 }}
+  {{- else }}
+  {{- .value | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}

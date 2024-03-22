@@ -1,0 +1,82 @@
+{{- $fullname := (include "dlm.names.fullname" .) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}
+rules:
+  - apiGroups:
+      - dlm.w6d.io
+    resources:
+      - upgrades
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+      - apiGroups:
+          - dlm.w6d.io
+        resources:
+          - upgrades/finalizers
+        verbs:
+          - update
+      - apiGroups:
+          - dlm.w6d.io
+        resources:
+          - upgrades/status
+        verbs:
+          - get
+          - patch
+          - update
+  - apiGroups:
+      - v1
+    resources:
+      - pods
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ printf "%s-election" $fullname }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch

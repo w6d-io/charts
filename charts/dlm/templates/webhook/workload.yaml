@@ -1,0 +1,105 @@
+{{- $fullname := (include "dlm.names.fullname" .) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- with .Values.annotations }}
+  annotations:
+  {{-   toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+  name: {{ printf "%s-webhook" $fullname }}
+spec:
+  replicas: {{ .Values.webhook.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "helper.labels.matchLabels" . | nindent 6 }}
+      component: webhook
+  {{- if .Values.webhook.strategy }}
+  strategy:
+    {{- toYaml .Values.webhook.strategy | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "helper.labels.matchLabels" . | nindent 8 }}
+        component: webhook
+        {{- with .Values.global.podLabels }}
+        {{-   toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.webhook.podLabels }}
+        {{-   toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- include "dlm.annotations.defaultContainer" . | nindent 8 }}
+        {{- include "dlm.annotations.workload" . | nindent 8 }}
+        prometheus.io/path: {{ .Values.global.metrics.path }}
+        prometheus.io/port: {{ .Values.global.metrics.port | quote }}
+        prometheus.io/scrape: "true"
+        {{- with .Values.global.podAnnotations }}
+        {{-   toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.webhook.podAnnotations }}
+        {{-   toYaml . | nindent 8 }}
+        {{- end }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/webhook/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.webhook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dlm.serviceAccountName" . }}
+      automountServiceAccountToken: true
+      {{- with .Values.webhook.securityContext }}
+      securityContext:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $pullSecret := dict "images" (list .Values.image) "context" $ }}
+      {{- include "helper.images.renderPullSecrets" $pullSecret | nindent 6}}
+      containers:
+        - image: {{ printf "%s:%s" "w6dio/dlm" (default .Chart.AppVersion .Values.image.tag) }}
+          imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
+          command:
+            - /dlm
+          args:
+            - webhook
+        {{- with .Values.webhook.extraArgs }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+          name: webhook
+          volumeMounts:
+            - mountPath: /config/config.yaml
+              name: cconfig
+              subPath: config.yaml
+          env:
+            - name: CONFIG
+              value: /config/config.yaml
+            - name: LOG_LEVEL
+              value: "2"
+        {{- with .Values.webhook.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.webhook.livenessProbe }}
+          livenessProbe:
+        {{ toYaml . | nindent 10 }}
+      {{- end }}
+        {{- with .Values.webhook.readinessProbe }}
+          readinessProbe:
+        {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.webhook.resources }}
+          resources:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+          ports:
+            - containerPort: {{ .Values.global.metrics.port }}
+              name: metrics
+              protocol: TCP
+      {{- with .Values.webhook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end}}
+      {{- with .Values.webhook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

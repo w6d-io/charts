@@ -1,0 +1,9 @@
+{{- $fullname := (include "dlm.names.fullname" .) }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    control-plane: dlm
+  name: {{ printf "%s-selfsigned-issuer" $fullname }}
+spec:
+  selfSigned: {}
