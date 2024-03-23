@@ -32,7 +32,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - v1
+      - ""
     resources:
       - pods
     verbs:
