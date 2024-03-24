@@ -12,6 +12,7 @@ webhooks:
         name: {{ printf "%s-webhook" $fullname }}
         namespace: {{ .Release.Namespace }}
         path: /mutate-dlm-w6d-io-v1alpha1-upgrade
+        port: {{ .Values.webhook.config.webhook.port }}
     failurePolicy: Fail
     name: mupgrade.kb.io
     rules:
@@ -38,6 +39,7 @@ webhooks:
         name: {{ printf "%s-webhook" $fullname }}
         namespace: {{ .Release.Namespace }}
         path: /validate-dlm-w6d-io-v1alpha1-upgrade
+        port: {{ .Values.webhook.config.webhook.port }}
     failurePolicy: Fail
     name: vupgrade.kb.io
     rules:
