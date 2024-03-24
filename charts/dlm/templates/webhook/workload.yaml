@@ -60,7 +60,10 @@ spec:
         - name: config
           configMap:
             name: {{ printf "%s-webhook" (include "dlm.names.fullname" .) }}
-            defaultMode: 0644
+            defaultMode: 0444
+        - name: cert
+          secret:
+            secretName: {{ default (printf "%s-webhook-tls" $fullname ) }}
       containers:
         - image: {{ printf "%s:%s" "w6dio/dlm" (default .Chart.AppVersion .Values.image.tag) }}
           imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
@@ -76,6 +79,9 @@ spec:
             - mountPath: /config/config.yaml
               name: config
               subPath: config.yaml
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+              name: cert
           env:
             - name: CONFIG
               value: /config/config.yaml
