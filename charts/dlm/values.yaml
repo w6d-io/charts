@@ -30,11 +30,27 @@ webhook:
   defaultContainer: webhook
   extraArgs: []
   extraEnv: []
-  livenessProbe: {}
+  livenessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /healthz
+      port: 8081
+      scheme: HTTP
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  readinessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /readyz
+      port: 8081
+      scheme: HTTP
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
   nodeSelector: {}
   podAnnotations: {}
   podLabels: {}
-  readinessProbe: {}
   replicaCount: 2
   resources: {}
   securityContext: {}
@@ -70,11 +86,27 @@ controller:
   defaultContainer: controller
   extraArgs: []
   extraEnv: []
-  livenessProbe: {}
+  livenessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /healthz
+      port: 8081
+      scheme: HTTP
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  readinessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /readyz
+      port: 8081
+      scheme: HTTP
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
   nodeSelector: {}
   podAnnotations: {}
   podLabels: {}
-  readinessProbe: {}
   replicaCount: 2
   resources: {}
   securityContext: {}
