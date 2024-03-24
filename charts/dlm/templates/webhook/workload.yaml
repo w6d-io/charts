@@ -90,13 +90,13 @@ spec:
         {{- with .Values.webhook.extraEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.webhook.livenessProbe }}
-          livenessProbe:
-        {{ toYaml . | nindent 10 }}
-      {{- end }}
+        {{- with .Values.webhook.livenessProbe }}
+        livenessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- with .Values.webhook.readinessProbe }}
-          readinessProbe:
-        {{ toYaml . | nindent 10 }}
+        readinessProbe:
+        {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.webhook.resources }}
           resources:

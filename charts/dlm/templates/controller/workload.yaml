@@ -85,10 +85,10 @@ spec:
         {{- with .Values.controller.extraEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.controller.livenessProbe }}
+        {{- with .Values.controller.livenessProbe }}
         livenessProbe:
         {{ toYaml . | nindent 10 }}
-      {{- end }}
+        {{- end }}
         {{- with .Values.controller.readinessProbe }}
         readinessProbe:
         {{ toYaml . | nindent 10 }}
