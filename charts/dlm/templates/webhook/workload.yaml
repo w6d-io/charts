@@ -65,47 +65,47 @@ spec:
           secret:
             secretName: {{ default (printf "%s-webhook-tls" $fullname ) }}
       containers:
-        - image: {{ printf "%s:%s" "w6dio/dlm" (default .Chart.AppVersion .Values.image.tag) }}
-          imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
-          command:
-            - /dlm
-          args:
-            - webhook
-        {{- with .Values.webhook.extraArgs }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-          name: webhook
-          volumeMounts:
-            - mountPath: /config/config.yaml
-              name: config
-              subPath: config.yaml
-            - mountPath: /tmp/k8s-webhook-server/serving-certs
-              readOnly: true
-              name: cert
-          env:
-            - name: CONFIG
-              value: /config/config.yaml
-            - name: LOG_LEVEL
-              value: "2"
-        {{- with .Values.webhook.extraEnv }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+      - image: {{ printf "%s:%s" "w6dio/dlm" (default .Chart.AppVersion .Values.image.tag) }}
+        imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
+        command:
+          - /dlm
+        args:
+          - webhook
+      {{- with .Values.webhook.extraArgs }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+        name: webhook
+        volumeMounts:
+          - mountPath: /config/config.yaml
+            name: config
+            subPath: config.yaml
+          - mountPath: /tmp/k8s-webhook-server/serving-certs
+            readOnly: true
+            name: cert
+        env:
+          - name: CONFIG
+            value: /config/config.yaml
+          - name: LOG_LEVEL
+            value: "2"
+      {{- with .Values.webhook.extraEnv }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
         {{- with .Values.webhook.livenessProbe }}
         livenessProbe:
-        {{- toYaml . | nindent 10 }}
+        {{ toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.webhook.readinessProbe }}
         readinessProbe:
-        {{- toYaml . | nindent 10 }}
+        {{ toYaml . | nindent 10 }}
         {{- end }}
-        {{- with .Values.webhook.resources }}
-          resources:
-        {{- toYaml . | nindent 10 }}
-        {{- end }}
-          ports:
-            - containerPort: {{ .Values.global.metrics.port }}
-              name: metrics
-              protocol: TCP
+      {{- with .Values.webhook.resources }}
+        resources:
+      {{- toYaml . | nindent 10 }}
+      {{- end }}
+        ports:
+          - containerPort: {{ .Values.global.metrics.port }}
+            name: metrics
+            protocol: TCP
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
