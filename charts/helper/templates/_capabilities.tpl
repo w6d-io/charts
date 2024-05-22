@@ -45,6 +45,6 @@ Usage:
 */}}
 {{- define "helper.capabilities.workflow.apiVersion" -}}
 {{- $kind := (include "helper.workflow.kind" (dict "kind" .kind)) -}}
-{{- $dictionary := dict "Job" "batch/v1" -}}
+{{- $dictionary := dict "Job" "batch/v1" "Rollout" "argoproj.io/v1alpha1" -}}
 {{- default "apps/v1" (get $dictionary $kind) -}}
 {{- end -}}
