@@ -6,6 +6,8 @@ name: "-"
 id: ""
 namespace: ""
 
+kind: ""
+
 database:
   host: ""
   adminpassword: ""
@@ -22,6 +24,15 @@ liquibase:
 
 strategy: {}
 #  type: Recreate
+# Rollout sample
+# canary:
+#   maxSurge: 3
+#   maxUnavailable: 0
+#   canaryService: app-canary
+#   stableService: app
+#   steps:
+#     - setWeight: 50
+#     - pause: {}
 
 revision:
   enabled: false

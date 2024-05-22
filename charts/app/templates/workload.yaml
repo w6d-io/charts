@@ -61,7 +61,7 @@ spec:
     matchLabels:
       {{- include "helper.labels.matchLabels" . | nindent 6 }}
   {{- end }}
-  {{- if and (eq $kind "Deployment") .Values.strategy }}
+   {{- if or (and (eq $kind "Deployment") .Values.strategy) (eq $kind "Rollout") }}
   strategy:
     {{- toYaml .Values.strategy | nindent 4 }}
   {{- end }}
