@@ -1,5 +1,5 @@
 Deployment information:
-  - Kind          : {{ default "deployment" .Values.kind }}
+  - Kind          : {{ default "Deployment" .Values.kind }}
   - Release       : {{ .Release.Name }}
   - Chart         : {{ printf "%s/%s" .Chart.Name .Chart.Version }}
   - Version       : {{ printf "%s" .Values.image.tag }}
