@@ -1,6 +1,6 @@
 dependencies:
 - name: helper
   repository: https://charts.w6d.io
-  version: 0.1.0
-digest: sha256:9d0bf58d831c5cf2b23a0d340f90bee3aa70550b8b94dbd0dc1c80d20f0e26af
-generated: "2023-11-02T20:25:55.87946+01:00"
+  version: 0.1.1
+digest: sha256:be448bdfef86df6c019ca217aee3de8b99ddc364af00e9df05068783f64651f9
+generated: "2024-05-24T09:05:07.315074+02:00"
