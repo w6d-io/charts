@@ -48,7 +48,7 @@ metadata:
   {{- end }}
   labels:
     {{- include "helper.labels.standard" . | nindent 4 }}
-  name: {{ include "app.names.fullname" . }}
+  name: {{ (include "app.names.fullname" .) | lower  }}
 spec:
   {{- if eq $kind "Job" }}
     {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values | nindent 2 }}
@@ -98,7 +98,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "app.serviceAccountName" . }}
+      serviceAccountName: {{ (include "app.serviceAccountName" .) | lower }}
       {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
@@ -129,7 +129,7 @@ spec:
       {{-   $_ := set $dictionnary "env" $env }}
       {{-   range .Values.initContainers }}
       {{-     $_ := set $dictionnary "image" .image }}
-      {{-     $_ := set $dictionnary "name" .name }}
+      {{-     $_ := set $dictionnary "name" (.name | lower ) }}
       {{-     $_ := set $dictionnary "command" .command }}
       {{-     $_ := set $dictionnary "args" .args }}
       {{-     $_ := set $dictionnary "imagePullPolicy" .imagePullPolicy }}
@@ -139,11 +139,11 @@ spec:
       containers:
       {{- $dictionnary := dict "image" $image }}
       {{- if .Values.lifecycle.enabled }}
-      {{- $_ := set $dictionnary "lifecycle" (include "app.lifecycle.setsvc" (dict "service_name" .Values.service.name "context" $)) }}
+      {{- $_ := set $dictionnary "lifecycle" (include "app.lifecycle.setsvc" (dict "service_name" (.Values.service.name | lower ) "context" $)) }}
       {{- end }}
       {{- $_ := set $dictionnary "context" $ }}
       {{- $_ := set $dictionnary "volumes" $volumes }}
-      {{- $_ := set $dictionnary "name" (include "app.names.name" $) }}
+      {{- $_ := set $dictionnary "name" ((include "app.names.name" $) | lower ) }}
       {{- $_ := set $dictionnary "env" $env }}
       {{- $_ := set $dictionnary "configs" $configs }}
       {{- $_ := set $dictionnary "secrets" $secrets }}
@@ -175,7 +175,7 @@ spec:
       {{- end }}
       {{- with $volumes }}
       volumes:
-        {{- include "helper.volumes.volumes" (dict "fullname" (include "app.names.fullname" $) "volumes" . "context" $) | nindent 8 }}
+        {{- include "helper.volumes.volumes" (dict "fullname" ((include "app.names.fullname" $) | lower ) "volumes" . "context" $) | nindent 8 }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}

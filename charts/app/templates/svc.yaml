@@ -1,4 +1,4 @@
-{{- $serviceName := (include "helper.names.service" (dict "name" .Values.service.name "context" $)) }}
+{{- $serviceName := ((include "helper.names.service" (dict "name" .Values.service.name "context" $)) | lower ) }}
 ---
 apiVersion: v1
 kind: Service
@@ -18,7 +18,7 @@ spec:
     {{- if .Values.service.nodePort }}
     nodePort: {{ .Values.service.nodePort }}
     {{- end }}
-    targetPort: {{ default (include "app.names.name" . | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
+    targetPort: {{ default (include "app.names.name" . | lower | trunc 14 | trimSuffix "-") (default .Values.service.internalPort .Values.service.targetPort) }}
   {{- if .Values.metrics.enabled }}
     {{- if ne (.Values.metrics.port | int) (.Values.service.internalPort | int ) }}
   - name: metrics
@@ -29,13 +29,13 @@ spec:
   {{- end }}
   {{- if .Values.extraContainerPort }}
     {{- range .Values.extraContainerPort }}
-  - name: {{ .name | trunc 14 | trimSuffix "-" }}
+  - name: {{ .name | lower | trunc 14 | trimSuffix "-" }}
     port: {{ .port }}
     {{- if .nodePort }}
     nodePort: {{ .nodePort }}
     {{- end }}
     protocol: {{ default "TCP" .protocol }}
-    targetPort: {{ default (.name | trunc 14 | trimSuffix "-") .target }}
+    targetPort: {{ default (.name | lower | trunc 14 | trimSuffix "-") .target }}
     {{- end }}
   {{- end }}
   type: {{ default "ClusterIP" .Values.service.type }}
