@@ -14,7 +14,7 @@
   args:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  name: {{ .name | trunc 14 | trimSuffix "-" }}
+  name: {{ .name | lower | trunc 14 | trimSuffix "-" }}
   {{- with .volumes }}
   volumeMounts:
     {{- include "helper.volumes.volumeMounts" (dict "volumes" . ) | nindent 4 }}
@@ -42,7 +42,7 @@
       {{- if typeIs "string" .targetPort }}
       {{- $name = .targetPort }}
       {{- end }}
-      name: {{ $name | trunc 14 | trimSuffix "-" }}
+      name: {{ $name | lower | trunc 14 | trimSuffix "-" }}
       protocol: TCP
       {{- if .hosPort }}
       hostPort: {{ .hostPort }}
@@ -59,7 +59,7 @@
       {{- if .extraContainerPort }}
       {{- range .extraContainerPort }}
     - containerPort: {{ .port }}
-      name: {{ .name }}
+      name: {{ .name | lower }}
       protocol: {{ default "TCP" .protocol }}
       {{- if .hostPort }}
       hostPort: {{ .hostPort }}
