@@ -46,5 +46,5 @@ ingressClassName: {{ coalesce .Values.ingress.className .Values.ingress.class }}
 {{- end -}}
 
 {{- define "ingress.annotations" -}}
-externaldns: {{ default "disabled" .Values.ingress.externaldns }}
+externaldns: {{ default "disabled" .ingress.externaldns }}
 {{- end -}}
