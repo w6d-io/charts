@@ -133,4 +133,13 @@ vault:
 linkerd:
   enabled: false
 
+httproute:
+  enabled: false
+  host: ''
+  gateway: ''
+  path: '/'
+  securityPolicy: 'gke-regional'
+  logging: true
+  sampleRate: 1000000
+
 initContainers: []
