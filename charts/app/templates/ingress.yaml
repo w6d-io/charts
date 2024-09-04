@@ -1,3 +1,4 @@
+{{- if and .Values.ingress.enabled (not .Values.httproute.enabled) -}}
 {{- if .Values.ingress.enabled -}}
 {{- $name := .Values.service.name -}}
 {{- $svcPort := .Values.service.externalPort -}}

@@ -142,4 +142,6 @@ httproute:
   logging: true
   sampleRate: 1000000
 
+backendpolicy: []
+
 initContainers: []

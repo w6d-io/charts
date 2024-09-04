@@ -1,4 +1,4 @@
-{{- if .Values.httproute.enabled -}}
+{{- if and .Values.httproute.enabled (not .Values.ingress.enabled) -}}
 {{- $name := .Values.service.name -}}
 {{- $svcPort := .Values.service.externalPort -}}
 {{- $host := include "httproute.host" . }}
@@ -22,19 +22,3 @@ spec:
     - name: {{ $name }}
       port: {{ $svcPort }}
 {{- end }}
----
-apiVersion: networking.gke.io/v1
-kind: GCPBackendPolicy
-metadata:
-  name: {{ $name }}
-spec:
-  default:
-    securityPolicy: {{ .Values.httproute.securityPolicy }}
-    logging:
-      enabled: {{ .Values.httproute.logging }}
-      sampleRate: {{ .Values.httproute.sampleRate }}
-  targetRef:
-    group: ""
-    kind: Service
-    name: {{ $name }}
----
