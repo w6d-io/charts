@@ -138,10 +138,10 @@ httproute:
   host: ''
   gateway: ''
   path: '/'
+
+backendpolicy:
   securityPolicy: 'gke-regional'
   logging: true
   sampleRate: 1000000
-
-backendpolicy: []
 
 initContainers: []
