@@ -1,0 +1,21 @@
+{{- if and .Values.httproute.enabled (not .Values.ingress.enabled) -}}
+{{- $name := .Values.service.name -}}
+{{- $svcPort := .Values.service.externalPort -}}
+{{- $host := .Values.httproute.host  -}}
+---
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: {{ $name }}
+spec:
+  default:
+    securityPolicy: {{ .Values.backendpolicy.securityPolicy }}
+    logging:
+      enabled: {{ .Values.backendpolicy.logging }}
+      sampleRate: {{ .Values.backendpolicy.sampleRate }}
+  targetRef:
+    group: ""
+    kind: Service
+    name: {{ $name }}
+---
+{{- end }}
