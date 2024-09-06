@@ -7,4 +7,3 @@ chart-repos:
   - jetstack=https://charts.jetstack.io
   - ingress-nginx=https://kubernetes.github.io/ingress-nginx
   - w6dio=https://charts.w6d.io
-helm-extra-args: --timeout 600s
