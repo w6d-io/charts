@@ -19,6 +19,9 @@ spec:
       type: PathPrefix
       value: {{ .Values.httproute.path }}
     backendRefs:
-    - name: {{ $name }}
+    - group: ''
+      kind: Service
+      name: {{ $name }}
       port: {{ $svcPort }}
+      weight: 1
 {{- end }}
