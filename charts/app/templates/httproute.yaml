@@ -15,8 +15,7 @@ spec:
   - {{ $host }}
   rules:
   - matches:
-    - path:
-      type: PathPrefix
+    - type: PathPrefix
       value: {{ .Values.httproute.path }}
     backendRefs:
     - group: ''

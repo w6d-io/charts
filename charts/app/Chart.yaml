@@ -16,5 +16,5 @@ dependencies:
 - name: helper
   version: ">=0.1.1"
   repository: https://charts.w6d.io
-appVersion: v3.0.11
-version: 3.0.11
+appVersion: v3.0.12
+version: 3.0.12
