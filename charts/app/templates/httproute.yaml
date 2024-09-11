@@ -28,7 +28,7 @@ spec:
         value: {{ .Values.httproute.path }}
     {{- if .Values.httproute.rewrite }}
     filters:
-      - type: URLRewrite
+    - type: URLRewrite
       urlRewrite:
         path:
           type: ReplacePrefixMatch
