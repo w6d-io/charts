@@ -138,6 +138,8 @@ httproute:
   host: ''
   gateway: ''
   path: '/'
+  rewrite: false
+  rewritepath: '/'
 
 backendpolicy:
   securityPolicy: 'gke-regional'
