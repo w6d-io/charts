@@ -1,0 +1,16 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" -}}
+{{- if .Values.linkerd.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+  name: {{ printf "%s-linkerd" (include "app.names.fullname" .) | lower  }}
+spec:
+  podMetricsEndpoints:
+    - portNumber: 4191
+      path: /metrics
+  selector:
+    {{- include "helper.labels.matchLabels" . | nindent 4 }}
+{{- end }}
+{{- end }}
