@@ -248,13 +248,13 @@ roles:
     verbs:
       - write
   - name: w6d.events.read
-    groups: [""]
+    groups: ["events.k8s.io"]
     resources:
       - events
     verbs:
       - read
   - name: w6d.events.write
-    groups: [""]
+    groups: ["events.k8s.io"]
     resources:
       - events
     verbs:
@@ -306,6 +306,12 @@ roles:
     resources:
       - nodes
       - pods
+    verbs:
+      - read
+  - name: w6d.nodes.read
+    groups: [""]
+    resources:
+      - nodes
     verbs:
       - read
   - name: w6d.kogito.read
