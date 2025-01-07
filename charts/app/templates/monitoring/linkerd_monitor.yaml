@@ -8,7 +8,7 @@ metadata:
   name: {{ printf "%s-linkerd" (include "app.names.fullname" .) | lower  }}
 spec:
   podMetricsEndpoints:
-    - portNumber: 4191
+    - port: linkerd-admin
       path: /metrics
   selector:
     {{- include "helper.labels.matchLabels" . | nindent 4 }}
