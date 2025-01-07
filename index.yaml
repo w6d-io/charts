@@ -6201,6 +6201,21 @@ entries:
     version: 0.1.0
   rbac:
   - apiVersion: v2
+    appVersion: 0.1.16
+    created: "2025-01-07T15:27:41.241673527Z"
+    description: Custom RBAC aggregation and binding
+    digest: 3ced787972d15edd564b034205d71f646894cc555b33a3936ca67d0f226dace6
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: rbac
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/rbac-0.1.16/rbac-0.1.16.tgz
+    version: 0.1.16
+  - apiVersion: v2
     appVersion: 0.1.15
     created: "2025-01-07T14:53:34.701054607Z"
     description: Custom RBAC aggregation and binding
@@ -6752,4 +6767,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2025-01-07T14:53:34.701493419Z"
+generated: "2025-01-07T15:27:41.242208374Z"
