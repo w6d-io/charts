@@ -82,12 +82,14 @@ roles:
     groups: [""]
     resources:
       - serviceaccounts
+      - serviceaccounts/token
     verbs:
       - read
   - name: w6d.sa.write
     groups: [""]
     resources:
       - serviceaccounts
+      - serviceaccounts/token
     verbs:
       - write
   - name: w6d.configmaps.read
