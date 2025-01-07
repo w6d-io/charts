@@ -346,3 +346,29 @@ roles:
       - "applicationsets"
     verbs:
       - write
+  - name: w6d.cert.read
+    groups: ["cert-manager.io", "acme.cert-manager.io", "trust.cert-manager.io"]
+    resources:
+      - "challenges"
+      - "orders"
+      - "certificaterequests"
+      - "certificates"
+      - "clusterissuers"
+      - "issuers"
+      - "certificatesigningrequests"
+      - "bundles"
+    verbs:
+      - read
+  - name: w6d.cert.write
+    groups: ["cert-manager.io", "acme.cert-manager.io", "trust.cert-manager.io"]
+    resources:
+      - "challenges"
+      - "orders"
+      - "certificaterequests"
+      - "certificates"
+      - "clusterissuers"
+      - "issuers"
+      - "certificatesigningrequests"
+      - "bundles"
+    verbs:
+      - write
