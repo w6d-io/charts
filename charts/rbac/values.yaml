@@ -250,13 +250,13 @@ roles:
     verbs:
       - write
   - name: w6d.events.read
-    groups: ["events.k8s.io"]
+    groups: ["", "events.k8s.io"]
     resources:
       - events
     verbs:
       - read
   - name: w6d.events.write
-    groups: ["events.k8s.io"]
+    groups: ["", "events.k8s.io"]
     resources:
       - events
     verbs:
@@ -278,6 +278,7 @@ roles:
     resources:
       - validatingwebhookconfigurations
       - mutatingwebhookconfigurations
+      - apiservices
     verbs:
       - read
   - name: w6d.admission.write
@@ -285,6 +286,7 @@ roles:
     resources:
       - validatingwebhookconfigurations
       - mutatingwebhookconfigurations
+      - apiservices
     verbs:
       - write
   - name: w6d.ciops.read
@@ -358,11 +360,20 @@ roles:
     groups: ["cert-manager.io", "acme.cert-manager.io", "trust.cert-manager.io"]
     resources:
       - "challenges"
+      - "challenges/finalizers"
+      - "challenges/status"
       - "orders"
+      - "orders/finalizers"
+      - "orders/status"
       - "certificaterequests"
+      - "certificaterequests/finalizers"
+      - "certificaterequests/status"
       - "certificates"
+      - "certificates/finalizers"
+      - "certificates/status"
       - "clusterissuers"
       - "issuers"
+      - "issuers/status"
       - "certificatesigningrequests"
       - "bundles"
     verbs:
@@ -371,12 +382,39 @@ roles:
     groups: ["cert-manager.io", "acme.cert-manager.io", "trust.cert-manager.io"]
     resources:
       - "challenges"
+      - "challenges/finalizers"
+      - "challenges/status"
       - "orders"
+      - "orders/finalizers"
+      - "orders/status"
       - "certificaterequests"
+      - "certificaterequests/finalizers"
+      - "certificaterequests/status"
       - "certificates"
+      - "certificates/finalizers"
+      - "certificates/status"
       - "clusterissuers"
       - "issuers"
+      - "issuers/status"
       - "certificatesigningrequests"
       - "bundles"
+    verbs:
+      - write
+  - name: w6d.gateway.read
+    groups: ["gateway.networking.k8s.io"]
+    resources:
+      - "gateways"
+      - "gateways/finalizers"
+      - "httproutes"
+      - "httproutes/finalizers"
+    verbs:
+      - read
+  - name: w6d.gateway.write
+    groups: ["gateway.networking.k8s.io"]
+    resources:
+      - "gateways"
+      - "gateways/finalizers"
+      - "httproutes"
+      - "httproutes/finalizers"
     verbs:
       - write
