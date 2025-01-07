@@ -11,6 +11,7 @@ spec:
     - port: linkerd-admin
       path: /metrics
   selector:
-    {{- include "helper.labels.matchLabels" . | nindent 4 }}
+    matchLabels:
+      {{- include "helper.labels.matchLabels" . | nindent 6 }}
 {{- end }}
 {{- end }}
