@@ -1,4 +1,4 @@
-{{- if and .Values.httproute.enabled (not .Values.ingress.enabled) -}}
+{{- if .Values.httproute.enabled }}
 {{- $name := .Values.service.name -}}
 ---
 apiVersion: networking.gke.io/v1
