@@ -312,6 +312,22 @@ roles:
       - pods
     verbs:
       - read
+  - name: w6d.monitoring.read
+    groups:
+      - monitoring.coreos.com
+    resources:
+      - prometheusrules
+      - podmonitors
+    verbs:
+      - read
+  - name: w6d.monitoring.write
+    groups:
+      - monitoring.coreos.com
+    resources:
+      - prometheusrules
+      - podmonitors
+    verbs:
+      - write
   - name: w6d.nodes.read
     groups: [""]
     resources:
