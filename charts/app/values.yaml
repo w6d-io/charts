@@ -147,3 +147,15 @@ backendpolicy:
   sampleRate: 1000000
 
 initContainers: []
+
+healthcheck:
+  enabled: false
+  config:
+    port: 80
+    type: HTTP  # Can be HTTP, HTTPS, or TCP
+    path: /
+    host: ""
+    timeout: "5s"
+    checkInterval: "10s"
+    healthyThreshold: 2
+    unhealthyThreshold: 3
