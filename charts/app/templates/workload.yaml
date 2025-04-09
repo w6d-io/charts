@@ -151,6 +151,7 @@ spec:
       {{- $_ := set $dictionnary "extraContainerPort" .Values.extraContainerPort }}
       {{- $_ := set $dictionnary "livenessProbe" .Values.livenessProbe }}
       {{- $_ := set $dictionnary "readinessProbe" .Values.readinessProbe }}
+      {{- $_ := set $dictionnary "startupProbe" .Values.startupProbe }}
       {{- $_ := set $dictionnary "resources" .Values.resources }}
       {{- $_ := set $dictionnary "service" .Values.service }}
       {{- $_ := set $dictionnary "command" .Values.containerCommand }}
