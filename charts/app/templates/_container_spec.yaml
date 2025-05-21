@@ -28,6 +28,10 @@
   readinessProbe:
     {{ toYaml . | nindent 4 }}
   {{- end }}
+  {{- with .startupProbe }}
+  startupProbe:
+    {{ toYaml . | nindent 4 }}
+  {{- end }}
   {{- with .resources }}
   resources:
     {{- toYaml . | nindent 4 }}
