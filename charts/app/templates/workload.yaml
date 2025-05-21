@@ -132,6 +132,9 @@ spec:
       {{-     $_ := set $dictionnary "name" (.name | lower ) }}
       {{-     $_ := set $dictionnary "command" .command }}
       {{-     $_ := set $dictionnary "args" .args }}
+      {{-     $_ := set $dictionnary "livenessProbe" .livenessProbe }}
+      {{-     $_ := set $dictionnary "readinessProbe" .readinessProbe }}
+      {{-     $_ := set $dictionnary "resources" .resources }}
       {{-     $_ := set $dictionnary "imagePullPolicy" .imagePullPolicy }}
       {{-     include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 6 }}
       {{-   end }}
