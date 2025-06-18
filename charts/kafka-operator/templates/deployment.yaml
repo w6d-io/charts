@@ -19,6 +19,9 @@ spec:
       annotations:
         kubectl.kubernetes.io/default-container: manager
     spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ (include "kafka-operator.serviceAccountName" .) | lower }}
+      {{- end }}
       containers:
         - name: manager
           image: {{ include "kafka-operator.image" . }}
