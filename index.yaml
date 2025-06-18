@@ -6284,6 +6284,31 @@ entries:
       operator-sdk.io/project-name: kafka
       operator-sdk.io/project-version: "3"
     apiVersion: v2
+    appVersion: v0.3.0
+    created: "2025-06-18T13:20:21.546673788Z"
+    description: A Helm chart for Kafka Topic Operator
+    digest: 97890f0c66509c202f56993353f6815d54026d2443931097b3faf4a28b83a8f4
+    home: https://github.com/w6d-io/kafka
+    keywords:
+    - kafka
+    - operator
+    - kubernetes
+    - topics
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: kafka-operator
+    sources:
+    - https://github.com/w6d-io/kafka
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/kafka-operator-0.3.1/kafka-operator-0.3.1.tgz
+    version: 0.3.1
+  - annotations:
+      licenses: Apache-2.0
+      operator-sdk.io/project-name: kafka
+      operator-sdk.io/project-version: "3"
+    apiVersion: v2
     appVersion: 0.3.0
     created: "2025-06-18T12:10:50.218436953Z"
     description: A Helm chart for Kafka Topic Operator
@@ -6928,4 +6953,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2025-06-18T12:10:50.218899085Z"
+generated: "2025-06-18T13:20:21.54714179Z"
