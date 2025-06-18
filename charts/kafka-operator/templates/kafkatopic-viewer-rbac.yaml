@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kafka-operator.fullname" . }}-kafkatopic-viewer-role
+  labels:
+  {{- include "kafka-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - kafka.kafka.w6d.io
+  resources:
+  - kafkatopics
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kafka.kafka.w6d.io
+  resources:
+  - kafkatopics/status
+  verbs:
+  - get
