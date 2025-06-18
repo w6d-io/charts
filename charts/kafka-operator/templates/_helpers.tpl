@@ -82,7 +82,3 @@ Create probe bind address
 {{- define "kafka-operator.probeAddress" -}}
 {{- printf "%s:%s" .Values.operator.listenAddress .Values.operator.probePort }}
 {{- end }}
-
-{{- define "kafka-operator.serviceAccountName" -}}
-{{- replace "." "-" (default (include "kafka-operator.name" .) .Values.serviceAccount.name) -}}
-{{- end }}
