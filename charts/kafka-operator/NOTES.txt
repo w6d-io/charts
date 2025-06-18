@@ -1,0 +1,24 @@
+1. Get the operator pod name by running:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "kafka-operator.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+
+2. Check the operator logs:
+  kubectl logs $POD_NAME --namespace {{ .Release.Namespace }}
+
+3. Create a KafkaTopic resource:
+  kubectl apply -f - <<EOF
+  apiVersion: kafka.kafka.w6d.io/v1alpha1
+  kind: KafkaTopic
+  metadata:
+    name: example-topics
+    namespace: {{ .Release.Namespace }}
+  spec:
+    boostrapServer: "kafka-cluster:9092"
+    topics:
+      - topic: "example-topic"
+        partition: 3
+        replica: 2
+  EOF
+
+4. Monitor the operator metrics (if enabled):
+  kubectl port-forward $POD_NAME 8080:8080 --namespace {{ .Release.Namespace }}
+  # Visit http://127.0.0.1:8080/metrics

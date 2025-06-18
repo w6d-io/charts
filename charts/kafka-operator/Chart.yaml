@@ -1,0 +1,21 @@
+apiVersion: v2
+name: kafka-operator
+description: A Helm chart for Kafka Topic Operator
+type: application
+version: 0.3.0
+appVersion: "0.3.0"
+keywords:
+  - kafka
+  - operator
+  - kubernetes
+  - topics
+home: https://github.com/w6d-io/kafka
+sources:
+  - https://github.com/w6d-io/kafka
+maintainers:
+  - name: WILDCARD
+    url: https://w6d.io
+annotations:
+  licenses: Apache-2.0
+  operator-sdk.io/project-version: "3"
+  operator-sdk.io/project-name: "kafka"
