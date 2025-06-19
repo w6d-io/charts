@@ -2,7 +2,7 @@ apiVersion: v2
 name: kafka-operator
 description: A Helm chart for Kafka Topic Operator
 type: application
-version: 0.3.2
+version: 0.3.3
 appVersion: v0.3.0
 keywords:
   - kafka
