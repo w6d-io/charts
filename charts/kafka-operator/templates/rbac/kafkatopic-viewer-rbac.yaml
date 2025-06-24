@@ -6,7 +6,7 @@ metadata:
   {{- include "kafka-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
-  - kafka.kafka.w6d.io
+  - kafka.w6d.io
   resources:
   - kafkatopics
   verbs:
@@ -14,7 +14,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - kafka.kafka.w6d.io
+  - kafka.w6d.io
   resources:
   - kafkatopics/status
   verbs:
