@@ -31,6 +31,17 @@ spec:
             - --metrics-bind-address={{ include "kafka-operator.metricsAddress" . }}
             - --health-probe-bind-address={{ include "kafka-operator.probeAddress" . }}
             - --zap-log-level={{ .Values.operator.logLevel }}
+            {{- if .Values.webhook.enabled }}
+            {{-     if .Values.webhook.host }}
+            - --webhook-host={{ .Values.webhook.host }}
+            {{- end }}
+            {{-     if .Values.webhook.port }}
+            - --webhook-port={{ .Values.webhook.port }}
+            {{- end }}
+            {{-     if .Values.webhook.certDir }}
+            - --webhook-cert-dir={{ .Values.webhook.certDir }}
+            {{- end }}
+            {{- end }}
           securityContext:
           {{- toYaml .Values.securityContext | nindent 12 }}
         {{- if .Values.livenessProbe }}
@@ -43,12 +54,17 @@ spec:
         {{- end }}
           resources:
           {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.webhook.enabled }}
           volumeMounts:
-            - mountPath: /tmp
-              name: tmp
+          - mountPath: /tmp/k8s-webhook-server/serving-certs
+            name: cert
+            readOnly: true
       volumes:
-        - emptyDir: {}
-          name: tmp
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: kafka-operator-webhook
+      {{- end }}
       terminationGracePeriodSeconds: 10
       {{- with .Values.nodeSelector }}
       nodeSelector:

@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: kafkatopics.kafka.kafka.w6d.io
+  name: kafkatopics.kafka.w6d.io
 spec:
-  group: kafka.kafka.w6d.io
+  group: kafka.w6d.io
   names:
     kind: KafkaTopic
     listKind: KafkaTopicList
@@ -60,7 +60,6 @@ spec:
                       format: int32
                       type: integer
                     replica:
-                      format: int32
                       type: integer
                     topic:
                       type: string

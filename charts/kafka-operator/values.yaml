@@ -73,10 +73,12 @@ affinity: {}
 operator:
   logLevel: info
   listenAddress: ""
-  metricsPort: '8080'
-  probePort: "8081"
+  metricsPort: 8080
+  probePort: 8081
   leaderElection: true
 
+webhook:
+  enabled: false
 # RBAC configuration
 rbac:
   create: true

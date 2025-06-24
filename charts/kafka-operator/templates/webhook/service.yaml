@@ -1,0 +1,19 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kafka-operator.fullname" . }}-webhook
+  labels:
+    control-plane: kafka-controller
+    {{- include "kafka-operator.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    control-plane: kafka-controller
+    {{- include "kafka-operator.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port:  443
+      protocol: TCP
+      targetPort: {{ .Values.webhook.port }}
+{{ end }}
