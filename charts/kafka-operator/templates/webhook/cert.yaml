@@ -1,0 +1,17 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    control-plane: kafka-controller
+    {{- include "kafka-operator.labels" . | nindent 4 }}
+  name: {{ include "kafka-operator.fullname" . }}
+spec:
+  dnsNames:
+    - {{ printf "%s-webhook.%s.svc" (include "kafka-operator.fullname" .) .Release.Namespace }}
+    - {{ printf "%s-webhook.%s.svc.cluster.local" (include "kafka-operator.fullname" .) .Release.Namespace }}
+  issuerRef:
+    kind: Issuer
+    name: kafka-selfsigned-issuer
+  secretName: kafka-operator-webhook
+{{ end }}

@@ -1,0 +1,30 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating.kafka.w6d.io
+  annotations:
+    cert-manager.io/inject-ca-from: {{ printf "%s/$s" .Release.Namespace (include "kafka-operator.fullname" . ) }}
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ include "kafka-operator.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /validate-kafka-w6d-io-v1alpha1-upgrade
+    failurePolicy: Fail
+    name: vupgrade.kb.io
+    rules:
+      - apiGroups:
+          - kafka.w6d.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - upgrades
+    sideEffects: None
+{{- end }}
