@@ -126,6 +126,7 @@ spec:
       {{-   $_ := set $dictionnary "secrets" $secrets }}
       {{-   $_ := set $dictionnary "configs" $configs }}
       {{-   $_ := set $dictionnary "volumes" $volumes }}
+      {{-   $_ := set $dictionnary "extraVolumeMounts" .Values.extraVolumeMounts }}
       {{-   $_ := set $dictionnary "env" $env }}
       {{-   range .Values.initContainers }}
       {{-     $_ := set $dictionnary "image" .image }}
@@ -146,6 +147,7 @@ spec:
       {{- end }}
       {{- $_ := set $dictionnary "context" $ }}
       {{- $_ := set $dictionnary "volumes" $volumes }}
+      {{- $_ := set $dictionnary "extraVolumeMounts" .Values.extraVolumeMounts }}
       {{- $_ := set $dictionnary "name" ((include "app.names.name" $) | lower ) }}
       {{- $_ := set $dictionnary "env" $env }}
       {{- $_ := set $dictionnary "configs" $configs }}
@@ -177,9 +179,14 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $volumes }}
+      {{- if or $volumes .Values.extraVolumes }}
       volumes:
+        {{- if .Values.extraVolumes }}
+        {{- include "helper.extravolumes.volumes" (dict "volumes" .Values.extraVolumes ) | nindent 8 }}
+        {{- end }}
+        {{- with $volumes }}
         {{- include "helper.volumes.volumes" (dict "fullname" ((include "app.names.fullname" $) | lower ) "volumes" . "context" $) | nindent 8 }}
+        {{- end }}
       {{- end }}
   {{- if eq $kind "StatefulSet" }}
   {{-   with .Values.updateStrategy }}

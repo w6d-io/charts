@@ -41,7 +41,6 @@ persistence:
     mode: "ReadWriteOnce"
     size: 10Gi
     path: /test
-
 env: |
   - name: ENV_ONE
     value: "1"
@@ -77,3 +76,12 @@ extraResources: |
       name: {{ include "app.names.name" $ }}
     data:
       test: "test"
+
+extraVolumeMounts:
+  - mountPath: /tmp/test/extra
+    name: test-extra
+extraVolumes:
+  - configMap:
+      defaultMode: 420
+      name: test-extra-configmap
+    name: test-extra

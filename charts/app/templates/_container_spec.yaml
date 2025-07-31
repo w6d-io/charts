@@ -15,9 +15,14 @@
     {{- toYaml . | nindent 4 }}
   {{- end }}
   name: {{ .name | lower | trunc 14 | trimSuffix "-" }}
-  {{- with .volumes }}
+  {{ if or .volumes .extraVolumeMounts }}
   volumeMounts:
+    {{- if .extraVolumeMounts }}
+    {{- include "helper.extravolumes.volumeMounts" (dict "volumeMounts" .extraVolumeMounts) | nindent 4 }}
+    {{- end }}
+  {{- with .volumes }}
     {{- include "helper.volumes.volumeMounts" (dict "volumes" . ) | nindent 4 }}
+  {{- end }}
   {{- end }}
   {{- include "helper.workflow.env" (dict "env" .env "secrets" .secrets "configs" .configs "context" .context) | nindent 2}}
   {{- with .livenessProbe }}

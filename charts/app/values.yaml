@@ -108,7 +108,8 @@ nodeSelector: {}
 
 volumeMounts: {}
 volumes: {}
-
+extraVolumes: []
+extraVolumeMounts: []
 autoscaling:
   enabled: false
 
