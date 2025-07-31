@@ -20,7 +20,7 @@ Examples:
   {{- if not (empty .subPath) }}
   subPath: {{ .subPath }}
   {{- end }}
-  {{- end -}}
+{{ end -}}
 {{- end -}}
 
 {{/*
@@ -66,8 +66,9 @@ Usage:
   {{ include "helper.extravolumes.volumeMounts" (dict "volumeMounts" .Values.path.to.volumeMounts ) }}
 */}}
 {{- define "helper.extravolumes.volumeMounts" -}}
-{{- range .volumeMounts -}}
+{{- with .volumeMounts -}}
 {{ toYaml . }}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -76,7 +77,7 @@ Usage:
   {{ include "helper.extravolumes.volumes" (dict "volumes" .Values.path.to.volumes) }}
 */}}
 {{- define "helper.extravolumes.volumes" -}}
-{{- range .volumes -}}
+{{- with .volumes -}}
 {{ toYaml . }}
 {{- end }}
 {{- end -}}
