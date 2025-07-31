@@ -61,6 +61,27 @@ Examples:
 {{- end -}}
 
 {{/*
+Return volumeMounts
+Usage:
+  {{ include "helper.extravolumes.volumeMounts" (dict "volumeMounts" .Values.path.to.volumeMounts ) }}
+*/}}
+{{- define "helper.extravolumes.volumeMounts" -}}
+{{- range .volumeMounts -}}
+{{ toYaml . }}
+{{- end -}}
+
+{{/*
+Return volumes
+Usage:
+  {{ include "helper.extravolumes.volumes" (dict "volumes" .Values.path.to.volumes) }}
+*/}}
+{{- define "helper.extravolumes.volumes" -}}
+{{- range .volumes -}}
+{{ toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Params:
   - name
   - kind # must be volumeClaimTemplate
