@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chopper.fullname" . }}
+  labels:
+    app: {{ include "chopper.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "chopper.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "chopper.name" . }}
+    spec:
+      containers:
+        - name: {{ include "chopper.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
