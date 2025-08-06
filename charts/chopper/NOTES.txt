@@ -1,24 +1,42 @@
-1. Get the operator pod name by running:
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "chopper.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+Thank you for installing Chopper!
 
-2. Check the operator logs:
-  kubectl logs $POD_NAME --namespace {{ .Release.Namespace }}
+Your deployment name is: {{ .Release.Name }}
 
-3. Create a chopperTopic resource:
-  kubectl apply -f - <<EOF
-  apiVersion: chopper.w6d.io/v1alpha1
-  kind: chopperTopic
-  metadata:
-    name: example-topics
-    namespace: {{ .Release.Namespace }}
-  spec:
-    boostrapServer: "chopper-cluster:9092"
-    topics:
-      - topic: "example-topic"
-        partition: 3
-        replica: 2
-  EOF
+{{- if .Values.ingress.enabled }}
 
-4. Monitor the operator metrics (if enabled):
-  kubectl port-forward $POD_NAME 8080:8080 --namespace {{ .Release.Namespace }}
-  # Visit http://127.0.0.1:8080/metrics
+You can access the Chopper frontend through the following Ingress address:
+
+  URL: http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+
+Ingress details:
+  Host:        {{ .Values.ingress.host }}
+  Path:        {{ .Values.ingress.path }}
+  TLS:         {{ if .Values.ingress.tls }}Enabled (Secret: {{ .Values.ingress.tlsSecret }}){{ else }}Disabled{{ end }}
+  Class:       {{ .Values.ingress.ingressClassName }}
+
+Make sure your DNS is correctly configured to point to your Ingress controller's IP.
+
+{{- else }}
+
+Ingress is currently disabled.
+
+You can access the application using the following service details (internal cluster only):
+
+  Service Name: {{ include "chopper.fullname" . }}
+  Namespace:    {{ .Release.Namespace }}
+  Port:         {{ .Values.service.port }}
+
+To port-forward and access it locally, you can run:
+
+  kubectl port-forward svc/{{ include "chopper.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+Then access the app via:
+
+  http://localhost:{{ .Values.service.port }}
+
+{{- end }}
+
+---
+Chopper Helm Chart version: {{ .Chart.Version }}
+App version: {{ .Chart.AppVersion }}
+Project: https://github.com/w6d-io/chopper
