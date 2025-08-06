@@ -1,5 +1,5 @@
 apiVersion: v2
-name: chopper-front
+name: chopper
 description: A Helm chart for Chopper
 type: application
 version: 0.3.5
