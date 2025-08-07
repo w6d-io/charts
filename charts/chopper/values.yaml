@@ -8,7 +8,7 @@ image:
 serviceAccount:
   create: true
   name: ""   # leave blank to use fullname
-  
+
 nameOverride: ""
 fullnameOverride: ""
 
