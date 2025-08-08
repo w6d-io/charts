@@ -1,9 +1,9 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/w6d-io/chopper/front
+  repository: ghcr.io/w6d-io/chopper
   pullPolicy: IfNotPresent
-  tag: latest
+  tag: ""
 
 serviceAccount:
   create: true
@@ -39,3 +39,12 @@ nodeSelector: {}
 tolerations: []
 
 affinity: []
+
+env:
+  VITE_API_BASE_URL: "http://localhost:8080"
+  PORT: "8080"
+  NODE_ENV: "development"
+  VITE_NODE_ENV: "development"
+  API_CONFIGS: "infractions:http://localhost:8000:local"
+  DEFAULT_TENANT: "business"
+  DEFAULT_LANGUAGE: "en"
