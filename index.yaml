@@ -3319,6 +3319,26 @@ entries:
     - https://github.com/w6d-io/charts/releases/download/app-1.0.0/app-1.0.0.tgz
     version: 1.0.0
   chopper:
+  - apiVersion: v2
+    appVersion: v2.0.0
+    created: "2025-08-08T17:04:49.083356433Z"
+    description: A Helm chart for Chopper
+    digest: 52736ae53b1ba2fed3a7500a99b16e0b2c2a46703bb69414264d2c26fd1d1917
+    home: https://github.com/w6d-io/chopper
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - chopper
+    - api
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: chopper
+    sources:
+    - https://github.com/w6d-io/chopper
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/chopper-0.3.6/chopper-0.3.6.tgz
+    version: 0.3.6
   - annotations:
       licenses: Apache-2.0
       operator-sdk.io/project-name: chopper
@@ -7141,4 +7161,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2025-08-07T08:34:31.612316566Z"
+generated: "2025-08-08T17:04:49.083877947Z"
