@@ -2,8 +2,8 @@ apiVersion: v2
 name: chopper
 description: A Helm chart for Chopper
 type: application
-version: 0.3.5
-appVersion: v0.1.0
+version: 0.3.6
+appVersion: v2.0.0
 keywords:
   - chopper
   - api
