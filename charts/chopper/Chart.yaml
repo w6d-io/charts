@@ -2,8 +2,6 @@ apiVersion: v2
 name: chopper
 description: A Helm chart for Chopper
 type: application
-version: 0.3.6
-appVersion: v2.0.0
 keywords:
   - chopper
   - api
@@ -14,3 +12,5 @@ maintainers:
   - name: WILDCARD
     url: https://w6d.io
 icon: https://w6d.io/favicon.ico
+appVersion: v2.0.0
+version: 0.3.7
