@@ -6577,6 +6577,28 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/kafka-operator-0.3.0/kafka-operator-0.3.0.tgz
     version: 0.3.0
+  nager:
+  - apiVersion: v2
+    appVersion: v2.10.3
+    created: "2025-09-29T19:50:03.507496485Z"
+    description: A Helm chart for Nager.Date
+    digest: 30481357f0b08e04ab46c1a8ae08b09595219e6df6e02838c5578a18dde4c31c
+    home: https://github.com/nager/Nager.Date
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - nager
+    - date
+    - api
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: nager
+    sources:
+    - https://github.com/nager/Nager.Date
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/nager-0.1.0/nager-0.1.0.tgz
+    version: 0.1.0
   oauth-external-auth:
   - apiVersion: v2
     appVersion: v7.2.0
@@ -7201,4 +7223,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2025-08-12T09:39:03.403693362Z"
+generated: "2025-09-29T19:50:03.508675076Z"
