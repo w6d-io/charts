@@ -1,0 +1,17 @@
+apiVersion: v2
+name: nager
+description: A Helm chart for Nager.Date
+type: application
+keywords:
+  - nager
+  - date
+  - api
+home: https://github.com/nager/Nager.Date
+sources:
+  - https://github.com/nager/Nager.Date
+maintainers:
+  - name: WILDCARD
+    url: https://w6d.io
+icon: https://w6d.io/favicon.ico
+appVersion: v2.10.3
+version: 0.1.0

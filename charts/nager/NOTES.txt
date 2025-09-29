@@ -1,0 +1,8 @@
+Thank you for installing Nager.Date!
+
+Your deployment name is: {{ .Release.Name }}
+
+---
+Nager Helm Chart version: {{ .Chart.Version }}
+App version: {{ .Chart.AppVersion }}
+Project: https://github.com/nager/Nager.Date
