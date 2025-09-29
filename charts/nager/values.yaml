@@ -1,0 +1,40 @@
+replicaCount: 1
+
+image:
+  repository: nager/nager-date
+  pullPolicy: IfNotPresent
+  tag: ""
+
+serviceAccount:
+  create: true
+  name: ""   # leave blank to use fullname
+  annotations: {}
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts: []
+  tls: []
+
+resources: {}
+#  limits:
+#    cpu: 500m
+#    memory: 128Mi
+#  requests:
+#    cpu: 10m
+#    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: []
+
+env: []
