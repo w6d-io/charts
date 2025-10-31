@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "jimbee.fullname" . }}
+  name: {{ include "jimbe.fullname" . }}
   labels:
-    app: {{ include "jimbee.name" . }}
+    app: {{ include "jimbe.name" . }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -11,4 +11,4 @@ spec:
       targetPort: 3000
       name: http
   selector:
-    app: {{ include "jimbee.name" . }}
+    app: {{ include "jimbe.name" . }}

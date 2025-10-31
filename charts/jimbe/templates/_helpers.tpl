@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "jimbee.name" -}}
+{{- define "jimbe.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "jimbee.fullname" -}}
+{{- define "jimbe.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "jimbee.chart" -}}
+{{- define "jimbe.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "jimbee.labels" -}}
-helm.sh/chart: {{ include "jimbee.chart" . }}
-{{ include "jimbee.selectorLabels" . }}
+{{- define "jimbe.labels" -}}
+helm.sh/chart: {{ include "jimbe.chart" . }}
+{{ include "jimbe.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "jimbee.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "jimbee.name" . }}
+{{- define "jimbe.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "jimbe.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "jimbee.serviceAccountName" -}}
+{{- define "jimbe.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "jimbee.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "jimbe.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -64,7 +64,7 @@ Create the name of the service account to use
 {{/*
 Create the manager image name
 */}}
-{{- define "jimbee.image" -}}
+{{- define "jimbe.image" -}}
 {{- $tag := .Values.image.tag | default .Chart.AppVersion }}
 {{- printf "%s:%s" .Values.image.repository $tag }}
 {{- end }}
@@ -72,13 +72,13 @@ Create the manager image name
 {{/*
 Create metrics bind address
 */}}
-{{- define "jimbee.metricsAddress" -}}
+{{- define "jimbe.metricsAddress" -}}
 {{- printf "%s:%s" .Values.operator.listenAddress .Values.operator.metricsPort }}
 {{- end }}
 
 {{/*
 Create probe bind address
 */}}
-{{- define "jimbee.probeAddress" -}}
+{{- define "jimbe.probeAddress" -}}
 {{- printf "%s:%s" .Values.operator.listenAddress .Values.operator.probePort }}
 {{- end }}

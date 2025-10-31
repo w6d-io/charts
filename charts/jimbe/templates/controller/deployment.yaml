@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "jimbee.fullname" . }}
+  name: {{ include "jimbe.fullname" . }}
   labels:
-    app: {{ include "jimbee.name" . }}
+    app: {{ include "jimbe.name" . }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "jimbee.name" . }}
+      app: {{ include "jimbe.name" . }}
   template:
     metadata:
       labels:
-        app: {{ include "jimbee.name" . }}
+        app: {{ include "jimbe.name" . }}
     spec:
       containers:
-        - name: {{ include "jimbee.name" . }}
+        - name: {{ include "jimbe.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:

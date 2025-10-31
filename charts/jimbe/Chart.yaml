@@ -1,13 +1,13 @@
 apiVersion: v2
-name: jimbee
-description: A Helm chart for jimbee
+name: jimbe
+description: A Helm chart for jimbe
 type: application
 keywords:
-  - jimbee
+  - jimbe
   - api
-home: https://github.com/w6d-io/jimbee
+home: https://github.com/w6d-io/jimbe
 sources:
-  - https://github.com/w6d-io/jimbee
+  - https://github.com/w6d-io/jimbe
 maintainers:
   - name: WILDCARD
     url: https://w6d.io

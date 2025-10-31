@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/w6d-io/jimbee
+  repository: europe-west1-docker.pkg.dev/k8s-w6d/w6d/backend/jinbee
   pullPolicy: IfNotPresent
   tag: ""
 
@@ -21,7 +21,7 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
   hosts:
-    - host: jimbee.example.com
+    - host: jimbe.example.com
       path: /
       pathType: Prefix
   tls: []

@@ -1,10 +1,10 @@
-Thank you for installing jimbee!
+Thank you for installing jimbe!
 
 Your deployment name is: {{ .Release.Name }}
 
 {{- if .Values.ingress.enabled }}
 
-You can access the jimbee frontend through the following Ingress address:
+You can access the jimbe frontend through the following Ingress address:
 
   URL: http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
 
@@ -22,13 +22,13 @@ Ingress is currently disabled.
 
 You can access the application using the following service details (internal cluster only):
 
-  Service Name: {{ include "jimbee.fullname" . }}
+  Service Name: {{ include "jimbe.fullname" . }}
   Namespace:    {{ .Release.Namespace }}
   Port:         {{ .Values.service.port }}
 
 To port-forward and access it locally, you can run:
 
-  kubectl port-forward svc/{{ include "jimbee.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  kubectl port-forward svc/{{ include "jimbe.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
 
 Then access the app via:
 
@@ -37,6 +37,6 @@ Then access the app via:
 {{- end }}
 
 ---
-jimbee Helm Chart version: {{ .Chart.Version }}
+jimbe Helm Chart version: {{ .Chart.Version }}
 App version: {{ .Chart.AppVersion }}
-Project: https://github.com/w6d-io/jimbee
+Project: https://github.com/w6d-io/jimbe
