@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kratos-login-ui.fullname" . }}
+  labels:
+    {{- include "kratos-login-ui.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kratos-login-ui.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "kratos-login-ui.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "kratos-login-ui.serviceAccountName" . }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ include "kratos-login-ui.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            # Branding
+            - name: APP_NAME
+              value: {{ .Values.branding.appName | quote }}
+            - name: LOGO_URL
+              value: {{ .Values.branding.logoUrl | quote }}
+            - name: FAVICON_URL
+              value: {{ .Values.branding.faviconUrl | quote }}
+            # Theme
+            - name: THEME_PRIMARY_COLOR
+              value: {{ .Values.theme.primaryColor | quote }}
+            - name: THEME_DARK_MODE
+              value: {{ .Values.theme.darkMode | quote }}
+            - name: THEME_BACKGROUND_COLOR
+              value: {{ .Values.theme.backgroundColor | quote }}
+            # Kratos
+            - name: KRATOS_BROWSER_URL
+              value: {{ .Values.kratos.browserUrl | quote }}
+            - name: KRATOS_PUBLIC_URL
+              value: {{ .Values.kratos.publicUrl | quote }}
+            # Redirects
+            - name: DEFAULT_RETURN_URL
+              value: {{ .Values.redirects.defaultReturnUrl | quote }}
+            - name: ALLOWED_RETURN_URLS
+              value: {{ .Values.redirects.allowedReturnUrls | quote }}
+            # Texts
+            - name: LOGIN_TITLE
+              value: {{ .Values.texts.loginTitle | quote }}
+            - name: LOGIN_SUBTITLE
+              value: {{ .Values.texts.loginSubtitle | quote }}
+            - name: REGISTER_TITLE
+              value: {{ .Values.texts.registerTitle | quote }}
+            - name: REGISTER_SUBTITLE
+              value: {{ .Values.texts.registerSubtitle | quote }}
+            - name: RECOVERY_TITLE
+              value: {{ .Values.texts.recoveryTitle | quote }}
+            - name: RECOVERY_SUBTITLE
+              value: {{ .Values.texts.recoverySubtitle | quote }}
+            # Footer
+            - name: FOOTER_TEXT
+              value: {{ .Values.footer.text | quote }}
+            {{- if .Values.footer.links }}
+            - name: FOOTER_LINKS
+              value: {{ .Values.footer.links | toJson | quote }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,141 @@
+# Default values for kratos-login-ui
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: registry.w6d.io/kratos-login-ui
+  pullPolicy: IfNotPresent
+  tag: ""  # Defaults to Chart.appVersion
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  name: ""
+
+# =========================================
+# Branding Configuration
+# =========================================
+branding:
+  appName: "Kuma"
+  logoUrl: "/logo.svg"
+  faviconUrl: "/favicon.ico"
+
+# =========================================
+# Theme Configuration
+# =========================================
+theme:
+  primaryColor: "3B82F6"
+  darkMode: true
+  backgroundColor: "111827"
+
+# =========================================
+# Kratos Configuration
+# =========================================
+kratos:
+  # URL accessible from browser (public)
+  browserUrl: "https://auth.dev.w6d.io"
+  # URL for server-side calls (internal k8s service)
+  publicUrl: "http://kratos:4433"
+
+# =========================================
+# Redirect Configuration
+# =========================================
+redirects:
+  defaultReturnUrl: "https://kuma.dev.w6d.io"
+  # Comma-separated list of allowed return URLs (supports wildcards)
+  allowedReturnUrls: "https://*.dev.w6d.io,https://*.stradatms.net"
+
+# =========================================
+# Custom Texts (optional)
+# =========================================
+texts:
+  loginTitle: "Welcome back"
+  loginSubtitle: "Sign in to your account"
+  registerTitle: "Create account"
+  registerSubtitle: "Get started with your account"
+  recoveryTitle: "Reset password"
+  recoverySubtitle: "Enter your email to reset your password"
+
+# =========================================
+# Footer (optional)
+# =========================================
+footer:
+  text: "© 2024 W6D. All rights reserved."
+  links: []
+  # links:
+  #   - label: Privacy
+  #     url: /privacy
+  #   - label: Terms
+  #     url: /terms
+
+# =========================================
+# Service Configuration
+# =========================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+# =========================================
+# Ingress Configuration
+# =========================================
+ingress:
+  enabled: true
+  className: "ing-w6d"
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: content-type,Authorization
+    nginx.ingress.kubernetes.io/cors-allow-methods: GET, POST, OPTIONS
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://*.dev.w6d.io"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+  hosts:
+    - host: auth.dev.w6d.io
+      paths:
+        - path: /auth
+          pathType: Prefix
+  tls:
+    - hosts:
+        - auth.dev.w6d.io
+
+# =========================================
+# Resources
+# =========================================
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# =========================================
+# Probes
+# =========================================
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# =========================================
+# Pod Configuration
+# =========================================
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}

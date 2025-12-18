@@ -1,0 +1,18 @@
+apiVersion: v2
+name: kratos-login-ui
+description: Custom Kratos Login UI - Reusable authentication UI for W6D projects
+type: application
+keywords:
+  - kratos
+  - auth
+  - login
+  - ory
+home: https://github.com/w6d-io/kratos-login-ui
+sources:
+  - https://github.com/w6d-io/kratos-login-ui
+maintainers:
+  - name: WILDCARD
+    url: https://w6d.io
+icon: https://w6d.io/favicon.ico
+appVersion: "1.0.0"
+version: 0.1.0

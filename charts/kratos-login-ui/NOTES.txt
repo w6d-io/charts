@@ -1,0 +1,51 @@
+Thank you for installing kratos-login-ui!
+
+Your deployment name is: {{ .Release.Name }}
+
+{{- if .Values.ingress.enabled }}
+
+You can access the Kratos Login UI through the following Ingress address:
+
+{{- range .Values.ingress.hosts }}
+  URL: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ (index .paths 0).path }}
+{{- end }}
+
+Ingress details:
+{{- range .Values.ingress.hosts }}
+  Host:        {{ .host }}
+  Path:        {{ (index .paths 0).path }}
+{{- end }}
+  TLS:         {{ if .Values.ingress.tls }}Enabled{{ else }}Disabled{{ end }}
+  Class:       {{ .Values.ingress.className }}
+
+Make sure your DNS is correctly configured to point to your Ingress controller's IP.
+
+{{- else }}
+
+Ingress is currently disabled.
+
+You can access the application using the following service details (internal cluster only):
+
+  Service Name: {{ include "kratos-login-ui.fullname" . }}
+  Namespace:    {{ .Release.Namespace }}
+  Port:         {{ .Values.service.port }}
+
+To port-forward and access it locally, you can run:
+
+  kubectl port-forward svc/{{ include "kratos-login-ui.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+Then access the app via:
+
+  http://localhost:{{ .Values.service.port }}
+
+{{- end }}
+
+Configuration:
+  App Name:     {{ .Values.branding.appName }}
+  Kratos URL:   {{ .Values.kratos.browserUrl }}
+  Return URL:   {{ .Values.redirects.defaultReturnUrl }}
+
+---
+kratos-login-ui Helm Chart version: {{ .Chart.Version }}
+App version: {{ .Chart.AppVersion }}
+Project: https://github.com/w6d-io/kratos-login-ui
