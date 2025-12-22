@@ -1,4 +1,4 @@
-# CI test values - disable components that need external dependencies
+# CI test values - disable components that need external dependencies or private images
 
 global:
   vault:
@@ -20,10 +20,23 @@ opal:
 opalStatic:
   enabled: true
 
-# Keep webhook enabled (standalone)
+# Disable webhook (uses private ECR image)
 webhook:
-  enabled: true
+  enabled: false
 
-# Keep kratos-login-ui enabled (standalone, uses public image)
+# Use nginx for kratos-login-ui testing (real image tag 1.0.0 doesn't exist yet)
 kratosLoginUi:
   enabled: true
+  image:
+    repository: nginx
+    tag: alpine
+  service:
+    targetPort: 80
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
