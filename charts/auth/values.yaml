@@ -1,0 +1,514 @@
+# =============================================================================
+# Auth Stack - Complete Authentication & Authorization Helm Chart
+# =============================================================================
+
+# =============================================================================
+# Global Configuration
+# =============================================================================
+global:
+  domain: dev.w6d.io
+  authDomain: auth.dev.w6d.io
+  appDomain: kuma.dev.w6d.io
+  imagePullSecrets: []
+
+  # Vault configuration - annotations auto-injected when enabled
+  vault:
+    enabled: true
+    address: http://vault.vault:8200
+    role: kratos-poc
+    envFromPath: infra/data/kratos-poc
+
+nameOverride: ""
+fullnameOverride: ""
+
+# =============================================================================
+# Kratos - Identity Management (Ory)
+# =============================================================================
+kratos:
+  enabled: true
+
+  deployment:
+    serviceAccount:
+      create: true
+      name: kratos
+    automountServiceAccountToken: true
+
+  ingress:
+    public:
+      enabled: false  # Traffic routed through Oathkeeper
+
+  kratos:
+    automountServiceAccountToken: true
+    config:
+      dsn: vault:infra/data/kratos-poc#dsn
+      secrets:
+        default:
+          - vault:infra/data/kratos-poc#secrets-default
+        cookie:
+          - vault:infra/data/kratos-poc#secrets-cookie
+        cipher:
+          - vault:infra/data/kratos-poc#secrets-cipher
+      identity:
+        default_schema_id: default
+        schemas:
+          - id: default
+            url: file:///etc/config/person.schema.json
+          - id: organisation
+            url: file:///etc/config/organisation.schema.json
+          - id: group
+            url: file:///etc/config/group.schema.json
+      serve:
+        public:
+          base_url: https://auth.dev.w6d.io/
+          cors:
+            enabled: true
+            allowed_origins:
+              - https://auth.dev.w6d.io
+              - https://kuma.dev.w6d.io
+      session:
+        cookie:
+          domain: dev.w6d.io
+          same_site: Lax
+          persistent: true
+      selfservice:
+        allowed_return_urls:
+          - https://kuma.dev.w6d.io
+        default_browser_return_url: https://kuma.dev.w6d.io
+        methods:
+          password:
+            enabled: false
+          oidc:
+            enabled: true
+            config:
+              providers:
+                - id: github
+                  provider: github
+                  client_id: ""  # Set via Vault
+                  client_secret: ""  # Set via Vault
+                  mapper_url: file:///etc/config/github.data-mapper.jsonnet
+                  scope:
+                    - user:email
+                    - repo
+        flows:
+          error:
+            ui_url: https://auth.dev.w6d.io/auth/error
+          settings:
+            ui_url: https://auth.dev.w6d.io/auth/settings
+            privileged_session_max_age: 15m
+          recovery:
+            enabled: false
+          verification:
+            enabled: false
+          logout:
+            after:
+              default_browser_return_url: https://auth.dev.w6d.io/auth/login
+          login:
+            ui_url: https://auth.dev.w6d.io/auth/login
+            lifespan: 10m
+          registration:
+            lifespan: 10m
+            ui_url: https://auth.dev.w6d.io/auth/registration
+            after:
+              oidc:
+                hooks:
+                  - hook: web_hook
+                    config:
+                      url: http://webhook:8080/check-domain
+                      method: POST
+                      body: file:///etc/config/check-domain.jsonnet
+                      can_interrupt: true
+                  - hook: session
+      log:
+        level: debug
+        format: json
+      ciphers:
+        algorithm: xchacha20-poly1305
+      hashers:
+        argon2:
+          parallelism: 1
+          memory: 128MB
+          iterations: 2
+          salt_length: 16
+          key_length: 16
+    automigration:
+      enabled: true
+
+    identitySchemas:
+      organisation.schema.json: |
+        {
+          "$id": "https://schema.w6d.io/organisation.schema.json",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "Organisation",
+          "type": "object",
+          "properties": {
+            "traits": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" }
+              },
+              "required": ["name"]
+            }
+          }
+        }
+      group.schema.json: |
+        {
+          "$id": "https://schema.w6d.io/group.schema.json",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "Group",
+          "type": "object",
+          "properties": {
+            "traits": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" }
+              },
+              "required": ["name"]
+            }
+          }
+        }
+      person.schema.json: |
+        {
+          "$id": "https://schema.w6d.io/person.schema.json",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "Person",
+          "type": "object",
+          "properties": {
+            "traits": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "pattern": "^[^@\\s]+@w6d\\.io$"
+                },
+                "name": { "type": "string" },
+                "picture": { "type": "string", "format": "uri" }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      check-domain.jsonnet: |
+        function (ctx) { email: ctx.identity.traits.email }
+      github.data-mapper.jsonnet: |
+        local claims = { email_verified: false } + std.extVar('claims');
+        {
+          identity: {
+            traits: {
+              [if "email" in claims && claims.email_verified then "email" else null]: claims.email,
+              [if "nickname" in claims then "name" else null]: claims.nickname,
+              "picture": claims.picture,
+              "providers": [{ "name": "github", "issuer_url": "https://github.com", "provider_type": "github" }]
+            },
+          },
+        }
+
+# =============================================================================
+# Oathkeeper - API Gateway (Ory)
+# =============================================================================
+oathkeeper:
+  enabled: true
+
+  ingress:
+    proxy:
+      enabled: true
+      className: ing-w6d
+      annotations:
+        nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+        nginx.ingress.kubernetes.io/cors-allow-headers: content-type,language,Authorization,tenant,set-cookie
+        nginx.ingress.kubernetes.io/cors-allow-methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
+        nginx.ingress.kubernetes.io/cors-allow-origin: "https://*.dev.w6d.io/"
+        nginx.ingress.kubernetes.io/enable-cors: "true"
+        nginx.ingress.kubernetes.io/limit-rpm: "300"
+      hosts:
+        - host: auth.dev.w6d.io
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: kuma.dev.w6d.io
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls:
+        - hosts:
+            - auth.dev.w6d.io
+            - kuma.dev.w6d.io
+
+  oathkeeper:
+    config:
+      access_rules:
+        matching_strategy: glob
+        repositories:
+          - file:///etc/rules/access-rules.json
+      authenticators:
+        cookie_session:
+          enabled: true
+          config:
+            check_session_url: http://kratos:4433/sessions/whoami
+            preserve_path: true
+            extra_from: "@this"
+            subject_from: "identity.id"
+            only:
+              - ory_kratos_session
+        noop:
+          enabled: true
+      authorizers:
+        allow:
+          enabled: true
+        remote_json:
+          enabled: true
+          config:
+            remote: http://opal-client:8181/v1/data/rbac/allow
+            payload: |
+              {
+                "input": {
+                  "sub": "{{ print .Subject }}",
+                  "email": "{{ index .Extra.identity.traits "email" }}",
+                  "groups": {{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "groups" }}{{ toJson (index $mp "groups") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }},
+                  "object": "{{ .MatchContext.URL.Path }}",
+                  "action": "{{ .MatchContext.Method }}",
+                  "app": "jinbe"
+                }
+              }
+      mutators:
+        noop:
+          enabled: true
+        header:
+          enabled: true
+          config:
+            headers:
+              X-User-Id: '{{ print .Subject }}'
+              X-User-Email: '{{ index .Extra.identity.traits "email" }}'
+              X-User-Groups: '{{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "groups" }}{{ toJson (index $mp "groups") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }}'
+              X-User-Roles: '{{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "roles" }}{{ toJson (index $mp "roles") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }}'
+      errors:
+        fallback: [redirect, json]
+        handlers:
+          redirect:
+            enabled: true
+            config:
+              to: https://auth.dev.w6d.io/auth/login?return_to=https://kuma.dev.w6d.io/
+              when:
+                - error: [unauthorized, forbidden]
+                  request:
+                    header:
+                      accept: [text/html]
+          json:
+            enabled: true
+            config:
+              verbose: true
+
+  # Access rules (stored in ConfigMap)
+  accessRules: |
+    [
+      {
+        "id": "selfservice-ui",
+        "upstream": { "url": "http://kratos-ui-kratos-selfservice-ui-node:80", "preserve_host": true },
+        "match": { "url": "https://auth.dev.w6d.io/auth/<**>", "methods": ["GET", "POST", "OPTIONS"] },
+        "authenticators": [{ "handler": "noop" }],
+        "authorizer": { "handler": "allow" },
+        "mutators": [{ "handler": "noop" }]
+      },
+      {
+        "id": "kratos-public",
+        "upstream": { "url": "http://kratos:4433", "preserve_host": true },
+        "match": { "url": "https://auth.dev.w6d.io/<{self-service,sessions,schemas}><**>", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"] },
+        "authenticators": [{ "handler": "noop" }],
+        "authorizer": { "handler": "allow" },
+        "mutators": [{ "handler": "noop" }]
+      },
+      {
+        "id": "jinbe",
+        "upstream": { "url": "http://jinbe:8080" },
+        "match": { "url": "https://kuma.dev.w6d.io/api/<**>", "methods": ["GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"] },
+        "authenticators": [{ "handler": "cookie_session" }],
+        "authorizer": { "handler": "remote_json" },
+        "mutators": [{ "handler": "header" }]
+      },
+      {
+        "id": "kuma-root",
+        "upstream": { "url": "http://kuma:8080" },
+        "match": { "url": "https://kuma.dev.w6d.io/", "methods": ["GET", "OPTIONS"] },
+        "authenticators": [{ "handler": "cookie_session" }],
+        "authorizer": { "handler": "allow" },
+        "mutators": [{ "handler": "noop" }]
+      },
+      {
+        "id": "kuma",
+        "upstream": { "url": "http://kuma:8080" },
+        "match": { "url": "https://kuma.dev.w6d.io/<{app,_next,static,assets,public,favicon.ico,robots.txt,manifest.json,index.html}><**>", "methods": ["GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"] },
+        "authenticators": [{ "handler": "cookie_session" }],
+        "authorizer": { "handler": "allow" },
+        "mutators": [{ "handler": "noop" }]
+      }
+    ]
+
+# =============================================================================
+# OPAL - Policy Administration (Permit.io)
+# =============================================================================
+opal:
+  enabled: true
+
+  server:
+    port: 7002
+    policyRepoUrl: "https://github.com/w6d-io/policies.git"
+    policyRepoMainBranch: "main"
+    pollingInterval: 30
+    broadcastPgsql: true
+    replicas: 1
+    dataConfigSources:
+      config:
+        entries:
+          - url: http://opal-static/bindings.json
+            topics: ["policy_data"]
+            dst_path: "/bindings"
+          - url: http://opal-static/roles.global.json
+            topics: ["policy_data"]
+            dst_path: "/roles/global"
+          - url: http://opal-static/roles.jinbe.json
+            topics: ["policy_data"]
+            dst_path: "/roles/jinbe"
+          - url: http://opal-static/roles.kuma_v2.json
+            topics: ["policy_data"]
+            dst_path: "/roles/kuma_v2"
+          - url: http://opal-static/roles.strada.json
+            topics: ["policy_data"]
+            dst_path: "/roles/strada"
+          - url: http://opal-static/route_map.jinbe.json
+            topics: ["policy_data"]
+            dst_path: "/route_map/jinbe"
+          - url: http://opal-static/route_map.kuma_v2.json
+            topics: ["policy_data"]
+            dst_path: "/route_map/kuma_v2"
+
+  client:
+    port: 7000
+    opaPort: 8181
+    replicas: 1
+    serverUrl: "http://opal-server:7002"
+
+# =============================================================================
+# OPAL-Static - Nginx serving static policy data
+# =============================================================================
+opalStatic:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: nginx
+    tag: alpine
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+  staticData:
+    bindings.json: |
+      {
+        "emails": {},
+        "groups": {
+          "super_admins": { "global": ["super_admin"] },
+          "admins": { "jinbe": ["admin"], "kuma_v2": ["admin"], "strada": ["admin"] },
+          "infra": { "jinbe": ["infra"], "strada": ["operator"] },
+          "devs": { "jinbe": ["dev"], "kuma_v2": ["viewer"], "strada": ["viewer"] }
+        },
+        "group_membership": {}
+      }
+    roles.global.json: |
+      { "super_admin": ["*"] }
+    roles.jinbe.json: |
+      {
+        "admin": ["*"],
+        "infra": ["clusters:list", "clusters:read", "clusters:create", "clusters:update", "clusters:delete", "databases:list", "databases:read", "databases:create", "databases:update", "databases:delete"],
+        "dev": ["clusters:list", "clusters:read", "databases:list", "databases:read"]
+      }
+    roles.kuma_v2.json: |
+      { "admin": ["*"], "viewer": ["dashboard:read", "reports:read"] }
+    roles.strada.json: |
+      {
+        "admin": ["*"],
+        "operator": ["infractions:list", "infractions:read", "infractions:create", "infractions:update"],
+        "viewer": ["infractions:list", "infractions:read"]
+      }
+    route_map.jinbe.json: |
+      {
+        "service": "jinbe",
+        "rules": [
+          { "method": "GET", "path": "/api/health", "permission": null },
+          { "method": "GET", "path": "/api/clusters/", "permission": "clusters:list" },
+          { "method": "POST", "path": "/api/clusters/", "permission": "clusters:create" },
+          { "method": "GET", "path": "/api/clusters/:id", "permission": "clusters:read" },
+          { "method": "PUT", "path": "/api/clusters/:id", "permission": "clusters:update" },
+          { "method": "DELETE", "path": "/api/clusters/:id", "permission": "clusters:delete" }
+        ]
+      }
+    route_map.kuma_v2.json: |
+      {
+        "service": "kuma_v2",
+        "rules": [
+          { "method": "GET", "path": "/api/health", "permission": null },
+          { "method": "GET", "path": "/api/dashboard", "permission": "dashboard:read" },
+          { "method": "GET", "path": "/api/reports/:any*", "permission": "reports:read" }
+        ]
+      }
+
+# =============================================================================
+# Webhook - Domain Validation Service
+# =============================================================================
+webhook:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: 095888892602.dkr.ecr.eu-west-3.amazonaws.com/w6d/kratos-webhook
+    tag: "0.1.4"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  domainPattern: "^.*@w6d.io|bash62@protonmail.com$"
+  logLevel: "2"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# =============================================================================
+# Kratos Login UI (W6D Custom) - Optional
+# =============================================================================
+kratos-login-ui:
+  enabled: false
+  branding:
+    appName: "Kuma"
+  kratos:
+    browserUrl: "https://auth.dev.w6d.io"
+    publicUrl: "http://kratos:4433"
+  redirects:
+    defaultReturnUrl: "https://kuma.dev.w6d.io"
+
+# =============================================================================
+# PostgreSQL for Kratos (Bitnami) - Optional
+# =============================================================================
+postgresql:
+  enabled: false
+  auth:
+    username: kratos
+    database: kratos
+  primary:
+    persistence:
+      size: 1Gi

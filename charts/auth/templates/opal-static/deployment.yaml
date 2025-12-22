@@ -1,0 +1,55 @@
+{{- if .Values.opalStatic.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.opalStatic.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opal-static
+spec:
+  replicas: {{ .Values.opalStatic.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.opalStatic.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.opalStatic.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/opal-static/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: nginx
+          image: "{{ .Values.opalStatic.image.repository }}:{{ .Values.opalStatic.image.tag }}"
+          imagePullPolicy: {{ .Values.opalStatic.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: static-data
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+          resources:
+            {{- toYaml .Values.opalStatic.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /bindings.json
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /bindings.json
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: static-data
+          configMap:
+            name: {{ include "auth.opalStatic.configMapName" . }}
+{{- end }}

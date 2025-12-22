@@ -1,0 +1,57 @@
+=================================================================
+  Auth Stack - {{ .Chart.Name }} v{{ .Chart.Version }}
+=================================================================
+
+Congratulations! Your authentication stack has been deployed.
+
+Components deployed:
+{{- if .Values.kratos.enabled }}
+  - Kratos (Identity Management)
+    Public API: http://kratos:4433
+    Admin API:  http://kratos-admin:4434
+{{- end }}
+{{- if .Values.oathkeeper.enabled }}
+  - Oathkeeper (API Gateway)
+    Proxy: http://oathkeeper-proxy:4455
+    API:   http://oathkeeper-api:4456
+{{- end }}
+{{- if .Values.opal.enabled }}
+  - OPAL Server: http://opal-server:7002
+  - OPAL Client (OPA): http://opal-client:8181
+{{- end }}
+{{- if .Values.opalStatic.enabled }}
+  - OPAL Static (nginx): http://opal-static:80
+{{- end }}
+{{- if .Values.webhook.enabled }}
+  - Webhook (Domain Validation): http://webhook:8080
+{{- end }}
+{{- if index .Values "kratos-login-ui" "enabled" }}
+  - Kratos Login UI
+{{- end }}
+{{- if .Values.postgresql.enabled }}
+  - PostgreSQL (Kratos DB)
+{{- end }}
+
+{{- if .Values.oathkeeper.enabled }}
+
+Access URLs:
+  Auth UI:  https://{{ .Values.global.authDomain }}/auth/login
+  App:      https://{{ .Values.global.appDomain }}
+{{- end }}
+
+Test OPA authorization:
+  kubectl port-forward svc/opal-client 8181:8181 -n {{ .Release.Namespace }}
+  curl -X POST http://localhost:8181/v1/data/rbac/allow \
+    -H "Content-Type: application/json" \
+    -d '{"input": {"email": "user@w6d.io", "app": "jinbe", "action": "GET", "object": "/api/clusters/"}}'
+
+Get user info:
+  curl -X POST http://localhost:8181/v1/data/rbac/user_info \
+    -H "Content-Type: application/json" \
+    -d '{"input": {"email": "user@w6d.io", "app": "jinbe"}}'
+
+=================================================================
+Auth Stack Helm Chart version: {{ .Chart.Version }}
+App version: {{ .Chart.AppVersion }}
+Project: https://github.com/w6d-io/charts
+=================================================================

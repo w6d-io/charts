@@ -1,0 +1,14 @@
+{{- if .Values.opalStatic.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth.opalStatic.configMapName" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opal-static
+data:
+  {{- range $filename, $content := .Values.opalStatic.staticData }}
+  {{ $filename }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}
+{{- end }}
