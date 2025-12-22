@@ -23,30 +23,30 @@ icon: https://w6d.io/favicon.ico
 dependencies:
   # Kratos - Identity Management
   - name: kratos
-    version: "0.48.0"
+    version: "*"
     repository: https://k8s.ory.sh/helm/charts
     condition: kratos.enabled
 
   # Oathkeeper - API Gateway / Authorization Proxy
   - name: oathkeeper
-    version: "0.48.0"
+    version: "*"
     repository: https://k8s.ory.sh/helm/charts
     condition: oathkeeper.enabled
 
   # OPAL - Policy Administration (Server + Client + OPA)
   - name: opal
-    version: "0.1.1"
+    version: "*"
     repository: https://permitio.github.io/opal-helm-chart
     condition: opal.enabled
 
-  # Kratos Login UI (W6D custom)
+  # Kratos Login UI (W6D custom) - local subchart
   - name: kratos-login-ui
-    version: ">=0.1.0"
-    repository: https://charts.w6d.io
+    version: "*"
+    repository: file://charts/kratos-login-ui
     condition: kratos-login-ui.enabled
 
   # PostgreSQL for Kratos (optional)
   - name: postgresql
-    version: "12.12.10"
+    version: "*"
     repository: https://charts.bitnami.com/bitnami
     condition: postgresql.enabled
