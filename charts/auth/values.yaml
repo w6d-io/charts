@@ -489,17 +489,87 @@ webhook:
       memory: 256Mi
 
 # =============================================================================
-# Kratos Login UI (W6D Custom) - Optional
+# Kratos Login UI (W6D Custom)
 # =============================================================================
-kratos-login-ui:
-  enabled: false
+kratosLoginUi:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/w6d-io/kratos/kratos-login-ui
+    pullPolicy: IfNotPresent
+    tag: ""
+
   branding:
     appName: "Kuma"
+    logoUrl: "/logo.svg"
+    faviconUrl: "/favicon.ico"
+
+  theme:
+    primaryColor: "3B82F6"
+    darkMode: true
+    backgroundColor: "111827"
+
   kratos:
     browserUrl: "https://auth.dev.w6d.io"
     publicUrl: "http://kratos:4433"
+
   redirects:
     defaultReturnUrl: "https://kuma.dev.w6d.io"
+    allowedReturnUrls: "https://*.dev.w6d.io,https://*.stradatms.net"
+
+  texts:
+    loginTitle: "Welcome back"
+    loginSubtitle: "Sign in to your account"
+    registerTitle: "Create account"
+    registerSubtitle: "Get started with your account"
+    recoveryTitle: "Reset password"
+    recoverySubtitle: "Enter your email to reset your password"
+
+  footer:
+    text: "© 2024 W6D. All rights reserved."
+    links: []
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 3000
+
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # =============================================================================
 # PostgreSQL for Kratos (Bitnami) - Optional

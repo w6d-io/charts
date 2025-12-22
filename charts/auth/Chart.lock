@@ -8,11 +8,8 @@ dependencies:
 - name: opal
   repository: https://permitio.github.io/opal-helm-chart
   version: 0.0.29
-- name: kratos-login-ui
-  repository: file://charts/kratos-login-ui
-  version: 0.1.0
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
   version: 18.1.15
-digest: sha256:438cea98dd55f0067b67a0cdba6fc7716ffb5165af5931971e67fcf3b96e993c
-generated: "2025-12-22T14:25:03.886336885+01:00"
+digest: sha256:babf518a29532c310cdfeaaae75713621f403356b38fef44d3f28d4b98f140db
+generated: "2025-12-22T15:02:12.908886317+01:00"

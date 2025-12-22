@@ -39,12 +39,6 @@ dependencies:
     repository: https://permitio.github.io/opal-helm-chart
     condition: opal.enabled
 
-  # Kratos Login UI (W6D custom) - local subchart
-  - name: kratos-login-ui
-    version: "*"
-    repository: file://charts/kratos-login-ui
-    condition: kratos-login-ui.enabled
-
   # PostgreSQL for Kratos (optional)
   - name: postgresql
     version: "*"

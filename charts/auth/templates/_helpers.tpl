@@ -116,3 +116,27 @@ vault.security.banzaicloud.io/vault-env-from-path: {{ .Values.global.vault.envFr
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Kratos Login UI fullname
+*/}}
+{{- define "auth.kratosLoginUi.fullname" -}}
+{{- printf "%s-kratos-login-ui" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Kratos Login UI selector labels
+*/}}
+{{- define "auth.kratosLoginUi.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "auth.name" . }}-kratos-login-ui
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: kratos-login-ui
+{{- end }}
+
+{{/*
+Kratos Login UI image
+*/}}
+{{- define "auth.kratosLoginUi.image" -}}
+{{- $tag := .Values.kratosLoginUi.image.tag | default .Chart.AppVersion -}}
+{{- printf "%s:%s" .Values.kratosLoginUi.image.repository $tag }}
+{{- end }}
