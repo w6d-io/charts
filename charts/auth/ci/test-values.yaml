@@ -1,0 +1,29 @@
+# CI test values - disable components that need external dependencies
+
+global:
+  vault:
+    enabled: false
+
+# Disable kratos (needs DB + Vault)
+kratos:
+  enabled: false
+
+# Disable oathkeeper (depends on kratos)
+oathkeeper:
+  enabled: false
+
+# Disable opal (needs policy repo)
+opal:
+  enabled: false
+
+# Keep opal-static enabled (just nginx)
+opalStatic:
+  enabled: true
+
+# Keep webhook enabled (standalone)
+webhook:
+  enabled: true
+
+# Keep kratos-login-ui enabled (standalone, uses public image)
+kratosLoginUi:
+  enabled: true
