@@ -1,0 +1,100 @@
+{{- if .Values.kratosLoginUi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.kratosLoginUi.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kratos-login-ui
+spec:
+  replicas: {{ .Values.kratosLoginUi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.kratosLoginUi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.kratosLoginUi.selectorLabels" . | nindent 8 }}
+      {{- with .Values.kratosLoginUi.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kratosLoginUi.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kratos-login-ui
+          {{- with .Values.kratosLoginUi.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "auth.kratosLoginUi.image" . }}
+          imagePullPolicy: {{ .Values.kratosLoginUi.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.kratosLoginUi.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: APP_NAME
+              value: {{ .Values.kratosLoginUi.branding.appName | quote }}
+            - name: LOGO_URL
+              value: {{ .Values.kratosLoginUi.branding.logoUrl | quote }}
+            - name: FAVICON_URL
+              value: {{ .Values.kratosLoginUi.branding.faviconUrl | quote }}
+            - name: THEME_PRIMARY_COLOR
+              value: {{ .Values.kratosLoginUi.theme.primaryColor | quote }}
+            - name: THEME_DARK_MODE
+              value: {{ .Values.kratosLoginUi.theme.darkMode | quote }}
+            - name: THEME_BACKGROUND_COLOR
+              value: {{ .Values.kratosLoginUi.theme.backgroundColor | quote }}
+            - name: KRATOS_BROWSER_URL
+              value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
+            - name: KRATOS_PUBLIC_URL
+              value: {{ .Values.kratosLoginUi.kratos.publicUrl | quote }}
+            - name: DEFAULT_RETURN_URL
+              value: {{ .Values.kratosLoginUi.redirects.defaultReturnUrl | quote }}
+            - name: ALLOWED_RETURN_URLS
+              value: {{ .Values.kratosLoginUi.redirects.allowedReturnUrls | quote }}
+            - name: LOGIN_TITLE
+              value: {{ .Values.kratosLoginUi.texts.loginTitle | quote }}
+            - name: LOGIN_SUBTITLE
+              value: {{ .Values.kratosLoginUi.texts.loginSubtitle | quote }}
+            - name: REGISTER_TITLE
+              value: {{ .Values.kratosLoginUi.texts.registerTitle | quote }}
+            - name: REGISTER_SUBTITLE
+              value: {{ .Values.kratosLoginUi.texts.registerSubtitle | quote }}
+            - name: RECOVERY_TITLE
+              value: {{ .Values.kratosLoginUi.texts.recoveryTitle | quote }}
+            - name: RECOVERY_SUBTITLE
+              value: {{ .Values.kratosLoginUi.texts.recoverySubtitle | quote }}
+            - name: FOOTER_TEXT
+              value: {{ .Values.kratosLoginUi.footer.text | quote }}
+            {{- if .Values.kratosLoginUi.footer.links }}
+            - name: FOOTER_LINKS
+              value: {{ .Values.kratosLoginUi.footer.links | toJson | quote }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.kratosLoginUi.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.kratosLoginUi.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.kratosLoginUi.resources | nindent 12 }}
+      {{- with .Values.kratosLoginUi.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kratosLoginUi.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kratosLoginUi.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

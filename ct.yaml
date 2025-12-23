@@ -7,3 +7,6 @@ chart-repos:
   - jetstack=https://charts.jetstack.io
   - ingress-nginx=https://kubernetes.github.io/ingress-nginx
   - w6dio=https://charts.w6d.io
+  - ory=https://k8s.ory.sh/helm/charts
+  - permitio=https://permitio.github.io/opal-helm-chart
+  - bitnami=https://charts.bitnami.com/bitnami
