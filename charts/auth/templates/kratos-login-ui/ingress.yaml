@@ -1,0 +1,46 @@
+{{- if and .Values.kratosLoginUi.enabled .Values.kratosLoginUi.ingress.enabled }}
+{{- $fullName := include "auth.kratosLoginUi.fullname" . -}}
+{{- $svcPort := .Values.kratosLoginUi.service.port -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kratos-login-ui
+  {{- with .Values.kratosLoginUi.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.kratosLoginUi.ingress.className }}
+  ingressClassName: {{ .Values.kratosLoginUi.ingress.className }}
+  {{- end }}
+  {{- if .Values.kratosLoginUi.ingress.tls }}
+  tls:
+    {{- range .Values.kratosLoginUi.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- if .secretName }}
+      secretName: {{ .secretName }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.kratosLoginUi.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- end }}
+    {{- end }}
+{{- end }}

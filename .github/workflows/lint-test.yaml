@@ -30,6 +30,8 @@ jobs:
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo add w6dio         https://charts.w6d.io
           helm repo add bitnami       https://charts.bitnami.com/bitnami
+          helm repo add ory           https://k8s.ory.sh/helm/charts
+          helm repo add permitio      https://permitio.github.io/opal-helm-chart
 
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.3.1
