@@ -1,0 +1,48 @@
+# CI test values - disable components that need external dependencies
+# Chart-testing (ct) automatically uses files in ci/ folder
+
+global:
+  vault:
+    enabled: false
+
+# Disable kratos (needs DB + automigrate hook fails without DB)
+kratos:
+  enabled: false
+
+# Disable oathkeeper (depends on kratos)
+oathkeeper:
+  enabled: false
+
+# Disable opal (needs policy repo)
+opal:
+  enabled: false
+
+# Keep opal-static enabled (just nginx) with minimal test data
+opalStatic:
+  enabled: true
+  staticData:
+    bindings.json: |
+      {"emails": {}, "groups": {}}
+    roles.json: |
+      {"admin": ["*"]}
+
+# Disable webhook (needs custom image)
+webhook:
+  enabled: false
+
+# Use nginx for kratos-login-ui testing
+kratosLoginUi:
+  enabled: true
+  image:
+    repository: nginx
+    tag: alpine
+  service:
+    targetPort: 80
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
