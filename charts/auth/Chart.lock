@@ -1,0 +1,15 @@
+dependencies:
+- name: kratos
+  repository: https://k8s.ory.sh/helm/charts
+  version: 0.60.0
+- name: oathkeeper
+  repository: https://k8s.ory.sh/helm/charts
+  version: 0.60.0
+- name: opal
+  repository: https://permitio.github.io/opal-helm-chart
+  version: 0.0.29
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 18.1.15
+digest: sha256:babf518a29532c310cdfeaaae75713621f403356b38fef44d3f28d4b98f140db
+generated: "2025-12-22T15:02:12.908886317+01:00"

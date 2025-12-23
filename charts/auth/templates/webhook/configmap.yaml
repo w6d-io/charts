@@ -1,0 +1,12 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth.webhook.configMapName" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+data:
+  config.yaml: |
+    domain_pattern: {{ .Values.webhook.domainPattern | quote }}
+{{- end }}

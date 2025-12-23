@@ -1,0 +1,18 @@
+{{- if .Values.kratosLoginUi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "auth.kratosLoginUi.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kratos-login-ui
+spec:
+  type: {{ .Values.kratosLoginUi.service.type }}
+  ports:
+    - port: {{ .Values.kratosLoginUi.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "auth.kratosLoginUi.selectorLabels" . | nindent 4 }}
+{{- end }}
