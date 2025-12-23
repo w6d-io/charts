@@ -51,6 +51,8 @@ jobs:
           helm repo add bitnami       https://charts.bitnami.com/bitnami
           helm repo add ory           https://k8s.ory.sh/helm/charts
           helm repo add permitio      https://permitio.github.io/opal-helm-chart
+          helm repo add minio         https://helm.min.io/
+
 
       - name: Build chart dependencies
         run: |
