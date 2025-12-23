@@ -3318,7 +3318,67 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/app-1.0.0/app-1.0.0.tgz
     version: 1.0.0
+  auth:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2025-12-23T16:17:03.150530508Z"
+    dependencies:
+    - condition: kratos.enabled
+      name: kratos
+      repository: https://k8s.ory.sh/helm/charts
+      version: '*'
+    - condition: oathkeeper.enabled
+      name: oathkeeper
+      repository: https://k8s.ory.sh/helm/charts
+      version: '*'
+    - condition: opal.enabled
+      name: opal
+      repository: https://permitio.github.io/opal-helm-chart
+      version: '*'
+    description: Complete authentication stack with Kratos, Oathkeeper, OPAL, and
+      OPAL-static
+    digest: 51a4a59238eeaed78481b43fd359fd3cd9442dcdf91cdf1ee0024b8c94eae74d
+    home: https://github.com/w6d-io/charts
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - auth
+    - kratos
+    - oathkeeper
+    - opal
+    - opa
+    - identity
+    - authorization
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: auth
+    sources:
+    - https://github.com/w6d-io/charts
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/auth-0.1.2/auth-0.1.2.tgz
+    version: 0.1.2
   chopper:
+  - apiVersion: v2
+    appVersion: v2.0.0
+    created: "2025-12-23T16:17:03.313532935Z"
+    description: A Helm chart for Chopper
+    digest: 43b02f64c29daeadc1675ed143ff71c2ab15f6b334e5e999e6251004c8953f8e
+    home: https://github.com/w6d-io/chopper
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - chopper
+    - api
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: chopper
+    sources:
+    - https://github.com/w6d-io/chopper
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/chopper-0.3.9/chopper-0.3.9.tgz
+    version: 0.3.9
   - apiVersion: v2
     appVersion: v2.0.0
     created: "2025-08-12T09:39:03.403082508Z"
@@ -7223,4 +7283,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2025-09-29T19:50:03.508675076Z"
+generated: "2025-12-23T16:17:03.314198739Z"
