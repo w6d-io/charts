@@ -41,6 +41,6 @@ dependencies:
 
   # PostgreSQL for Kratos (optional)
   - name: postgresql
-    version: "*"
-    repository: https://charts.bitnami.com/bitnami
+    version: "18.1.15"
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: postgresql.enabled
