@@ -1,0 +1,414 @@
+# =============================================================================
+# Auth Stack - Complete Authentication & Authorization Helm Chart
+# =============================================================================
+
+# =============================================================================
+# Global Configuration
+# =============================================================================
+global:
+  # Replace with your domain
+  domain: example.com
+  authDomain: auth.example.com
+  appDomain: app.example.com
+  imagePullSecrets: []
+
+  # Vault configuration (Banzai Cloud) - annotations auto-injected when enabled
+  vault:
+    enabled: false
+    address: http://vault.vault:8200
+    role: ""
+    envFromPath: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# =============================================================================
+# Kratos - Identity Management (Ory)
+# =============================================================================
+kratos:
+  enabled: true
+
+  deployment:
+    serviceAccount:
+      create: true
+      name: kratos
+    automountServiceAccountToken: true
+
+  ingress:
+    public:
+      enabled: false  # Traffic routed through Oathkeeper
+
+  kratos:
+    automountServiceAccountToken: true
+    config:
+      # Database connection - set via environment or Vault
+      dsn: postgresql://user:password@localhost:5432/kratos?sslmode=disable
+      secrets:
+        default:
+          - changeme-default-secret
+        cookie:
+          - changeme-cookie-secret
+        cipher:
+          - changeme-cipher-secret-32bytes
+      identity:
+        default_schema_id: default
+        schemas:
+          - id: default
+            url: file:///etc/config/person.schema.json
+      serve:
+        public:
+          base_url: https://auth.example.com/
+          cors:
+            enabled: true
+            allowed_origins:
+              - https://auth.example.com
+              - https://app.example.com
+      session:
+        cookie:
+          domain: example.com
+          same_site: Lax
+          persistent: true
+      selfservice:
+        allowed_return_urls:
+          - https://app.example.com
+        default_browser_return_url: https://app.example.com
+        methods:
+          password:
+            enabled: true
+          oidc:
+            enabled: false
+            config:
+              providers: []
+        flows:
+          error:
+            ui_url: https://auth.example.com/auth/error
+          settings:
+            ui_url: https://auth.example.com/auth/settings
+            privileged_session_max_age: 15m
+          recovery:
+            enabled: true
+          verification:
+            enabled: true
+          logout:
+            after:
+              default_browser_return_url: https://auth.example.com/auth/login
+          login:
+            ui_url: https://auth.example.com/auth/login
+            lifespan: 10m
+          registration:
+            lifespan: 10m
+            ui_url: https://auth.example.com/auth/registration
+      log:
+        level: info
+        format: json
+      ciphers:
+        algorithm: xchacha20-poly1305
+      hashers:
+        argon2:
+          parallelism: 1
+          memory: 128MB
+          iterations: 2
+          salt_length: 16
+          key_length: 16
+    automigration:
+      enabled: true
+
+    # Example identity schemas - customize for your use case
+    identitySchemas:
+      person.schema.json: |
+        {
+          "$id": "https://schemas.example.com/person.schema.json",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "Person",
+          "type": "object",
+          "properties": {
+            "traits": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "title": "Email",
+                  "ory.sh/kratos": {
+                    "credentials": { "password": { "identifier": true } },
+                    "verification": { "via": "email" },
+                    "recovery": { "via": "email" }
+                  }
+                },
+                "name": { "type": "string", "title": "Name" }
+              },
+              "required": ["email"],
+              "additionalProperties": false
+            }
+          }
+        }
+
+# =============================================================================
+# Oathkeeper - API Gateway (Ory)
+# =============================================================================
+oathkeeper:
+  enabled: true
+
+  ingress:
+    proxy:
+      enabled: true
+      className: ""
+      annotations: {}
+      hosts:
+        - host: auth.example.com
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: app.example.com
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls: []
+
+  oathkeeper:
+    config:
+      access_rules:
+        matching_strategy: glob
+        repositories:
+          - file:///etc/rules/access-rules.json
+      authenticators:
+        cookie_session:
+          enabled: true
+          config:
+            check_session_url: http://kratos:4433/sessions/whoami
+            preserve_path: true
+            extra_from: "@this"
+            subject_from: "identity.id"
+            only:
+              - ory_kratos_session
+        noop:
+          enabled: true
+      authorizers:
+        allow:
+          enabled: true
+        remote_json:
+          enabled: true
+          config:
+            remote: http://opal-client:8181/v1/data/rbac/allow
+            payload: |
+              {
+                "input": {
+                  "sub": "{{ print .Subject }}",
+                  "email": "{{ index .Extra.identity.traits "email" }}",
+                  "groups": {{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "groups" }}{{ toJson (index $mp "groups") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }},
+                  "object": "{{ .MatchContext.URL.Path }}",
+                  "action": "{{ .MatchContext.Method }}"
+                }
+              }
+      mutators:
+        noop:
+          enabled: true
+        header:
+          enabled: true
+          config:
+            headers:
+              X-User-Id: '{{ print .Subject }}'
+              X-User-Email: '{{ index .Extra.identity.traits "email" }}'
+              X-User-Groups: '{{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "groups" }}{{ toJson (index $mp "groups") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }}'
+      errors:
+        fallback: [redirect, json]
+        handlers:
+          redirect:
+            enabled: true
+            config:
+              to: https://auth.example.com/auth/login?return_to=https://app.example.com/
+              when:
+                - error: [unauthorized, forbidden]
+                  request:
+                    header:
+                      accept: [text/html]
+          json:
+            enabled: true
+            config:
+              verbose: false
+
+  # Access rules - provide inline JSON or use externalAccessRulesConfigMap
+  # If externalAccessRulesConfigMap is set, accessRules is ignored
+  # externalAccessRulesConfigMap: "my-access-rules-configmap"
+  accessRules: ""  # Provide access rules JSON or use external ConfigMap
+
+# =============================================================================
+# OPAL - Policy Administration (Permit.io)
+# =============================================================================
+opal:
+  enabled: true
+
+  server:
+    port: 7002
+    policyRepoUrl: ""  # Set your policy repository URL
+    policyRepoMainBranch: "main"
+    pollingInterval: 30
+    broadcastPgsql: false
+    replicas: 1
+    dataConfigSources:
+      config:
+        entries:
+          - url: http://opal-static/bindings.json
+            topics: ["policy_data"]
+            dst_path: "/bindings"
+          - url: http://opal-static/roles.json
+            topics: ["policy_data"]
+            dst_path: "/roles"
+
+  client:
+    port: 7000
+    opaPort: 8181
+    replicas: 1
+    serverUrl: "http://opal-server:7002"
+
+# =============================================================================
+# OPAL-Static - Nginx serving static policy data
+# =============================================================================
+opalStatic:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: nginx
+    tag: alpine
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+  # Static data files - provide inline data or use externalConfigMap
+  # If externalConfigMap is set, staticData is ignored
+  # externalConfigMap: "my-opal-static-configmap"
+  staticData: {}  # Map of filename -> content, e.g. { "bindings.json": "..." }
+
+# =============================================================================
+# Webhook - Domain Validation Service (Optional)
+# =============================================================================
+webhook:
+  enabled: false
+  replicaCount: 1
+
+  image:
+    repository: ""  # Set your webhook image
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Regex pattern for allowed email domains
+  domainPattern: "^.*@example\\.com$"
+  logLevel: "1"
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# =============================================================================
+# Kratos Login UI
+# =============================================================================
+kratosLoginUi:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/w6d-io/kratos-login-ui
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  branding:
+    appName: "My App"
+    logoUrl: "/logo.svg"
+    faviconUrl: "/favicon.ico"
+
+  theme:
+    primaryColor: "3B82F6"
+    darkMode: true
+    backgroundColor: "111827"
+
+  kratos:
+    browserUrl: "https://auth.example.com"
+    publicUrl: "http://kratos:4433"
+
+  redirects:
+    defaultReturnUrl: "https://app.example.com"
+    allowedReturnUrls: "https://*.example.com"
+
+  texts:
+    loginTitle: "Welcome back"
+    loginSubtitle: "Sign in to your account"
+    registerTitle: "Create account"
+    registerSubtitle: "Get started with your account"
+    recoveryTitle: "Reset password"
+    recoverySubtitle: "Enter your email to reset your password"
+
+  footer:
+    text: ""
+    links: []
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 3000
+
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# =============================================================================
+# PostgreSQL for Kratos (Bitnami) - Optional
+# =============================================================================
+postgresql:
+  enabled: false
+  auth:
+    username: kratos
+    database: kratos
+  primary:
+    persistence:
+      size: 1Gi
