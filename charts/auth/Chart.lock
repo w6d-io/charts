@@ -8,8 +8,5 @@ dependencies:
 - name: opal
   repository: https://permitio.github.io/opal-helm-chart
   version: 0.0.29
-- name: postgresql
-  repository: oci://registry-1.docker.io/bitnamicharts
-  version: 18.1.15
-digest: sha256:2ecc1e4a78d68e0e56ecaee5b04dabf05d30f76108a8ac4dd30979d0061af811
-generated: "2025-12-23T16:39:23.776888244+01:00"
+digest: sha256:40447fa41762c7b7234794adc80cbebaff368a7492c08e1cdde4f7d1944fbd9f
+generated: "2025-12-23T17:09:54.289757353+01:00"
