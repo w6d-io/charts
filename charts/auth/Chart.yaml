@@ -38,9 +38,3 @@ dependencies:
     version: "*"
     repository: https://permitio.github.io/opal-helm-chart
     condition: opal.enabled
-
-  # PostgreSQL for Kratos (optional)
-  - name: postgresql
-    version: "18.1.15"
-    repository: oci://registry-1.docker.io/bitnamicharts
-    condition: postgresql.enabled
