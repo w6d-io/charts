@@ -2,7 +2,7 @@ apiVersion: v2
 name: auth
 description: Complete authentication stack with Kratos, Oathkeeper, OPAL, and OPAL-static
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.0.0"
 keywords:
   - auth
@@ -41,6 +41,6 @@ dependencies:
 
   # PostgreSQL for Kratos (optional)
   - name: postgresql
-    version: "*"
-    repository: https://charts.bitnami.com/bitnami
+    version: "18.1.15"
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: postgresql.enabled
