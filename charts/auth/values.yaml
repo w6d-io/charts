@@ -28,10 +28,13 @@ fullnameOverride: ""
 kratos:
   enabled: true
 
+  # ServiceAccount is created by auth chart (templates/kratos/serviceaccount.yaml)
+  # with automountServiceAccountToken: true for Vault integration
   deployment:
     serviceAccount:
-      create: true
+      create: false  # Disabled - SA created by parent chart with automount enabled
       name: kratos
+      annotations: {}
     automountServiceAccountToken: true
 
   ingress:
