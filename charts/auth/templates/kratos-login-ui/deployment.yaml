@@ -55,6 +55,8 @@ spec:
               value: {{ .Values.kratosLoginUi.theme.backgroundColor | quote }}
             - name: KRATOS_BROWSER_URL
               value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
+            - name: NEXT_PUBLIC_KRATOS_BROWSER_URL
+              value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
             - name: KRATOS_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.kratos.publicUrl | quote }}
             - name: DEFAULT_RETURN_URL
