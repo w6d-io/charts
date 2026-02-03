@@ -40,13 +40,13 @@ spec:
             {{- toYaml .Values.opalStatic.resources | nindent 12 }}
           livenessProbe:
             httpGet:
-              path: /bindings.json
+              path: /groups.json
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /bindings.json
+              path: /groups.json
               port: http
             initialDelaySeconds: 3
             periodSeconds: 5
