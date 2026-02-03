@@ -133,6 +133,12 @@ vault:
 
 linkerd:
   enabled: false
+  policy:
+    port: ""
+    proxyProtocol: "unknown"
+  # communications:
+  #   - app: frontend
+  #     namespace: my-ns
 
 httproute:
   enabled: false
