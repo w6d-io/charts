@@ -1,0 +1,32 @@
+{{- if .Values.linkerd.enabled }}
+{{- $fullname := include "app.names.fullname" . }}
+{{- $port := default .Values.service.internalPort .Values.linkerd.policy.port }}
+{{- $proxyProtocol := default "unknown" .Values.linkerd.policy.proxyProtocol }}
+---
+apiVersion: policy.linkerd.io/v1beta3
+kind: Server
+metadata:
+  name: {{ $fullname }}-server
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "helper.labels.matchLabels" . | nindent 6 }}
+  port: {{ $port }}
+  proxyProtocol: {{ $proxyProtocol }}
+  accessPolicy: audit
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $fullname }}-allow-all
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+spec:
+  targetRef:
+    group: policy.linkerd.io
+    kind: Server
+    name: {{ $fullname }}-server
+  requiredAuthenticationRefs: []
+{{- end }}
