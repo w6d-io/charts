@@ -2,7 +2,7 @@ apiVersion: v2
 name: auth
 description: Complete authentication stack with Kratos, Oathkeeper, OPAL, and OPAL-static
 type: application
-version: 0.1.4
+version: 0.1.7
 appVersion: "1.0.0"
 keywords:
   - auth
