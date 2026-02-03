@@ -248,15 +248,15 @@ opal:
     pollingInterval: 30
     broadcastPgsql: false
     replicas: 1
-    dataConfigSources:
-      config:
-        entries:
-          - url: http://opal-static/bindings.json
-            topics: ["policy_data"]
-            dst_path: "/bindings"
-          - url: http://opal-static/roles.json
-            topics: ["policy_data"]
-            dst_path: "/roles"
+    dataConfigSources: # OPAL_DATA_CONFIG_SOURCES should be overridable in env 
+      # config:
+      #   entries:
+      #     - url: http://opal-static/bindings.json
+      #       topics: ["policy_data"]
+      #       dst_path: "/bindings"
+      #     - url: http://opal-static/roles.json
+      #       topics: ["policy_data"]
+      #       dst_path: "/roles"
 
   client:
     port: 7000
