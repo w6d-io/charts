@@ -2,6 +2,7 @@
 {{- $fullname := include "app.names.fullname" . }}
 {{- $port := default .Values.service.internalPort .Values.linkerd.policy.port }}
 {{- $proxyProtocol := default "unknown" .Values.linkerd.policy.proxyProtocol }}
+{{- $hasCommunications := and .Values.linkerd.communications (gt (len .Values.linkerd.communications) 0) }}
 ---
 apiVersion: policy.linkerd.io/v1beta3
 kind: Server
@@ -15,7 +16,43 @@ spec:
       {{- include "helper.labels.matchLabels" . | nindent 6 }}
   port: {{ $port }}
   proxyProtocol: {{ $proxyProtocol }}
-  accessPolicy: audit
+  accessPolicy: {{ if $hasCommunications }}deny{{ else }}audit{{ end }}
+{{- if $hasCommunications }}
+{{- range $idx, $comm := .Values.linkerd.communications }}
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: MeshTLSAuthentication
+metadata:
+  name: {{ $fullname }}-auth-{{ $comm.app }}
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+spec:
+  identities:
+    - "*.{{ $comm.namespace }}.serviceaccount.identity.linkerd.cluster.local"
+  identityRefs:
+    - kind: ServiceAccount
+      namespace: {{ $comm.namespace }}
+      name: "*"
+{{- end }}
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $fullname }}-allow-comms
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+spec:
+  targetRef:
+    group: policy.linkerd.io
+    kind: Server
+    name: {{ $fullname }}-server
+  requiredAuthenticationRefs:
+    {{- range $comm := .Values.linkerd.communications }}
+    - name: {{ $fullname }}-auth-{{ $comm.app }}
+      kind: MeshTLSAuthentication
+      group: policy.linkerd.io
+    {{- end }}
+{{- else }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
 kind: AuthorizationPolicy
@@ -29,4 +66,5 @@ spec:
     kind: Server
     name: {{ $fullname }}-server
   requiredAuthenticationRefs: []
+{{- end }}
 {{- end }}
