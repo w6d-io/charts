@@ -248,7 +248,8 @@ opal:
     pollingInterval: 30
     broadcastPgsql: false
     replicas: 1
-    dataConfigSources: # OPAL_DATA_CONFIG_SOURCES should be overridable in env 
+    # OPAL_DATA_CONFIG_SOURCES should be overridable in env
+    # dataConfigSources:
       # config:
       #   entries:
       #     - url: http://opal-static/bindings.json
