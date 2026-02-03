@@ -136,9 +136,11 @@ linkerd:
   policy:
     port: ""
     proxyProtocol: "unknown"
+  # List of apps allowed to communicate (enables deny mode when set)
   # communications:
   #   - app: frontend
   #     namespace: my-ns
+  communications: []
 
 httproute:
   enabled: false
