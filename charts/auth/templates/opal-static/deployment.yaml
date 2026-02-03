@@ -39,14 +39,12 @@ spec:
           resources:
             {{- toYaml .Values.opalStatic.resources | nindent 12 }}
           livenessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: http
             initialDelaySeconds: 3
             periodSeconds: 5
