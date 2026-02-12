@@ -136,6 +136,9 @@ linkerd:
   policy:
     port: ""
     proxyProtocol: "unknown"
+  # Ingress controller namespaces (auto-allowed when ingress + communications are enabled)
+  ingressNamespaces:
+    - ingress-nginx
   # List of apps allowed to communicate (enables deny mode when set)
   # communications:
   #   - app: frontend

@@ -18,7 +18,7 @@ spec:
   proxyProtocol: {{ $proxyProtocol }}
   accessPolicy: {{ if $hasCommunications }}deny{{ else }}audit{{ end }}
 {{- if $hasCommunications }}
-{{- range $idx, $comm := .Values.linkerd.communications }}
+{{- range $comm := .Values.linkerd.communications }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
 kind: MeshTLSAuthentication
@@ -28,30 +28,54 @@ metadata:
     {{- include "helper.labels.standard" $ | nindent 4 }}
 spec:
   identities:
-    - "*.{{ $comm.namespace }}.serviceaccount.identity.linkerd.cluster.local"
-  identityRefs:
-    - kind: ServiceAccount
-      namespace: {{ $comm.namespace }}
-      name: "*"
-{{- end }}
+    - "{{ $comm.app }}.{{ $comm.namespace }}.serviceaccount.identity.linkerd.cluster.local"
 ---
 apiVersion: policy.linkerd.io/v1alpha1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ $fullname }}-allow-comms
+  name: {{ $fullname }}-allow-{{ $comm.app }}
   labels:
-    {{- include "helper.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" $ | nindent 4 }}
 spec:
   targetRef:
     group: policy.linkerd.io
     kind: Server
     name: {{ $fullname }}-server
   requiredAuthenticationRefs:
-    {{- range $comm := .Values.linkerd.communications }}
     - name: {{ $fullname }}-auth-{{ $comm.app }}
       kind: MeshTLSAuthentication
       group: policy.linkerd.io
-    {{- end }}
+{{- end }}
+{{- if and $.Values.ingress.enabled $.Values.linkerd.ingressNamespaces }}
+{{- range $ns := $.Values.linkerd.ingressNamespaces }}
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: MeshTLSAuthentication
+metadata:
+  name: {{ $fullname }}-auth-ingress-{{ $ns }}
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+spec:
+  identities:
+    - "*.{{ $ns }}.serviceaccount.identity.linkerd.cluster.local"
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $fullname }}-allow-ingress-{{ $ns }}
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+spec:
+  targetRef:
+    group: policy.linkerd.io
+    kind: Server
+    name: {{ $fullname }}-server
+  requiredAuthenticationRefs:
+    - name: {{ $fullname }}-auth-ingress-{{ $ns }}
+      kind: MeshTLSAuthentication
+      group: policy.linkerd.io
+{{- end }}
+{{- end }}
 {{- else }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
