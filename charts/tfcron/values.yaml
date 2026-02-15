@@ -1,0 +1,73 @@
+image:
+  repository: w6dio/tfcron
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+cronjob:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  backoffLimit: 0
+  restartPolicy: Never
+  activeDeadlineSeconds: 3600
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+sftp:
+  host: ""
+  port: "22"
+  user: ""
+
+http:
+  url: ""
+
+# Tenants configuration (mounted as tenants.yaml via configmap)
+tenants: {}
+  # tenant-a: customer-id-1
+  # tenant-b: customer-id-2
+
+# Custom HTTP headers (mounted as headers.yaml via configmap, optional)
+customHeaders: {}
+  # Strada-Codelangue: fr
+  # Strada-Timezone: Europe/Paris
+
+observability:
+  # OpenTelemetry gRPC endpoint (optional, tracing is no-op if unset)
+  otelEndpoint: ""
+  # Prometheus Pushgateway URL (optional)
+  prometheusPushgatewayURL: ""
+
+# Bank-Vaults webhook configuration
+# All keys at vault.secretPath are injected as env vars via vault-env-from-path.
+# Expected Vault keys:
+#   SFTP_KEY_CONTENT      - SSH private key (written to file by init container)
+#   GPG_KEY_CONTENT       - GPG private key (written to file by init container)
+#   SFTP_KEY_PASSPHRASE   - SSH key passphrase (optional)
+#   GPG_PASSPHRASE        - GPG key passphrase (optional)
+#   HTTP_AUTH_HEADER      - Authorization header value (optional)
+vault:
+  annotations:
+    vault.security.banzaicloud.io/vault-addr: "https://vault:8200"
+    vault.security.banzaicloud.io/vault-role: "default"
+  secretPath: "secret/data/tfcron"
