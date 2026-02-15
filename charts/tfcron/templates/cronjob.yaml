@@ -1,0 +1,121 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "tfcron.fullname" . }}
+  labels:
+    {{- include "tfcron.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjob.concurrencyPolicy }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "tfcron.selectorLabels" . | nindent 8 }}
+    spec:
+      backoffLimit: {{ .Values.cronjob.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.cronjob.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "tfcron.selectorLabels" . | nindent 12 }}
+            {{- with .Values.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            vault.security.banzaicloud.io/vault-env-from-path: {{ .Values.vault.secretPath | quote }}
+            {{- with .Values.vault.annotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.podAnnotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "tfcron.serviceAccountName" . }}
+          restartPolicy: {{ .Values.cronjob.restartPolicy }}
+          initContainers:
+            - name: init-keys
+              image: "alpine"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              env:
+                - name: SFTP_KEY_CONTENT
+                  value: {{ .Values.sftpKeyContent }}
+                - name: GPG_KEY_CONTENT
+                  value: {{ .Values.gpgKeyContent }}
+              command: ["sh", "-c"]
+              args:
+                - |
+                  echo "$SFTP_KEY_CONTENT" > /secrets/keys/sftp-key &&
+                  chmod 400 /secrets/keys/sftp-key &&
+                  echo "$GPG_KEY_CONTENT" > /secrets/keys/gpg-key &&
+                  chmod 400 /secrets/keys/gpg-key
+              volumeMounts:
+                - name: keys
+                  mountPath: /secrets/keys
+          containers:
+            - name: tfcron
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              env:
+                - name: SFTP_HOST
+                  value: {{ .Values.sftp.host | quote }}
+                - name: SFTP_PORT
+                  value: {{ .Values.sftp.port | quote }}
+                - name: SFTP_USER
+                  value: {{ .Values.sftp.user | quote }}
+                - name: SFTP_KEY_PATH
+                  value: /secrets/keys/sftp-key
+                - name: GPG_KEY_PATH
+                  value: /secrets/keys/gpg-key
+                - name: HTTP_URL
+                  value: {{ .Values.http.url | quote }}
+                - name: TENANTS_CONFIG_PATH
+                  value: /config/tenants.yaml
+                {{- if .Values.customHeaders }}
+                - name: HEADERS_CONFIG_PATH
+                  value: /config/headers.yaml
+                {{- end }}
+                {{- if .Values.observability.otelEndpoint }}
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: {{ .Values.observability.otelEndpoint | quote }}
+                {{- end }}
+                {{- if .Values.observability.prometheusPushgatewayURL }}
+                - name: PROMETHEUS_PUSHGATEWAY_URL
+                  value: {{ .Values.observability.prometheusPushgatewayURL | quote }}
+                {{- end }}
+              volumeMounts:
+                - name: keys
+                  mountPath: /secrets/keys
+                  readOnly: true
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+              {{- with .Values.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+          volumes:
+            - name: keys
+              emptyDir:
+                medium: Memory
+                sizeLimit: 64Mi
+            - name: config
+              configMap:
+                name: {{ include "tfcron.fullname" . }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

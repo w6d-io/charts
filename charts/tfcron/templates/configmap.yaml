@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tfcron.fullname" . }}
+  labels:
+    {{- include "tfcron.labels" . | nindent 4 }}
+data:
+  tenants.yaml: |
+    {{- .Values.tenants | toYaml | nindent 4 }}
+  {{- if .Values.customHeaders }}
+  headers.yaml: |
+    {{- .Values.customHeaders | toYaml | nindent 4 }}
+  {{- end }}
