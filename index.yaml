@@ -7242,6 +7242,17 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/tekton-0.1.0/tekton-0.1.0.tgz
     version: 0.1.0
+  tfcron:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-15T14:15:38.231106958Z"
+    description: A Helm chart for deploying tfcron as a Kubernetes CronJob
+    digest: 9c008ad1d9066200901153d0de1c9f5aa38c365147e9d67afc40f85700d4863c
+    name: tfcron
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/tfcron-0.1.0/tfcron-0.1.0.tgz
+    version: 0.1.0
   tools:
   - apiVersion: v2
     created: "2022-10-02T18:13:37.796576753Z"
@@ -7511,4 +7522,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-12T16:54:08.414119317Z"
+generated: "2026-02-15T14:15:38.231736874Z"
