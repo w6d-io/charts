@@ -1,23 +1,33 @@
 {{- if .Values.linkerd.enabled }}
 {{- $fullname := include "app.names.fullname" . }}
-{{- $port := default .Values.service.internalPort .Values.linkerd.policy.port }}
-{{- $proxyProtocol := default "unknown" .Values.linkerd.policy.proxyProtocol }}
 {{- $hasCommunications := and .Values.linkerd.communications (gt (len .Values.linkerd.communications) 0) }}
+{{- /* Build ports list: use policy.ports if set, otherwise fall back to single port */ -}}
+{{- $ports := list }}
+{{- if and .Values.linkerd.policy.ports (gt (len .Values.linkerd.policy.ports) 0) }}
+  {{- $ports = .Values.linkerd.policy.ports }}
+{{- else }}
+  {{- $ports = list (dict "port" (default .Values.service.internalPort .Values.linkerd.policy.port) "proxyProtocol" (default "unknown" .Values.linkerd.policy.proxyProtocol)) }}
+{{- end }}
+{{- $singlePort := eq (len $ports) 1 }}
+{{- /* Server resources — one per port */ -}}
+{{- range $p := $ports }}
 ---
 apiVersion: policy.linkerd.io/v1beta3
 kind: Server
 metadata:
-  name: {{ $fullname }}-server
+  name: {{ $fullname }}-server{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   labels:
-    {{- include "helper.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" $ | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "helper.labels.matchLabels" . | nindent 6 }}
-  port: {{ $port }}
-  proxyProtocol: {{ $proxyProtocol }}
+      {{- include "helper.labels.matchLabels" $ | nindent 6 }}
+  port: {{ $p.port }}
+  proxyProtocol: {{ default "unknown" $p.proxyProtocol }}
   accessPolicy: {{ if $hasCommunications }}deny{{ else }}audit{{ end }}
+{{- end }}
 {{- if $hasCommunications }}
+{{- /* MeshTLSAuthentication — one per comm (shared across ports) */ -}}
 {{- range $comm := .Values.linkerd.communications }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
@@ -29,23 +39,31 @@ metadata:
 spec:
   identities:
     - "{{ $comm.app }}.{{ $comm.namespace }}.serviceaccount.identity.linkerd.cluster.local"
+{{- end }}
+{{- /* AuthorizationPolicy — per comm, scoped to comm.port if set, otherwise all ports */ -}}
+{{- range $p := $ports }}
+{{- range $comm := $.Values.linkerd.communications }}
+{{- if or (not $comm.port) (eq (toString $comm.port) (toString $p.port)) }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ $fullname }}-allow-{{ $comm.app }}
+  name: {{ $fullname }}-allow-{{ $comm.app }}{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   labels:
     {{- include "helper.labels.standard" $ | nindent 4 }}
 spec:
   targetRef:
     group: policy.linkerd.io
     kind: Server
-    name: {{ $fullname }}-server
+    name: {{ $fullname }}-server{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   requiredAuthenticationRefs:
     - name: {{ $fullname }}-auth-{{ $comm.app }}
       kind: MeshTLSAuthentication
       group: policy.linkerd.io
 {{- end }}
+{{- end }}
+{{- end }}
+{{- /* Ingress policies — one per ingress namespace per port */ -}}
 {{- if and $.Values.ingress.enabled $.Values.linkerd.ingressNamespaces }}
 {{- range $ns := $.Values.linkerd.ingressNamespaces }}
 ---
@@ -58,37 +76,44 @@ metadata:
 spec:
   identities:
     - "*.{{ $ns }}.serviceaccount.identity.linkerd.cluster.local"
+{{- end }}
+{{- range $p := $ports }}
+{{- range $ns := $.Values.linkerd.ingressNamespaces }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ $fullname }}-allow-ingress-{{ $ns }}
+  name: {{ $fullname }}-allow-ingress-{{ $ns }}{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   labels:
     {{- include "helper.labels.standard" $ | nindent 4 }}
 spec:
   targetRef:
     group: policy.linkerd.io
     kind: Server
-    name: {{ $fullname }}-server
+    name: {{ $fullname }}-server{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   requiredAuthenticationRefs:
     - name: {{ $fullname }}-auth-ingress-{{ $ns }}
       kind: MeshTLSAuthentication
       group: policy.linkerd.io
 {{- end }}
 {{- end }}
+{{- end }}
 {{- else }}
+{{- /* No communications — allow-all per port */ -}}
+{{- range $p := $ports }}
 ---
 apiVersion: policy.linkerd.io/v1alpha1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ $fullname }}-allow-all
+  name: {{ $fullname }}-allow-all{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   labels:
-    {{- include "helper.labels.standard" . | nindent 4 }}
+    {{- include "helper.labels.standard" $ | nindent 4 }}
 spec:
   targetRef:
     group: policy.linkerd.io
     kind: Server
-    name: {{ $fullname }}-server
+    name: {{ $fullname }}-server{{ if not $singlePort }}-{{ $p.port }}{{ end }}
   requiredAuthenticationRefs: []
+{{- end }}
 {{- end }}
 {{- end }}
