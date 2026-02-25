@@ -136,6 +136,13 @@ linkerd:
   policy:
     port: ""
     proxyProtocol: "unknown"
+    # Multi-port support (takes precedence over port/proxyProtocol when set)
+    # ports:
+    #   - port: 8080
+    #     proxyProtocol: "HTTP/2"
+    #   - port: 9090
+    #     proxyProtocol: "HTTP/1.1"
+    ports: []
   # Ingress controller namespaces (auto-allowed when ingress + communications are enabled)
   ingressNamespaces:
     - ingress-nginx
