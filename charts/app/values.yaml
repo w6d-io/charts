@@ -143,6 +143,10 @@ linkerd:
     #   - port: 9090
     #     proxyProtocol: "HTTP/1.1"
     ports: []
+  # Monitoring identity (auto-allowed on metrics port when metrics + communications are enabled)
+  monitoring:
+    app: monk8s-prometheus
+    namespace: monitoring
   # Ingress controller namespaces (auto-allowed when ingress + communications are enabled)
   ingressNamespaces:
     - ingress-nginx

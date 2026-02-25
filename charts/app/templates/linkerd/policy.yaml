@@ -98,6 +98,41 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
+{{- /* Monitoring policy — allow prometheus on metrics port when metrics enabled */ -}}
+{{- if and $.Values.metrics.enabled $.Values.linkerd.monitoring }}
+{{- $mon := $.Values.linkerd.monitoring }}
+{{- $metricsPort := $.Values.metrics.port | default 8080 }}
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: MeshTLSAuthentication
+metadata:
+  name: {{ $fullname }}-auth-monitoring
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+spec:
+  identities:
+    - "{{ $mon.app }}.{{ $mon.namespace }}.serviceaccount.identity.linkerd.cluster.local"
+{{- range $p := $ports }}
+{{- if eq (toString $p.port) (toString $metricsPort) }}
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $fullname }}-allow-monitoring{{ if not $singlePort }}-{{ $p.port }}{{ end }}
+  labels:
+    {{- include "helper.labels.standard" $ | nindent 4 }}
+spec:
+  targetRef:
+    group: policy.linkerd.io
+    kind: Server
+    name: {{ $fullname }}-server{{ if not $singlePort }}-{{ $p.port }}{{ end }}
+  requiredAuthenticationRefs:
+    - name: {{ $fullname }}-auth-monitoring
+      kind: MeshTLSAuthentication
+      group: policy.linkerd.io
+{{- end }}
+{{- end }}
+{{- end }}
 {{- else }}
 {{- /* No communications — allow-all per port */ -}}
 {{- range $p := $ports }}
