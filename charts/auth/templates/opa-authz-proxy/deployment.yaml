@@ -1,0 +1,64 @@
+{{- if .Values.opaAuthzProxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.opaAuthzProxy.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opa-authz-proxy
+spec:
+  replicas: {{ .Values.opaAuthzProxy.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.opaAuthzProxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.opaAuthzProxy.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: opa-authz-proxy
+          image: "{{ .Values.opaAuthzProxy.image.repository }}:{{ .Values.opaAuthzProxy.image.tag }}"
+          imagePullPolicy: {{ .Values.opaAuthzProxy.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: OPA_UPSTREAM_URL
+              {{- if .Values.opaAuthzProxy.opaUpstreamUrl }}
+              value: {{ .Values.opaAuthzProxy.opaUpstreamUrl | quote }}
+              {{- else }}
+              value: "http://{{ .Release.Name }}-opal-client:{{ .Values.opal.client.opaPort }}"
+              {{- end }}
+            - name: LISTEN_ADDR
+              value: ":8080"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.opaAuthzProxy.resources | nindent 12 }}
+{{- end }}

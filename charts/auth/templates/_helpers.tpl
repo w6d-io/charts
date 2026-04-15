@@ -126,6 +126,22 @@ vault.security.banzaicloud.io/vault-env-from-path: {{ .Values.global.vault.envFr
 {{- end -}}
 
 {{/*
+OPA AuthZ Proxy fullname
+*/}}
+{{- define "auth.opaAuthzProxy.fullname" -}}
+{{- printf "%s-opa-authz-proxy" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+OPA AuthZ Proxy selector labels
+*/}}
+{{- define "auth.opaAuthzProxy.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "auth.name" . }}-opa-authz-proxy
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: opa-authz-proxy
+{{- end }}
+
+{{/*
 Kratos Login UI fullname
 */}}
 {{- define "auth.kratosLoginUi.fullname" -}}
