@@ -1,0 +1,49 @@
+broadcastReplicas: 1
+client:
+  containerSecurityContext: {}
+  extraEnv: {}
+  opaPort: 8181
+  port: 7000
+  replicas: 1
+  securityContext: {}
+image:
+  client:
+    registry: docker.io
+    repository: permitio/opal-client
+  pgsql:
+    registry: docker.io
+    repository: postgres
+    tag: alpine
+  server:
+    registry: docker.io
+    repository: permitio/opal-server
+openshift:
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+  enabled: false
+  securityContext:
+    fsGroup: 1010180000
+    runAsGroup: 1010180000
+    runAsUser: 1010180000
+postgresql:
+  containerSecurityContext: {}
+  extraEnv: {}
+  securityContext: {}
+server:
+  broadcastPgsql: true
+  broadcastUri: null
+  containerSecurityContext: {}
+  dataConfigSources:
+    config:
+      entries: []
+  extraEnv: {}
+  policyRepoClonePath: null
+  policyRepoMainBranch: null
+  policyRepoSshKey: null
+  policyRepoUrl: https://github.com/permitio/opal-example-policy-repo
+  pollingInterval: 30
+  port: 7002
+  replicas: 1
+  securityContext: {}
+  uvicornWorkers: 4
