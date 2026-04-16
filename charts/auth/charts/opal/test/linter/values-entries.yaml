@@ -1,0 +1,12 @@
+imageRegistry: docker.io
+imagePullSecrets: 
+  - name: my_awesome_secret
+
+server:
+  dataConfigSources:
+    config:
+      entries:
+        - url: "111"
+        - url: "222"
+
+client: null

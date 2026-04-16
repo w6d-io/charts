@@ -1,0 +1,27 @@
+{{- if .Values.e2e }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: policy-repo-data
+data:
+  upd.sh: |
+    {{- .Files.Get "test/e2e/upd.sh" | nindent 4 }}
+  data.json: |
+    {{- .Files.Get "test/e2e/data.json" | nindent 4 }}
+  rbac.rego: |
+    {{- .Files.Get "test/e2e/rbac.rego" | nindent 4 }}
+{{- end }}
+---
+{{- if .Values.client }}
+{{- if .Values.client.opaStartupData }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-startup-data
+data:
+  {{- range $name, $value := .Values.client.opaStartupData }}
+  {{ $name }}: |
+    {{ $value |  nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
