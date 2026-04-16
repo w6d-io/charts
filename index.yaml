@@ -3441,6 +3441,45 @@ entries:
   auth:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-04-16T11:44:40.463246065Z"
+    dependencies:
+    - condition: kratos.enabled
+      name: kratos
+      repository: https://k8s.ory.sh/helm/charts
+      version: 0.60.0
+    - condition: oathkeeper.enabled
+      name: oathkeeper
+      repository: https://k8s.ory.sh/helm/charts
+      version: 0.60.0
+    - condition: opal.enabled
+      name: opal
+      repository: file://charts/opal
+      version: 0.0.29
+    description: Complete authentication stack with Kratos, Oathkeeper, OPAL, and
+      OPAL-static
+    digest: be1454c067025cbb37708cd7757a80823454e59a80ff7c697c2bd71b118e1003
+    home: https://github.com/w6d-io/charts
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - auth
+    - kratos
+    - oathkeeper
+    - opal
+    - opa
+    - identity
+    - authorization
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: auth
+    sources:
+    - https://github.com/w6d-io/charts
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/auth-0.1.11/auth-0.1.11.tgz
+    version: 0.1.11
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-04-16T09:06:14.238106009Z"
     dependencies:
     - condition: kratos.enabled
@@ -7648,4 +7687,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-16T09:06:14.238500241Z"
+generated: "2026-04-16T11:44:40.463656646Z"
