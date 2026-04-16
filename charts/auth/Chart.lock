@@ -5,8 +5,5 @@ dependencies:
 - name: oathkeeper
   repository: https://k8s.ory.sh/helm/charts
   version: 0.60.0
-- name: opal
-  repository: https://permitio.github.io/opal-helm-chart
-  version: 0.0.29
-digest: sha256:40447fa41762c7b7234794adc80cbebaff368a7492c08e1cdde4f7d1944fbd9f
-generated: "2025-12-23T17:09:54.289757353+01:00"
+digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+generated: "2026-04-16T10:00:00.000000000+02:00"

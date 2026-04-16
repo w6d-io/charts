@@ -1,4 +1,5 @@
 /charts/*/charts
+!/charts/auth/charts/opal
 .idea
 .cr-release-packages/
 /config.json

@@ -1,0 +1,118 @@
+{{- if .Values.client }}
+{{- if ne .Values.client.enabled false  }}
+{{- $nm := include "opal.clientName" . | quote }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $nm }}
+  labels:
+    {{- include "opal.clientLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.client.replicas }}
+  selector:
+    matchLabels:
+      {{- include "opal.clientSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "opal.clientLabels" . | nindent 8 }}
+      {{- with .Values.client.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.image.client.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or .Values.openshift.enabled .Values.client.securityContext }}
+      securityContext:
+        {{- if .Values.client.securityContext }}
+        {{- toYaml .Values.client.securityContext | nindent 8 }}
+        {{- else if .Values.openshift.enabled }}
+        {{- toYaml .Values.openshift.securityContext | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.client.opaStartupData }}
+      volumes:
+        - name: opa-startup-data
+          configMap:
+            name: opa-startup-data
+            defaultMode: 0444
+      {{- end }}
+      containers:
+        - name: opal-client
+          image: {{ include "opal.clientImage" . | quote }}
+          imagePullPolicy: {{ .Values.client.imagePullPolicy | default "IfNotPresent" | quote }}
+          {{- if or .Values.openshift.enabled .Values.client.containerSecurityContext }}
+          securityContext:
+            {{- if .Values.client.containerSecurityContext }}
+            {{- toYaml .Values.client.containerSecurityContext | nindent 12 }}
+            {{- else if .Values.openshift.enabled }}
+            {{- toYaml .Values.openshift.containerSecurityContext | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.client.port }}
+              protocol: TCP
+            - name: opa
+              containerPort: {{ .Values.client.opaPort }}
+              protocol: TCP
+          env:
+            - name: UVICORN_NUM_WORKERS
+              value: "1"
+          {{- if .Values.server }}
+            {{- if .Values.client.serverUrl }}
+            - name: OPAL_SERVER_URL
+              value: {{ .Values.client.serverUrl | quote }}
+            {{- else }}
+            - name: OPAL_SERVER_URL
+              value: {{ printf "http://%s:%v" (include "opal.serverName" .) .Values.server.port | quote }}
+            {{- end}}
+            {{- if not (or (.Values.server.dataConfigSources.external_source_url) (and .Values.server.dataConfigSources.config .Values.server.dataConfigSources.config.entries) (hasKey .Values.client.extraEnv "OPAL_DATA_UPDATER_ENABLED") ) }}
+            - name: OPAL_DATA_UPDATER_ENABLED
+              value: "False"
+            {{- end }}
+          {{- end }}
+          {{- if .Values.client.extraEnv }}
+          {{- range $name, $value := .Values.client.extraEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.client.secrets }}
+          envFrom:
+          {{- range $name := .Values.client.secrets }}
+            - secretRef:
+                name: {{ $name }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.client.opaStartupData }}
+          volumeMounts:
+            - mountPath: /opt/opa/startup-data
+              name: opa-startup-data
+              readOnly: true
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            failureThreshold: 5
+            initialDelaySeconds: 5
+            timeoutSeconds: 10
+            periodSeconds: 15
+
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            failureThreshold: 5
+            timeoutSeconds: 10
+            periodSeconds: 30
+          {{- if .Values.client.resources }}
+          resources:
+            {{- toYaml .Values.client.resources | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

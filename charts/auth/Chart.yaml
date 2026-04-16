@@ -2,7 +2,7 @@ apiVersion: v2
 name: auth
 description: Complete authentication stack with Kratos, Oathkeeper, OPAL, and OPAL-static
 type: application
-version: 0.1.9
+version: 0.1.10
 appVersion: "1.0.0"
 keywords:
   - auth
@@ -34,7 +34,5 @@ dependencies:
     condition: oathkeeper.enabled
 
   # OPAL - Policy Administration (Server + Client + OPA)
-  - name: opal
-    version: "*"
-    repository: https://permitio.github.io/opal-helm-chart
-    condition: opal.enabled
+  # Vendored in charts/opal/ for custom template modifications (podAnnotations for Vault)
+  # Original: https://permitio.github.io/opal-helm-chart
