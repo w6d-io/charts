@@ -34,5 +34,8 @@ dependencies:
     condition: oathkeeper.enabled
 
   # OPAL - Policy Administration (Server + Client + OPA)
-  # Vendored in charts/opal/ for custom template modifications (podAnnotations for Vault)
-  # Original: https://permitio.github.io/opal-helm-chart
+  # Vendored for custom template modifications (podAnnotations for Vault)
+  - name: opal
+    version: "0.0.29"
+    repository: "file://charts/opal"
+    condition: opal.enabled
