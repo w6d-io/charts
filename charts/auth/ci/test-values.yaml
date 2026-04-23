@@ -23,6 +23,15 @@ redis:
   global:
     security:
       allowInsecureImages: true
+  master:
+    podSecurityContext:
+      seccompProfile:
+        type: Unconfined
+    containerSecurityContext:
+      seccompProfile:
+        type: Unconfined
+    persistence:
+      enabled: false
 
 opal:
   enabled: false  # Skip in CI
