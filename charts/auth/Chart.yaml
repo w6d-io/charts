@@ -44,6 +44,6 @@ dependencies:
 
   # Redis - Data Store for Jinbe RBAC and OPAL broadcast
   - name: redis
-    version: "~19"
+    version: "~25"
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
