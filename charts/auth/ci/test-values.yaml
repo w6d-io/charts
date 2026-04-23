@@ -16,6 +16,12 @@ redis:
   architecture: standalone
   auth:
     enabled: false
+  master:
+    persistence:
+      enabled: false
+    extraEnvVars:
+      - name: DISABLE_IORING
+        value: "1"
 
 opal:
   enabled: false  # Skip in CI
