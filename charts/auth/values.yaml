@@ -329,8 +329,15 @@ jinbe:
 redis:
   enabled: true
   architecture: standalone
+  image:
+    registry: ""
+    repository: ghcr.io/w6d-io/redis
+    tag: "8.2.2"
   auth:
     enabled: false
+  global:
+    security:
+      allowInsecureImages: true
   master:
     persistence:
       size: 1Gi
