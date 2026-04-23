@@ -1,202 +1,215 @@
-# Auth Stack Helm Chart
+# W6D Auth Stack
 
-Umbrella chart deploying a complete authentication and authorization stack.
+Enterprise authentication & authorization platform. One Helm install, zero-config RBAC.
+
+## Architecture
+
+```
+Browser → Oathkeeper (gateway) → Kratos (session) → OPA (policy) → Your Service
+                ↑                                       ↑
+          polls rules from                    data pushed by OPAL
+                ↑                                       ↑
+              Jinbe ──── Redis (RBAC store) ──── OPAL Server
+              (brain)                          (real-time push)
+```
 
 ## Components
 
 | Component | Description | Default |
 |-----------|-------------|---------|
-| **Kratos** | Ory Identity Management | enabled |
-| **Oathkeeper** | Ory API Gateway / Authorization Proxy | enabled |
-| **OPAL** | Open Policy Administration Layer (Server + Client + OPA) | enabled |
-| **OPAL-static** | Nginx serving static policy data (bindings, roles, route_maps) | enabled |
-| **Webhook** | Domain validation webhook for registration | disabled |
-| **kratos-login-ui** | Self-service login UI | enabled |
-| **PostgreSQL** | Bitnami PostgreSQL for Kratos | disabled |
+| **Jinbe** | RBAC control plane — admin API, OPA bundles, Oathkeeper rules | enabled |
+| **Redis** | RBAC data store + audit event streams | enabled |
+| **Kratos** | Ory Identity Management (sessions, OIDC, MFA) | enabled |
+| **Oathkeeper** | Ory API Gateway (routes, auth, authorization) | enabled |
+| **OPAL** | Real-time policy push via WebSocket (Server + Client + OPA) | enabled |
+| **OPA-AuthZ-Proxy** | Translates OPA decisions to HTTP | enabled |
+| **Kratos Login UI** | Branded login/register pages | enabled |
 
-## Installation
-
-```bash
-# Add required repos
-helm repo add ory https://k8s.ory.sh/helm/charts
-helm repo add permitio https://permitio.github.io/opal-helm-chart
-helm repo add bitnami https://charts.bitnami.com/bitnami
-
-# Update dependencies
-cd charts/auth && helm dependency update
-
-# Install
-helm install auth . -n auth --create-namespace
-
-# With custom values
-helm install auth . -n auth -f my-values.yaml
-```
-
-## Configuration
-
-### Global Settings
-
-```yaml
-global:
-  domain: example.com
-  authDomain: auth.example.com
-  appDomain: app.example.com
-  imagePullSecrets: []
-  vault:
-    enabled: false
-    address: http://vault.vault:8200
-    role: ""
-    envFromPath: ""
-```
-
-### Vault Integration
-
-When `global.vault.enabled: true`, Banzai Cloud Vault annotations are automatically injected into pods that need secrets:
-
-- Kratos deployment and jobs
-- Webhook deployment
-
-Annotations added:
-```yaml
-vault.security.banzaicloud.io/vault-addr: <address>
-vault.security.banzaicloud.io/vault-role: <role>
-vault.security.banzaicloud.io/vault-env-from-path: <envFromPath>
-```
-
-### Enable/Disable Components
-
-```yaml
-kratos:
-  enabled: true
-
-oathkeeper:
-  enabled: true
-
-opal:
-  enabled: true
-
-opalStatic:
-  enabled: true
-
-webhook:
-  enabled: false
-
-kratosLoginUi:
-  enabled: true
-
-postgresql:
-  enabled: false  # Use external DB
-```
-
-### Identity Schemas
-
-Kratos identity schemas are configured under `kratos.kratos.identitySchemas`:
-- `person` - Individual user accounts (default)
-
-### Access Rules
-
-Oathkeeper access rules are defined in `oathkeeper.accessRules` or via external ConfigMap.
-
-Example rules:
-- `login-ui` - Login/registration UI
-- `kratos-public` - Kratos public API
-- `api` - Protected API with OPA authorization
-- `app` - Application static assets
-
-### External ConfigMaps
-
-For GitOps workflows, you can use external ConfigMaps for access rules and OPAL data:
-
-```yaml
-oathkeeper:
-  externalAccessRulesConfigMap: "my-access-rules"
-
-opalStatic:
-  externalConfigMap: "my-opal-static-data"
-```
-
-### OPAL Static Data
-
-Policy data files served by OPAL-static:
-- `bindings.json` - User/group to role bindings
-- `roles.json` - Role definitions per service
-- `route_map.json` - Route permissions per service
-
-Configure inline under `opalStatic.staticData`:
-
-```yaml
-opalStatic:
-  staticData:
-    bindings.json: |
-      { "emails": {}, "groups": {} }
-    roles.json: |
-      { "admin": ["*"], "viewer": ["read"] }
-```
-
-## Architecture
-
-```
-                    +-------------+
-                    |   Ingress   |
-                    +------+------+
-                           |
-                    +------v------+
-                    | Oathkeeper  | <-- Access Rules
-                    +------+------+
-                           |
-         +-----------------+-----------------+
-         |                 |                 |
-         v                 v                 v
-   +-----------+    +-----------+    +-----------+
-   |  Kratos   |    |  Your API |    |  Your App |
-   | (Identity)|    |  (Backend)|    |   (UI)    |
-   +-----+-----+    +-----+-----+    +-----------+
-         |                |
-         |                v
-         |         +-----------+     +-------------+
-         |         | OPA/OPAL  |<----| OPAL-static |
-         |         | (Authz)   |     |  (data)     |
-         |         +-----------+     +-------------+
-         |
-         v
-   +-----------+
-   | PostgreSQL|
-   +-----------+
-```
-
-## Useful Commands
+## Quick Start
 
 ```bash
-# Test OPA authorization
-kubectl port-forward svc/opal-client 8181:8181 -n auth
-curl -X POST http://localhost:8181/v1/data/rbac/allow \
-  -H "Content-Type: application/json" \
-  -d '{"input": {"email": "user@example.com", "action": "GET", "object": "/api/resource"}}'
+# From chart repo (all subcharts bundled — no external repos needed)
+helm install auth w6dio/auth \
+  --set global.domain=mycompany.com \
+  --set kratos.kratos.config.dsn=postgresql://user:pass@db:5432/kratos \
+  --set jinbe.env.ENCRYPTION_KEY=$(openssl rand -base64 32) \
+  --set opal.server.policyRepoUrl=https://github.com/your-org/rbac-policies.git
 
-# Check Kratos health
-kubectl port-forward svc/kratos 4433:4433 -n auth
-curl http://localhost:4433/health/ready
+# Or from local clone
+helm install auth ./charts/auth --values my-values.yaml
 ```
 
-## Values Reference
+First user to register gets `super_admin` access. Done.
+
+## Required Values
+
+| Value | Description | Example |
+|-------|-------------|---------|
+| `global.domain` | Base domain (everything derives from it) | `mycompany.com` |
+| `kratos.kratos.config.dsn` | PostgreSQL connection for Kratos | `postgresql://...` |
+| `jinbe.env.ENCRYPTION_KEY` | Encryption key (min 32 chars) | `$(openssl rand -base64 32)` |
+| `opal.server.policyRepoUrl` | Git repo with `rbac.rego` policy | `https://github.com/...` |
+
+Everything else is auto-computed from Release name + domain.
+
+## Auto-Computed URLs
+
+All inter-service URLs are templated from `{{ .Release.Name }}`:
+
+| Service | URL |
+|---------|-----|
+| Redis | `redis://{release}-redis-master:6379` |
+| Kratos Public | `http://{release}-kratos-public:80` |
+| Kratos Admin | `http://{release}-kratos-admin:80` |
+| OPA | `http://{release}-opal-client:8181` |
+| OPAL Server | `http://{release}-opal-server:7002` |
+| Jinbe | `http://{release}-auth-jinbe:8080` |
+| Oathkeeper rules | `http://{release}-auth-jinbe:8080/api/oathkeeper/rules` |
+
+## RBAC Model
+
+```
+User (Kratos identity)
+  └── Group (super_admins, admins, devs, viewers)
+       └── Role per service (admin, editor, viewer)
+            └── Permissions (resource:action format)
+                 └── Route map (method + path → permission)
+```
+
+### Default Groups (auto-created on first boot)
+
+| Group | Description |
+|-------|-------------|
+| `super_admins` | Global `*` wildcard — full access to everything |
+| `admins` | Per-service admin role |
+| `devs` | Per-service editor role |
+| `viewers` | Per-service read-only |
+| `users` | No default permissions |
+
+### Permission Format
+
+All permissions use `resource:action`: `clusters:list`, `databases:delete`, `admin:read`.
+Wildcard `*` grants all permissions.
+
+## Jinbe API Endpoints
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /api/health` | Public | Health check (includes Redis status) |
+| `GET /api/opa/bundle` | Public | OPA policy bundle (tar.gz) |
+| `GET /api/oathkeeper/rules` | Public | Oathkeeper access rules (JSON) |
+| `GET /api/admin/rbac/groups` | Admin | List groups |
+| `POST /api/admin/rbac/groups` | Admin | Create group |
+| `PUT /api/admin/rbac/groups/:name` | Admin | Update group |
+| `DELETE /api/admin/rbac/groups/:name` | Admin | Delete group |
+| `GET /api/admin/rbac/services` | Admin | List services |
+| `POST /api/admin/rbac/services` | Admin | Create service (auto-generates roles, routes, rules) |
+| `DELETE /api/admin/rbac/services/:name` | Admin | Delete service |
+| `GET /api/admin/rbac/access-rules` | Admin | List Oathkeeper rules |
+| `POST /api/admin/rbac/simulate` | Admin | Permission simulator |
+| `GET /api/admin/audit/events` | Admin | Audit event log |
+| `GET /api/admin/rbac/users` | Admin | Users with group matrix |
+
+## Data Flow
+
+### Request Authorization (<1ms)
+```
+Oathkeeper → cookie_session(Kratos) → remote_json(OPA) → allow/deny
+```
+
+### RBAC Change Propagation (<100ms)
+```
+Admin → Jinbe API → Redis → POST OPAL server → WebSocket push → all OPA replicas
+```
+
+### Oathkeeper Rule Updates (~30s)
+```
+Admin creates service → Jinbe writes to Redis → Oathkeeper polls HTTP endpoint
+```
+
+## Configuration Reference
+
+### Global
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `global.domain` | Base domain | `example.com` |
-| `global.authDomain` | Auth domain | `auth.example.com` |
-| `global.appDomain` | App domain | `app.example.com` |
+| `global.authDomain` | Auth domain override | `auth.{domain}` |
+| `global.appDomain` | App domain override | `app.{domain}` |
 | `global.vault.enabled` | Enable Vault injection | `false` |
-| `global.vault.address` | Vault server address | `http://vault.vault:8200` |
-| `global.vault.role` | Vault role | `""` |
-| `global.vault.envFromPath` | Vault secret path | `""` |
-| `kratos.enabled` | Deploy Kratos | `true` |
-| `oathkeeper.enabled` | Deploy Oathkeeper | `true` |
-| `oathkeeper.externalAccessRulesConfigMap` | External ConfigMap for access rules | `""` |
+
+### Jinbe
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `jinbe.enabled` | Deploy Jinbe | `true` |
+| `jinbe.image.repository` | Image | `ghcr.io/w6d-io/jinbe-api` |
+| `jinbe.image.tag` | Tag | `appVersion` |
+| `jinbe.service.port` | Service port | `8080` |
+| `jinbe.env.ENCRYPTION_KEY` | **Required** — encryption key | — |
+| `jinbe.env.NODE_ENV` | Environment | `production` |
+| `jinbe.env.CORS_ORIGIN` | CORS allowlist | Auto-computed |
+| `jinbe.env.REDIS_URL` | Redis URL | Auto-computed |
+| `jinbe.extraEnv` | Additional env vars (map) | `{}` |
+| `jinbe.podAnnotations` | Pod annotations (Vault, etc.) | `{}` |
+
+### Redis
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `redis.enabled` | Deploy Redis | `true` |
+| `redis.architecture` | Standalone or replication | `standalone` |
+| `redis.auth.enabled` | Require password | `false` |
+| `redis.master.persistence.size` | Storage | `1Gi` |
+
+### OPAL
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
 | `opal.enabled` | Deploy OPAL | `true` |
-| `opalStatic.enabled` | Deploy OPAL-static | `true` |
-| `opalStatic.externalConfigMap` | External ConfigMap for static data | `""` |
-| `opalStatic.replicaCount` | OPAL-static replicas | `1` |
-| `webhook.enabled` | Deploy webhook | `false` |
-| `webhook.domainPattern` | Allowed email domains regex | `^.*@example\\.com$` |
-| `kratosLoginUi.enabled` | Deploy login UI | `true` |
-| `postgresql.enabled` | Deploy PostgreSQL | `false` |
+| `opal.server.policyRepoUrl` | **Required** — Git repo with rego | — |
+| `opal.server.pollingInterval` | Git poll interval | `30` |
+| `opal.server.broadcastPgsql` | Use PostgreSQL for broadcast | `false` |
+
+### Oathkeeper
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `oathkeeper.enabled` | Deploy Oathkeeper | `true` |
+| `oathkeeper.ingress.proxy.enabled` | Expose via ingress | `false` |
+
+### Kratos
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `kratos.enabled` | Deploy Kratos | `true` |
+| `kratos.kratos.config.dsn` | **Required** — PostgreSQL DSN | — |
+
+## Vault Integration
+
+Add Vault annotations to inject secrets:
+
+```yaml
+jinbe:
+  podAnnotations:
+    vault.security.banzaicloud.io/vault-addr: "http://vault.vault:8200"
+    vault.security.banzaicloud.io/vault-role: "auth"
+    vault.security.banzaicloud.io/vault-env-from-path: "infra/data/auth"
+  env:
+    ENCRYPTION_KEY: "vault:infra/data/auth#ENCRYPTION_KEY"
+```
+
+## Adding a New Service
+
+```bash
+# Via Jinbe API (creates roles + route_map + Oathkeeper rule)
+curl -X POST https://app.mycompany.com/api/admin/rbac/services \
+  -H "Cookie: ory_kratos_session=..." \
+  -d '{"name": "myapp", "upstreamUrl": "http://myapp:8080"}'
+```
+
+This auto-creates:
+- Default roles (admin, operator, editor, viewer) with `resource:action` permissions
+- Health endpoint in route map
+- Oathkeeper access rule (cookie_session + remote_json)
+- Adds default roles to standard groups

@@ -1,0 +1,105 @@
+{{- if .Values.jinbe.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.jinbe.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.jinbe.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.jinbe.labels" . | nindent 8 }}
+      {{- with .Values.jinbe.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+        - name: jinbe
+          image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: {{ .Values.jinbe.env.NODE_ENV | default "production" | quote }}
+            - name: PORT
+              value: "3000"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: APP_NAME
+              value: {{ .Values.jinbe.env.APP_NAME | default "jinbe" | quote }}
+            - name: REDIS_URL
+              value: {{ .Values.jinbe.env.REDIS_URL | default (printf "redis://%s-redis-master:6379" .Release.Name) | quote }}
+            - name: KRATOS_PUBLIC_URL
+              value: {{ .Values.jinbe.env.KRATOS_PUBLIC_URL | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
+            - name: KRATOS_ADMIN_URL
+              value: {{ .Values.jinbe.env.KRATOS_ADMIN_URL | default (printf "http://%s-kratos-admin:80" .Release.Name) | quote }}
+            - name: OPA_URL
+              value: {{ .Values.jinbe.env.OPA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+            - name: OPAL_SERVER_URL
+              value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
+            - name: JINBE_INTERNAL_URL
+              value: {{ .Values.jinbe.env.JINBE_INTERNAL_URL | default (printf "http://%s:%s" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString)) | quote }}
+            - name: OPAL_RBAC_BRANCH
+              value: {{ .Values.jinbe.env.OPAL_RBAC_BRANCH | default "develop" | quote }}
+            - name: OPA_DATA_URL
+              value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+            - name: CORS_ORIGIN
+              value: {{ .Values.jinbe.env.CORS_ORIGIN | default (printf "https://%s,https://%s" (include "auth.appDomain" .) (include "auth.authDomain" .)) | quote }}
+            - name: ENCRYPTION_KEY
+              value: {{ required "jinbe.env.ENCRYPTION_KEY is required" .Values.jinbe.env.ENCRYPTION_KEY | quote }}
+            - name: ENABLE_SWAGGER
+              value: {{ .Values.jinbe.env.ENABLE_SWAGGER | default "false" | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.jinbe.env.LOG_LEVEL | default "info" | quote }}
+            {{- if .Values.jinbe.env.DATABASE_URL }}
+            - name: DATABASE_URL
+              value: {{ .Values.jinbe.env.DATABASE_URL | quote }}
+            {{- end }}
+            - name: AUTH_DOMAIN
+              value: {{ .Values.jinbe.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
+            - name: APP_DOMAIN
+              value: {{ .Values.jinbe.env.APP_DOMAIN | default (include "auth.appDomain" .) | quote }}
+            - name: API_DOMAIN
+              value: {{ .Values.jinbe.env.API_DOMAIN | default (include "auth.appDomain" .) | quote }}
+            {{- if .Values.jinbe.env.ADMIN_EMAIL }}
+            - name: ADMIN_EMAIL
+              value: {{ .Values.jinbe.env.ADMIN_EMAIL | quote }}
+            {{- end }}
+            {{- if .Values.jinbe.env.ADMIN_PASSWORD }}
+            - name: ADMIN_PASSWORD
+              value: {{ .Values.jinbe.env.ADMIN_PASSWORD | quote }}
+            {{- end }}
+            {{- if .Values.jinbe.env.ADMIN_NAME }}
+            - name: ADMIN_NAME
+              value: {{ .Values.jinbe.env.ADMIN_NAME | quote }}
+            {{- end }}
+            {{- range $name, $value := .Values.jinbe.extraEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          {{- with .Values.jinbe.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
