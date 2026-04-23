@@ -1,0 +1,17 @@
+{{- if .Values.jinbe.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.jinbe.service.type }}
+  ports:
+    - port: {{ .Values.jinbe.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "auth.jinbe.selectorLabels" . | nindent 4 }}
+{{- end }}

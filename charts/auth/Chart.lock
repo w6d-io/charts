@@ -8,5 +8,8 @@ dependencies:
 - name: opal
   repository: file://charts/opal
   version: 0.0.29
-digest: sha256:938fc2ed9f71004b1e15e6ef0f3ea45253013cf81686675bc0622cae55b42f17
-generated: "2026-04-16T18:26:30.501276664+02:00"
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 19.6.4
+digest: sha256:76c3b5a174d4d0d97213dcfd45a8a34f725426f8df2510dead4364de1fbf99fb
+generated: "2026-04-21T16:02:05.187596784+02:00"
