@@ -51,38 +51,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-OPAL-static fullname
-*/}}
-{{- define "auth.opalStatic.fullname" -}}
-{{- printf "%s-opal-static" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-OPAL-static selector labels
-*/}}
-{{- define "auth.opalStatic.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "auth.name" . }}-opal-static
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: opal-static
-{{- end }}
-
-{{/*
-Webhook fullname
-*/}}
-{{- define "auth.webhook.fullname" -}}
-{{- printf "%s-webhook" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Webhook selector labels
-*/}}
-{{- define "auth.webhook.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "auth.name" . }}-webhook
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: webhook
-{{- end }}
-
-{{/*
 Access rules ConfigMap name
 */}}
 {{- define "auth.accessRules.configMapName" -}}
@@ -91,24 +59,6 @@ Access rules ConfigMap name
 {{- else -}}
 {{- printf "%s-access-rules" (include "auth.fullname" .) }}
 {{- end -}}
-{{- end }}
-
-{{/*
-OPAL static data ConfigMap name
-*/}}
-{{- define "auth.opalStatic.configMapName" -}}
-{{- if .Values.opalStatic.externalConfigMap -}}
-{{- .Values.opalStatic.externalConfigMap }}
-{{- else -}}
-{{- printf "%s-opal-static-data" (include "auth.fullname" .) }}
-{{- end -}}
-{{- end }}
-
-{{/*
-Webhook ConfigMap name
-*/}}
-{{- define "auth.webhook.configMapName" -}}
-{{- printf "%s-webhook-config" (include "auth.fullname" .) }}
 {{- end }}
 
 {{/*
@@ -163,4 +113,43 @@ Kratos Login UI image
 {{- define "auth.kratosLoginUi.image" -}}
 {{- $tag := .Values.kratosLoginUi.image.tag | default .Chart.AppVersion -}}
 {{- printf "%s:%s" .Values.kratosLoginUi.image.repository $tag }}
+{{- end }}
+
+{{/*
+Jinbe fullname
+*/}}
+{{- define "auth.jinbe.fullname" -}}
+{{- printf "%s-jinbe" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Jinbe labels
+*/}}
+{{- define "auth.jinbe.labels" -}}
+{{ include "auth.jinbe.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ include "auth.chart" . }}
+{{- end }}
+
+{{/*
+Jinbe selector labels
+*/}}
+{{- define "auth.jinbe.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "auth.name" . }}-jinbe
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: jinbe
+{{- end }}
+
+{{/*
+Auth domain
+*/}}
+{{- define "auth.authDomain" -}}
+{{- printf "%s" (.Values.global.authDomain | default (printf "auth.%s" .Values.global.domain)) }}
+{{- end }}
+
+{{/*
+App domain
+*/}}
+{{- define "auth.appDomain" -}}
+{{- printf "%s" (.Values.global.appDomain | default (printf "app.%s" .Values.global.domain)) }}
 {{- end }}

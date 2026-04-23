@@ -1,8 +1,8 @@
 apiVersion: v2
 name: auth
-description: Complete authentication stack with Kratos, Oathkeeper, OPAL, and OPAL-static
+description: Complete authentication stack with Kratos, Oathkeeper, OPAL, Jinbe, and Redis
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "1.0.0"
 keywords:
   - auth
@@ -10,6 +10,8 @@ keywords:
   - oathkeeper
   - opal
   - opa
+  - jinbe
+  - redis
   - identity
   - authorization
 home: https://github.com/w6d-io/charts
@@ -39,3 +41,9 @@ dependencies:
     version: "0.0.29"
     repository: "file://charts/opal"
     condition: opal.enabled
+
+  # Redis - Data Store for Jinbe RBAC and OPAL broadcast
+  - name: redis
+    version: "~25"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

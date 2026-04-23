@@ -6,10 +6,12 @@
 # Global Configuration
 # =============================================================================
 global:
-  # Replace with your domain
+  # Base domain - all URLs are derived from this
   domain: example.com
-  authDomain: auth.example.com
-  appDomain: app.example.com
+  # Override if auth domain differs from auth.<domain>
+  # authDomain: auth.example.com
+  # Override if app domain differs from app.<domain>
+  # appDomain: app.example.com
   imagePullSecrets: []
 
   # Vault configuration (Banzai Cloud) - annotations auto-injected when enabled
@@ -44,15 +46,16 @@ kratos:
   kratos:
     automountServiceAccountToken: true
     config:
-      # Database connection - set via environment or Vault
-      dsn: postgresql://user:password@localhost:5432/kratos?sslmode=disable
+      # Database connection — override in env overlay or use Vault
+      # Default uses bundled simple postgresql (auto-computed at deploy time via --set)
+      dsn: postgresql://kratos:kratos@RELEASE-auth-postgresql:5432/kratos?sslmode=disable
       secrets:
         default:
           - changeme-default-secret
         cookie:
           - changeme-cookie-secret
         cipher:
-          - changeme-cipher-secret-32bytes
+          - changeme-this-cipher-secret-32ch
       identity:
         default_schema_id: default
         schemas:
@@ -149,36 +152,26 @@ kratos:
 # =============================================================================
 # Oathkeeper - API Gateway (Ory)
 # =============================================================================
+# helmTemplatedConfigEnabled allows {{ .Release.Name }} in oathkeeper.config.
+# The tpl runs in the SUBCHART context, so only .Release.Name/.Namespace are
+# available -- parent-chart includes and .Values are NOT accessible.
+# Oathkeeper's own Go template syntax ({{ .Subject }}, etc.) is escaped with
+# {{ "{{" }} ... {{ "}}" }} to survive the tpl pass.
 oathkeeper:
   enabled: true
 
-  ingress:
-    proxy:
-      enabled: true
-      className: ""
-      annotations: {}
-      hosts:
-        - host: auth.example.com
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: app.example.com
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-      tls: []
-
   oathkeeper:
+    helmTemplatedConfigEnabled: true
     config:
       access_rules:
-        matching_strategy: glob
+        matching_strategy: regexp
         repositories:
-          - file:///etc/rules/access-rules.json
+          - 'http://{{ .Release.Name }}-jinbe:8080/api/oathkeeper/rules'
       authenticators:
         cookie_session:
           enabled: true
           config:
-            check_session_url: http://kratos:4433/sessions/whoami
+            check_session_url: 'http://{{ .Release.Name }}-kratos-public:80/sessions/whoami'
             preserve_path: true
             extra_from: "@this"
             subject_from: "identity.id"
@@ -192,15 +185,15 @@ oathkeeper:
         remote_json:
           enabled: true
           config:
-            remote: http://opa-authz-proxy:8080/v1/data/rbac/allow
+            remote: 'http://{{ .Release.Name }}-opa-authz-proxy:8080/v1/data/rbac/allow'
             payload: |
               {
                 "input": {
-                  "sub": "{{ print .Subject }}",
-                  "email": "{{ index .Extra.identity.traits "email" }}",
-                  "groups": {{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "groups" }}{{ toJson (index $mp "groups") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }},
-                  "object": "{{ .MatchContext.URL.Path }}",
-                  "action": "{{ .MatchContext.Method }}"
+                  "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
+                  "email": "{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}",
+                  "groups": {{ "{{" }} $mp := index .Extra.identity "metadata_public" {{ "}}" }}{{ "{{" }} if $mp {{ "}}" }}{{ "{{" }} if index $mp "groups" {{ "}}" }}{{ "{{" }} toJson (index $mp "groups") {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }},
+                  "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
+                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
                 }
               }
       mutators:
@@ -210,9 +203,9 @@ oathkeeper:
           enabled: true
           config:
             headers:
-              X-User-Id: '{{ print .Subject }}'
-              X-User-Email: '{{ index .Extra.identity.traits "email" }}'
-              X-User-Groups: '{{ $mp := index .Extra.identity "metadata_public" }}{{ if $mp }}{{ if index $mp "groups" }}{{ toJson (index $mp "groups") }}{{ else }}[]{{ end }}{{ else }}[]{{ end }}'
+              X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
+              X-User-Email: '{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}'
+              X-User-Groups: '{{ "{{" }} $mp := index .Extra.identity "metadata_public" {{ "}}" }}{{ "{{" }} if $mp {{ "}}" }}{{ "{{" }} if index $mp "groups" {{ "}}" }}{{ "{{" }} toJson (index $mp "groups") {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}'
       errors:
         fallback: [redirect, json]
         handlers:
@@ -230,10 +223,26 @@ oathkeeper:
             config:
               verbose: false
 
-  # Access rules - provide inline JSON or use externalAccessRulesConfigMap
-  # If externalAccessRulesConfigMap is set, accessRules is ignored
+  ingress:
+    proxy:
+      enabled: true
+      className: ""
+      annotations: {}
+      hosts:
+        - host: auth.example.com
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: app.example.com
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls: []
+
+  # Access rules - now served by Jinbe HTTP endpoint
+  # If you still need a static ConfigMap fallback, provide inline JSON here
   # externalAccessRulesConfigMap: "my-access-rules-configmap"
-  accessRules: ""  # Provide access rules JSON or use external ConfigMap
+  accessRules: ""
 
 # =============================================================================
 # OPAL - Policy Administration (Permit.io)
@@ -243,56 +252,95 @@ opal:
 
   server:
     port: 7002
-    policyRepoUrl: ""  # Set your policy repository URL
+    policyRepoUrl: "https://github.com/w6d-io/policies.git"  # Default W6D RBAC policy
     policyRepoMainBranch: "main"
     pollingInterval: 30
     broadcastPgsql: false
+    broadcastUri: ""  # Auto: redis://{release}-redis-master:6379 (set in env overlay)
     replicas: 1
-    # OPAL_DATA_CONFIG_SOURCES should be overridable in env
-    # dataConfigSources:
-      # config:
-      #   entries:
-      #     - url: http://opal-static/bindings.json
-      #       topics: ["policy_data"]
-      #       dst_path: "/bindings"
-      #     - url: http://opal-static/roles.json
-      #       topics: ["policy_data"]
-      #       dst_path: "/roles"
+    # OPAL fetches RBAC data from Jinbe (external data source)
+    dataConfigSources:
+      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/develop/opal-datasource
+      # Override in environment-specific values with actual Jinbe URL
 
   client:
     port: 7000
     opaPort: 8181
     replicas: 1
-    serverUrl: "http://opal-server:7002"
+    # NOTE: Must be overridden per-release since OPAL subchart doesn't support tpl
+    # Use: --set opal.client.serverUrl=http://{release}-opal-server:7002
+    serverUrl: ""  # Auto-computed by OPAL subchart if empty
 
 # =============================================================================
-# OPAL-Static - Nginx serving static policy data
+# Jinbe - RBAC API & OPA Bundle Server
 # =============================================================================
-opalStatic:
+jinbe:
   enabled: true
   replicaCount: 1
 
   image:
-    repository: nginx
-    tag: alpine
+    repository: ghcr.io/w6d-io/jinbe-api
+    tag: ""
     pullPolicy: IfNotPresent
 
   service:
     type: ClusterIP
-    port: 80
+    port: 8080
+
+  # Environment variables for Jinbe
+  # Service URLs default to release-prefixed Kubernetes service names
+  env:
+    NODE_ENV: production
+    APP_NAME: jinbe
+    ENCRYPTION_KEY: ""  # REQUIRED - set in environment-specific values or Vault
+    # REDIS_URL: auto-computed as redis://<release>-redis-master:6379
+    # KRATOS_PUBLIC_URL: auto-computed as http://<release>-kratos-public:80
+    # KRATOS_ADMIN_URL: auto-computed as http://<release>-kratos-admin:80
+    # OPA_URL: auto-computed as http://<release>-opal-client:8181
+    # OPAL_SERVER_URL: auto-computed as http://<release>-opal-server:7002
+    # JINBE_INTERNAL_URL: auto-computed as http://<release>-jinbe:8080
+    # OPAL_RBAC_BRANCH: develop
+    # OPA_DATA_URL: auto-computed as http://<release>-opal-client:8181
+    # CORS_ORIGIN: auto-computed from global.appDomain and global.authDomain
+    # ENABLE_SWAGGER: "false"
+    # LOG_LEVEL: info
+    # DATABASE_URL: set if Jinbe needs a database
+    # ADMIN_EMAIL: auto-created on first boot with super_admin access
+    # ADMIN_PASSWORD: password for default admin (default: changeme123!)
+    # ADMIN_NAME: display name for default admin
+
+  # Additional environment variables (map format: NAME: value)
+  extraEnv: {}
+
+  # Pod annotations (e.g., for Vault integration)
+  podAnnotations: {}
 
   resources:
     requests:
-      cpu: 50m
-      memory: 32Mi
-    limits:
       cpu: 100m
-      memory: 64Mi
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
-  # Static data files - provide inline data or use externalConfigMap
-  # If externalConfigMap is set, staticData is ignored
-  # externalConfigMap: "my-opal-static-configmap"
-  staticData: {}  # Map of filename -> content, e.g. { "bindings.json": "..." }
+# =============================================================================
+# Redis - Data Store (Bitnami)
+# =============================================================================
+redis:
+  enabled: true
+  architecture: standalone
+  image:
+    registry: ""
+    repository: ghcr.io/w6d-io/redis
+    tag: "8.2.2"
+  auth:
+    enabled: false
+  global:
+    security:
+      allowInsecureImages: true
+  master:
+    persistence:
+      size: 1Gi
 
 # =============================================================================
 # OPA AuthZ Proxy - Translates OPA decisions into HTTP status codes
@@ -322,34 +370,6 @@ opaAuthzProxy:
       memory: 32Mi
 
 # =============================================================================
-# Webhook - Domain Validation Service (Optional)
-# =============================================================================
-webhook:
-  enabled: false
-  replicaCount: 1
-
-  image:
-    repository: ""  # Set your webhook image
-    tag: ""
-    pullPolicy: IfNotPresent
-
-  service:
-    type: ClusterIP
-    port: 8080
-
-  # Regex pattern for allowed email domains
-  domainPattern: "^.*@example\\.com$"
-  logLevel: "1"
-
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 100m
-      memory: 128Mi
-
-# =============================================================================
 # Kratos Login UI
 # =============================================================================
 kratosLoginUi:
@@ -359,7 +379,7 @@ kratosLoginUi:
   image:
     repository: ghcr.io/w6d-io/kratos-login-ui
     pullPolicy: IfNotPresent
-    tag: ""
+    tag: "0.1.0-alpha.35"
 
   branding:
     appName: "My App"
@@ -433,13 +453,50 @@ kratosLoginUi:
   affinity: {}
 
 # =============================================================================
-# PostgreSQL for Kratos (Bitnami) - Optional
+# PostgreSQL Simple - Lightweight Postgres (official image, no Bitnami)
 # =============================================================================
-postgresql:
-  enabled: false
+# Use this when Bitnami images can't be pulled. Mutually exclusive with postgresql.
+postgresqlSimple:
+  enabled: true  # Set to false if using Bitnami postgresql or external DB
+  image:
+    repository: postgres
+    tag: "16"
   auth:
     username: kratos
+    password: kratos
     database: kratos
-  primary:
-    persistence:
-      size: 1Gi
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# =============================================================================
+# Admin UI (Kuma) - RBAC Management Dashboard
+# =============================================================================
+adminUi:
+  enabled: false  # Enable to deploy the admin dashboard
+  replicaCount: 1
+  image:
+    repository: ""  # Set your admin UI image
+    tag: ""
+    pullPolicy: IfNotPresent
+  env:
+    NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
+    NEXT_PUBLIC_AUTH_URL: ""  # Auto: https://auth.{domain}
+  extraEnv: {}
+  podAnnotations: {}
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
