@@ -1,0 +1,22 @@
+W6D Auth Stack deployed successfully!
+
+Components:
+  - Kratos (Identity):     http://{{ .Release.Name }}-kratos-public:80
+  - Oathkeeper (Gateway):  http://{{ .Release.Name }}-oathkeeper-proxy:4455
+  - Jinbe (RBAC API):      http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}
+  - OPA (Policy Engine):   http://{{ .Release.Name }}-opal-client:8181
+  - Redis (Data Store):    redis://{{ .Release.Name }}-redis-master:6379
+  - Login UI:              http://{{ include "auth.kratosLoginUi.fullname" . }}:80
+{{- if .Values.adminUi.enabled }}
+  - Admin UI (Kuma):       http://{{ include "auth.fullname" . }}-admin-ui:{{ .Values.adminUi.service.port }}
+{{- end }}
+
+Endpoints:
+  - RBAC Admin API:     https://{{ include "auth.appDomain" . }}/api/admin/rbac/
+  - OPA Bundle:         http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}/api/opa/bundle
+  - Oathkeeper Rules:   http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}/api/oathkeeper/rules
+  - Permission Sim:     POST /api/admin/rbac/simulate
+  - Audit Events:       GET /api/admin/audit/events
+
+First visit: Register at https://{{ include "auth.authDomain" . }}/register
+First user gets super_admin access automatically.

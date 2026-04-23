@@ -33,7 +33,7 @@ spec:
               {{- if .Values.opaAuthzProxy.opaUpstreamUrl }}
               value: {{ .Values.opaAuthzProxy.opaUpstreamUrl | quote }}
               {{- else }}
-              value: "http://{{ .Release.Name }}-opal-client:{{ .Values.opal.client.opaPort }}"
+              value: "http://{{ .Release.Name }}-opal-client:{{ .Values.opal.client.opaPort | default 8181 }}"
               {{- end }}
             - name: LISTEN_ADDR
               value: ":8080"
