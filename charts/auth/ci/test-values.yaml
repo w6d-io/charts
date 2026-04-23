@@ -1,15 +1,9 @@
 # CI test values - disable components that need external dependencies
 # Chart-testing (ct) automatically uses files in ci/ folder
 
+# Jinbe disabled in CI — image is private (ECR). CI validates templates via helm lint.
 jinbe:
-  enabled: true
-  image:
-    repository: ghcr.io/w6d-io/jinbe-api
-    tag: latest
-  env:
-    ENCRYPTION_KEY: test-encryption-key-minimum-32-characters
-    NODE_ENV: test
-    DEV_BYPASS_AUTH: "true"
+  enabled: false
 
 redis:
   enabled: true
