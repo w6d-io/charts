@@ -191,7 +191,6 @@ oathkeeper:
                 "input": {
                   "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
                   "email": "{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}",
-                  "groups": {{ "{{" }} $mp := index .Extra.identity "metadata_public" {{ "}}" }}{{ "{{" }} if $mp {{ "}}" }}{{ "{{" }} if index $mp "groups" {{ "}}" }}{{ "{{" }} toJson (index $mp "groups") {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }},
                   "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
                   "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
                 }
@@ -205,7 +204,6 @@ oathkeeper:
             headers:
               X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
               X-User-Email: '{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}'
-              X-User-Groups: '{{ "{{" }} $mp := index .Extra.identity "metadata_public" {{ "}}" }}{{ "{{" }} if $mp {{ "}}" }}{{ "{{" }} if index $mp "groups" {{ "}}" }}{{ "{{" }} toJson (index $mp "groups") {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}'
       errors:
         fallback: [redirect, json]
         handlers:
