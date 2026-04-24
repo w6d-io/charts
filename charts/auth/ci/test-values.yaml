@@ -5,18 +5,10 @@
 jinbe:
   enabled: false
 
+# Redis 8 requires io_uring (blocked by Kind seccomp). Disabled in CI install test.
+# Lint + template validation still covers Redis config. Production uses EKS (io_uring allowed).
 redis:
-  enabled: true
-  architecture: standalone
-  image:
-    registry: ghcr.io
-    repository: w6d-io/redis
-    tag: 8.2.2
-  auth:
-    enabled: false
-  master:
-    persistence:
-      enabled: false
+  enabled: false
 
 opal:
   enabled: false  # Skip in CI
