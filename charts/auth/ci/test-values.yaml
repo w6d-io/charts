@@ -5,10 +5,31 @@
 jinbe:
   enabled: false
 
-# Redis 8 requires io_uring (blocked by Kind seccomp). Disabled in CI install test.
-# Lint + template validation still covers Redis config. Production uses EKS (io_uring allowed).
+# Use official Redis 7 in CI (Redis 8/Bitnami needs io_uring, blocked by Kind seccomp)
 redis:
-  enabled: false
+  enabled: true
+  architecture: standalone
+  image:
+    registry: docker.io
+    repository: redis
+    tag: "7-alpine"
+  auth:
+    enabled: false
+  master:
+    command: ["redis-server"]
+    args: ["--port", "6379", "--bind", "0.0.0.0", "--save", ""]
+    persistence:
+      enabled: false
+    customLivenessProbe:
+      exec:
+        command: ["redis-cli", "ping"]
+      initialDelaySeconds: 5
+      periodSeconds: 5
+    customReadinessProbe:
+      exec:
+        command: ["redis-cli", "ping"]
+      initialDelaySeconds: 5
+      periodSeconds: 5
 
 opal:
   enabled: false  # Skip in CI
