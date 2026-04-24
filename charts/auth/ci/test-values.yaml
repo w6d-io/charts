@@ -9,21 +9,12 @@ redis:
   enabled: true
   architecture: standalone
   image:
-    registry: ""
-    repository: ghcr.io/w6d-io/redis
+    registry: ghcr.io
+    repository: w6d-io/redis
     tag: 8.2.2
   auth:
     enabled: false
-  global:
-    security:
-      allowInsecureImages: true
   master:
-    podSecurityContext:
-      seccompProfile:
-        type: Unconfined
-    containerSecurityContext:
-      seccompProfile:
-        type: Unconfined
     persistence:
       enabled: false
 
