@@ -2,7 +2,7 @@ apiVersion: v2
 name: auth
 description: Complete authentication stack with Kratos, Oathkeeper, OPAL, Jinbe, and Redis
 type: application
-version: 0.3.0
+version: 0.4.2
 appVersion: "1.0.0"
 keywords:
   - auth
@@ -44,6 +44,6 @@ dependencies:
 
   # Redis - Data Store for Jinbe RBAC and OPAL broadcast
   - name: redis
-    version: "~25"
+    version: "~19"
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled

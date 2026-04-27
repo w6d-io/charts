@@ -1,0 +1,73 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "auth.fullname" . }}-backup
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "auth.labels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "auth.fullname" . }}-backup
+          {{- with (default .Values.global.imagePullSecrets .Values.backup.imagePullSecrets) }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: backup
+              image: {{ .Values.backup.image | default "public.ecr.aws/aws-cli/aws-cli:latest" | quote }}
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: JINBE_URL
+                  value: {{ printf "http://%s:%s" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString) | quote }}
+                - name: S3_BUCKET
+                  value: {{ required "backup.s3.bucket is required when backup.enabled=true" .Values.backup.s3.bucket | quote }}
+                - name: S3_PREFIX
+                  value: {{ .Values.backup.s3.prefix | default "auth-backup" | quote }}
+                - name: AWS_DEFAULT_REGION
+                  value: {{ .Values.backup.s3.region | default "eu-west-3" | quote }}
+                - name: JINBE_INTERNAL_HOST
+                  value: {{ .Values.backup.internalHostHeader | default (printf "%s:8080" (include "auth.jinbe.fullname" .)) | quote }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+                  echo "[backup] Exporting bundle from ${JINBE_URL}..."
+                  python3 -c "
+                  import urllib.request, sys
+                  req = urllib.request.Request(
+                    '${JINBE_URL}/api/admin/rbac/bundle/export',
+                    headers={'Host': '${JINBE_INTERNAL_HOST}'}
+                  )
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                    data = r.read()
+                  open('/tmp/bundle.json', 'wb').write(data)
+                  print(f'[backup] Exported {len(data)} bytes', file=sys.stderr)
+                  "
+                  echo "[backup] Uploading to s3://${S3_BUCKET}/${S3_PREFIX}/${TIMESTAMP}.json"
+                  aws s3 cp /tmp/bundle.json "s3://${S3_BUCKET}/${S3_PREFIX}/${TIMESTAMP}.json"
+                  aws s3 cp /tmp/bundle.json "s3://${S3_BUCKET}/${S3_PREFIX}/latest.json"
+                  echo "[backup] Done."
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+{{- end }}
