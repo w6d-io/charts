@@ -191,7 +191,6 @@ oathkeeper:
                 "input": {
                   "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
                   "email": "{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}",
-                  "groups": {{ "{{" }} $mp := index .Extra.identity "metadata_public" {{ "}}" }}{{ "{{" }} if $mp {{ "}}" }}{{ "{{" }} if index $mp "groups" {{ "}}" }}{{ "{{" }} toJson (index $mp "groups") {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }},
                   "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
                   "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
                 }
@@ -205,7 +204,6 @@ oathkeeper:
             headers:
               X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
               X-User-Email: '{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}'
-              X-User-Groups: '{{ "{{" }} $mp := index .Extra.identity "metadata_public" {{ "}}" }}{{ "{{" }} if $mp {{ "}}" }}{{ "{{" }} if index $mp "groups" {{ "}}" }}{{ "{{" }} toJson (index $mp "groups") {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}[]{{ "{{" }} end {{ "}}" }}'
       errors:
         fallback: [redirect, json]
         handlers:
@@ -260,7 +258,7 @@ opal:
     replicas: 1
     # OPAL fetches RBAC data from Jinbe (external data source)
     dataConfigSources:
-      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/develop/opal-datasource
+      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/opal-datasource
       # Override in environment-specific values with actual Jinbe URL
 
   client:
@@ -330,14 +328,11 @@ redis:
   enabled: true
   architecture: standalone
   image:
-    registry: ""
-    repository: ghcr.io/w6d-io/redis
+    registry: ghcr.io
+    repository: w6d-io/redis
     tag: "8.2.2"
   auth:
     enabled: false
-  global:
-    security:
-      allowInsecureImages: true
   master:
     persistence:
       size: 1Gi
@@ -393,7 +388,7 @@ kratosLoginUi:
 
   kratos:
     browserUrl: "https://auth.example.com"
-    publicUrl: "http://kratos:4433"
+    publicUrl: ""  # Auto: http://<release>-kratos-public:80
 
   redirects:
     defaultReturnUrl: "https://app.example.com"
@@ -500,3 +495,28 @@ adminUi:
     limits:
       cpu: 200m
       memory: 256Mi
+
+# ─── Scheduled Backup ──────────────────────────────────────────────────────────
+# Exports all RBAC config + identities as a JSON bundle and uploads to S3.
+# Requires an IAM role with s3:PutObject on the target bucket.
+# Use backup.serviceAccount.annotations to attach an IRSA role.
+backup:
+  enabled: false
+  schedule: "0 2 * * *"        # Daily at 02:00 UTC
+  image: ""                     # Default: public.ecr.aws/aws-cli/aws-cli:latest
+  imagePullSecrets: []
+
+  s3:
+    bucket: ""                  # Required when enabled=true
+    prefix: "auth-backup"
+    region: "eu-west-3"
+
+  # Internal Host header sent to Jinbe for auth bypass.
+  # Auto-computed as <release>-jinbe:8080 — only override if Jinbe runs in a different namespace.
+  internalHostHeader: ""
+
+  # For IRSA (EKS pod-level IAM) annotate the ServiceAccount:
+  # serviceAccount.annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
+  serviceAccount:
+    annotations: {}
