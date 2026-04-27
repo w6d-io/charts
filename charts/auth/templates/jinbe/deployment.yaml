@@ -48,6 +48,8 @@ spec:
               value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
             - name: JINBE_INTERNAL_URL
               value: {{ .Values.jinbe.env.JINBE_INTERNAL_URL | default (printf "http://%s:%s" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString)) | quote }}
+            - name: INTERNAL_TRUSTED_HOSTS
+              value: {{ printf "%s:%s,%s" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString) (include "auth.jinbe.fullname" .) | quote }}
             - name: OPAL_RBAC_BRANCH
               value: {{ .Values.jinbe.env.OPAL_RBAC_BRANCH | default "develop" | quote }}
             - name: OPA_DATA_URL
