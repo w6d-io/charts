@@ -388,7 +388,7 @@ kratosLoginUi:
 
   kratos:
     browserUrl: "https://auth.example.com"
-    publicUrl: "http://kratos:4433"
+    publicUrl: ""  # Auto: http://<release>-kratos-public:80
 
   redirects:
     defaultReturnUrl: "https://app.example.com"
@@ -510,6 +510,10 @@ backup:
     bucket: ""                  # Required when enabled=true
     prefix: "auth-backup"
     region: "eu-west-3"
+
+  # Internal Host header sent to Jinbe for auth bypass.
+  # Auto-computed as <release>-jinbe:8080 — only override if Jinbe runs in a different namespace.
+  internalHostHeader: ""
 
   # For IRSA (EKS pod-level IAM) annotate the ServiceAccount:
   # serviceAccount.annotations:

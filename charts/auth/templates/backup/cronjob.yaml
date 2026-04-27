@@ -39,6 +39,8 @@ spec:
                   value: {{ .Values.backup.s3.prefix | default "auth-backup" | quote }}
                 - name: AWS_DEFAULT_REGION
                   value: {{ .Values.backup.s3.region | default "eu-west-3" | quote }}
+                - name: JINBE_INTERNAL_HOST
+                  value: {{ .Values.backup.internalHostHeader | default (printf "%s:8080" (include "auth.jinbe.fullname" .)) | quote }}
               command:
                 - /bin/sh
                 - -c
@@ -50,7 +52,7 @@ spec:
                   import urllib.request, sys
                   req = urllib.request.Request(
                     '${JINBE_URL}/api/admin/rbac/bundle/export',
-                    headers={'Host': 'jinbe.w6d-ops'}
+                    headers={'Host': '${JINBE_INTERNAL_HOST}'}
                   )
                   with urllib.request.urlopen(req, timeout=30) as r:
                     data = r.read()
