@@ -22,6 +22,10 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: admin-ui
           image: "{{ .Values.adminUi.image.repository }}:{{ .Values.adminUi.image.tag | default .Chart.AppVersion }}"
@@ -31,12 +35,8 @@ spec:
               containerPort: {{ .Values.adminUi.containerPort | default 8080 }}
               protocol: TCP
           env:
-            - name: NEXT_PUBLIC_API_URL
-              value: {{ .Values.adminUi.env.NEXT_PUBLIC_API_URL | default (printf "https://%s" (include "auth.appDomain" .)) | quote }}
-            - name: NEXT_PUBLIC_AUTH_URL
-              value: {{ .Values.adminUi.env.NEXT_PUBLIC_AUTH_URL | default (printf "https://%s" (include "auth.authDomain" .)) | quote }}
-            - name: API_BASE_URL
-              value: {{ .Values.adminUi.env.API_BASE_URL | default (printf "https://%s" (include "auth.appDomain" .)) | quote }}
+            - name: API_BASE
+              value: {{ .Values.adminUi.env.API_BASE | default "" | quote }}
             {{- range $name, $value := .Values.adminUi.extraEnv }}
             - name: {{ $name }}
               value: {{ $value | quote }}
