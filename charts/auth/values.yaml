@@ -258,7 +258,7 @@ opal:
     replicas: 1
     # OPAL fetches RBAC data from Jinbe (external data source)
     dataConfigSources:
-      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/develop/opal-datasource
+      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/opal-datasource
       # Override in environment-specific values with actual Jinbe URL
 
   client:
@@ -495,3 +495,24 @@ adminUi:
     limits:
       cpu: 200m
       memory: 256Mi
+
+# ─── Scheduled Backup ──────────────────────────────────────────────────────────
+# Exports all RBAC config + identities as a JSON bundle and uploads to S3.
+# Requires an IAM role with s3:PutObject on the target bucket.
+# Use backup.serviceAccount.annotations to attach an IRSA role.
+backup:
+  enabled: false
+  schedule: "0 2 * * *"        # Daily at 02:00 UTC
+  image: ""                     # Default: public.ecr.aws/aws-cli/aws-cli:latest
+  imagePullSecrets: []
+
+  s3:
+    bucket: ""                  # Required when enabled=true
+    prefix: "auth-backup"
+    region: "eu-west-3"
+
+  # For IRSA (EKS pod-level IAM) annotate the ServiceAccount:
+  # serviceAccount.annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
+  serviceAccount:
+    annotations: {}
