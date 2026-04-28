@@ -276,6 +276,10 @@ jinbe:
   enabled: true
   replicaCount: 1
 
+  serviceAccount:
+    create: true
+    name: ""
+    token: false
   image:
     repository: ghcr.io/w6d-io/jinbe-api
     tag: ""
