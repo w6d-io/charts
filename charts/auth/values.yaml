@@ -202,8 +202,8 @@ oathkeeper:
           enabled: true
           config:
             headers:
-              X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
-              X-User-Email: '{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}'
+              x-user-id: '{{ print .Subject }}'
+              x-user-email: '{{ index .Extra.identity.traits "email" }}'
       errors:
         fallback: [redirect, json]
         handlers:
