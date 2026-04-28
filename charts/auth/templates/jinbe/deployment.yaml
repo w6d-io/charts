@@ -19,6 +19,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- if .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
+      serviceAccountName: {{ include "app.jinbe.serviceAccountName" . }}
+      {{- end }}
       containers:
         - name: jinbe
           image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
