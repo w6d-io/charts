@@ -19,7 +19,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      {{- if .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
+      {{- if and .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
       serviceAccountName: {{ include "auth.jinbe.serviceAccountName" . }}
       {{- end }}
       containers:
