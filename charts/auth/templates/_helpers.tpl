@@ -125,8 +125,8 @@ Jinbe fullname
 {{/*
 Jinbe service account
 */}}
-{{- define "app.jinbe.serviceAccountName" -}}
-{{- replace "." "-" (default (include "app.jinbe.fullname" .) .Values.jinbe.serviceAccount.name) -}}
+{{- define "auth.jinbe.serviceAccountName" -}}
+{{- replace "." "-" (default (include "auth.jinbe.fullname" .) .Values.jinbe.serviceAccount.name) -}}
 {{- end }}
 
 
