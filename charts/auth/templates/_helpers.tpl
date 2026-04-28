@@ -123,6 +123,14 @@ Jinbe fullname
 {{- end }}
 
 {{/*
+Jinbe service account
+*/}}
+{{- define "app.jinbe.serviceAccountName" -}}
+{{- replace "." "-" (default (include "app.jinbe.fullname" .) .Values.jinbe.serviceAccount.name) -}}
+{{- end }}
+
+
+{{/*
 Jinbe labels
 */}}
 {{- define "auth.jinbe.labels" -}}
