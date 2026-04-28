@@ -20,7 +20,7 @@ spec:
       {{- end }}
     spec:
       {{- if .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
-      serviceAccountName: {{ include "app.jinbe.serviceAccountName" . }}
+      serviceAccountName: {{ include "auth.jinbe.serviceAccountName" . }}
       {{- end }}
       containers:
         - name: jinbe
