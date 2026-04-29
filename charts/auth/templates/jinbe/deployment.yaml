@@ -75,6 +75,10 @@ spec:
               value: {{ .Values.jinbe.env.APP_DOMAIN | default (include "auth.appDomain" .) | quote }}
             - name: API_DOMAIN
               value: {{ .Values.jinbe.env.API_DOMAIN | default (include "auth.appDomain" .) | quote }}
+            - name: LOGIN_UI_URL
+              value: {{ .Values.jinbe.env.LOGIN_UI_URL | default (printf "http://%s-kratos-login-ui:80" .Release.Name) | quote }}
+            - name: ADMIN_UI_URL
+              value: {{ .Values.jinbe.env.ADMIN_UI_URL | default (printf "http://%s-admin-ui:80" .Release.Name) | quote }}
             {{- if .Values.jinbe.env.ADMIN_EMAIL }}
             - name: ADMIN_EMAIL
               value: {{ .Values.jinbe.env.ADMIN_EMAIL | quote }}
