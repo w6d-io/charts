@@ -46,16 +46,44 @@ kratos:
   kratos:
     automountServiceAccountToken: true
     config:
-      # Database connection — override in env overlay or use Vault
-      # Default uses bundled simple postgresql (auto-computed at deploy time via --set)
-      dsn: postgresql://kratos:kratos@RELEASE-auth-postgresql:5432/kratos?sslmode=disable
+      # ─── Database (DSN) ───────────────────────────────────────────────────
+      # The chart bundles a simple postgresql StatefulSet (postgresqlSimple)
+      # whose Service is `<release>-postgresql:5432`. The default DSN below
+      # assumes you install with `helm install auth ./auth`, producing service
+      # `auth-postgresql`. Override `kratos.kratos.config.dsn` if your release
+      # name differs OR you point at an external DB.
+      #
+      # Plug-and-play options:
+      #   - Bundled simple postgres (default):
+      #       dsn: postgresql://kratos:kratos@auth-postgresql:5432/kratos?sslmode=disable
+      #
+      #   - SQLite (single-instance, dev or low-traffic; data persists in PVC):
+      #       dsn: sqlite:///var/lib/kratos/kratos.sqlite?_fk=true&mode=rwc
+      #     (also disable postgresqlSimple, mount a PVC at /var/lib/kratos
+      #      via kratos.deployment.extraVolumes/extraVolumeMounts)
+      #     Reference: https://www.ory.sh/docs/hydra/self-hosted/dependencies-environment#sqlite
+      #
+      #   - External Postgres / RDS / Cloud SQL:
+      #       dsn: postgresql://USER:PASS@HOST:5432/DB?sslmode=require
+      #
+      #   - In-memory (state lost on pod restart — testing only):
+      #       dsn: memory
+      dsn: postgresql://kratos:kratos@auth-postgresql:5432/kratos?sslmode=disable
+
+      # ─── Cryptographic secrets ────────────────────────────────────────────
+      # Ory schema constraints:
+      #   default[*]  — min 16 chars
+      #   cookie[*]   — min 16 chars (used to sign session cookies)
+      #   cipher[*]   — exactly 32 chars (XChaCha20-Poly1305 key)
+      # PROD: rotate via vault and pass via Vault sidecar / external secrets.
+      # Examples below are deterministic placeholders, NOT for production use.
       secrets:
         default:
-          - changeme-default-secret
+          - changeme-default-secret-16chars
         cookie:
-          - changeme-cookie-secret
+          - changeme-cookie-secret-16chars0
         cipher:
-          - changeme-this-cipher-secret-32ch
+          - changeme-this-cipher-secret-32cc
       identity:
         default_schema_id: default
         schemas:
@@ -116,8 +144,16 @@ kratos:
           iterations: 2
           salt_length: 16
           key_length: 16
+    # ─── Database migration ───────────────────────────────────────────────
+    # initContainer runs migration inside the Kratos pod before the main
+    # container starts, so it waits for Postgres readiness through normal
+    # Pod lifecycle. The alternative (`type: job`) creates a Helm pre-install
+    # hook that runs BEFORE chart resources, deadlocking fresh installs that
+    # bundle their own postgres (hook waits for DB, DB hasn't been deployed
+    # yet). InitContainer is idempotent and safe for already-migrated DBs.
     automigration:
       enabled: true
+      type: initContainer
 
     # Example identity schemas - customize for your use case
     identitySchemas:
@@ -201,9 +237,13 @@ oathkeeper:
         header:
           enabled: true
           config:
+            # Oathkeeper runtime templates — escaped so helm's tpl pass leaves
+            # them intact for oathkeeper to evaluate per-request. The email
+            # template is nil-safe so requests reaching this rule via the
+            # noop fallback authenticator (no session) don't crash.
             headers:
-              x-user-id: '{{ print .Subject }}'
-              x-user-email: '{{ index .Extra.identity.traits "email" }}'
+              x-user-id: '{{ "{{" }} print .Subject {{ "}}" }}'
+              x-user-email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
       errors:
         fallback: [redirect, json]
         handlers:
@@ -254,7 +294,10 @@ opal:
     policyRepoMainBranch: "main"
     pollingInterval: 30
     broadcastPgsql: false
-    broadcastUri: ""  # Auto: redis://{release}-redis-master:6379 (set in env overlay)
+    broadcastUri: ""  # Required only when uvicornWorkers > 1 — redis://<release>-redis-master:6379
+    # Single worker → no need for inter-worker broadcast bus.
+    # Increase + set broadcastUri when scaling.
+    uvicornWorkers: 1
     replicas: 1
     # OPAL fetches RBAC data from Jinbe (external data source)
     dataConfigSources:
@@ -280,9 +323,15 @@ jinbe:
     create: true
     name: ""
     token: false
+  # Jinbe image — REQUIRED override unless your cluster has a pull secret for
+  # the W6D registry. The default below is private; a public release (e.g.
+  # ghcr.io/w6d-io/jinbe:vX.Y.Z) will be wired in once published.
+  # Override examples:
+  #   --set jinbe.image.repository=<your-registry>/jinbe
+  #   --set jinbe.image.tag=latest
   image:
-    repository: ghcr.io/w6d-io/jinbe-api
-    tag: ""
+    repository: ghcr.io/w6d-io/jinbe
+    tag: ""              # empty → falls back to .Chart.AppVersion
     pullPolicy: IfNotPresent
 
   service:
@@ -301,7 +350,6 @@ jinbe:
     # OPA_URL: auto-computed as http://<release>-opal-client:8181
     # OPAL_SERVER_URL: auto-computed as http://<release>-opal-server:7002
     # JINBE_INTERNAL_URL: auto-computed as http://<release>-jinbe:8080
-    # OPAL_RBAC_BRANCH: develop
     # OPA_DATA_URL: auto-computed as http://<release>-opal-client:8181
     # CORS_ORIGIN: auto-computed from global.appDomain and global.authDomain
     # ENABLE_SWAGGER: "false"
@@ -324,6 +372,34 @@ jinbe:
     limits:
       cpu: 500m
       memory: 512Mi
+
+  # NetworkPolicy — restrict who can reach jinbe Service. Defence in depth:
+  # jinbe authenticates exclusively via Kratos session cookie now (the proxy-
+  # header fallback was removed), but limiting peer connectivity prevents
+  # rogue/compromised pods in the namespace from hitting admin endpoints
+  # without first going through oathkeeper. Allowed peers by default:
+  # oathkeeper, opal-server, opal-client, admin-ui (when enabled).
+  # Set `enabled: false` if your CNI doesn't support NetworkPolicy.
+  networkPolicy:
+    enabled: true
+    # extraIngress: list of NetworkPolicyPeer entries appended to the rule
+    # (e.g. additional namespaceSelector / podSelector). Yaml-merge friendly.
+    extraIngress: []
+
+  # Bootstrap Job — runs `node dist/cli/bootstrap.js` as a Helm post-install /
+  # post-upgrade hook. Idempotent: skipped via Redis marker on subsequent runs.
+  # The Job uses the same image, ServiceAccount, and Vault podAnnotations as
+  # the API Deployment.
+  bootstrap:
+    enabled: true
+    activeDeadlineSeconds: 600
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
 
 # =============================================================================
 # Redis - Data Store (Bitnami)
@@ -372,7 +448,12 @@ opaAuthzProxy:
 # Kratos Login UI
 # =============================================================================
 kratosLoginUi:
-  enabled: true
+  # Disabled by default — the image is not published to a public registry.
+  # To enable, set `kratosLoginUi.enabled: true` and provide a working image
+  # repository (W6D internal: 095...ecr.../infra/frontend/kratos-login-ui/w6d).
+  # The Oathkeeper rule `selfservice-ui` upstream points at this Service —
+  # auth/registration UI flows require this enabled.
+  enabled: false
   replicaCount: 1
 
   image:

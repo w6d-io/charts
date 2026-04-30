@@ -20,3 +20,37 @@ Endpoints:
 
 First visit: Register at https://{{ include "auth.authDomain" . }}/register
 First user gets super_admin access automatically.
+
+──────────────────────────────────────────────────────────────────────
+First-time setup checklist
+──────────────────────────────────────────────────────────────────────
+
+1. Database (Kratos)
+   Default DSN expects the bundled postgresqlSimple Service:
+     postgresql://kratos:kratos@auth-postgresql:5432/kratos
+   If your release name is NOT "auth", override:
+     --set kratos.kratos.config.dsn=postgresql://kratos:kratos@{{ .Release.Name }}-postgresql:5432/kratos?sslmode=disable
+
+   Alternative for dev / single-instance: SQLite (no Postgres pod):
+     --set kratos.kratos.config.dsn='sqlite:///var/lib/kratos/kratos.sqlite?_fk=true&mode=rwc'
+     --set postgresqlSimple.enabled=false
+   (mount a PVC at /var/lib/kratos via kratos.deployment.extraVolumes/extraVolumeMounts)
+   See https://www.ory.sh/docs/hydra/self-hosted/dependencies-environment#sqlite
+
+2. Replace placeholder secrets BEFORE production
+   The defaults under kratos.kratos.config.secrets are NOT secure.
+   Override default[*]/cookie[*] (≥16 chars) and cipher[*] (exactly 32 chars).
+
+3. Set jinbe.env.ENCRYPTION_KEY (≥32 chars)
+   --set jinbe.env.ENCRYPTION_KEY="<random-32-char-string>"
+
+4. Set domains
+   --set global.authDomain=auth.your.com
+   --set global.appDomain=app.your.com
+
+5. Set initial admin (only required on first install — marker absent)
+   --set jinbe.env.ADMIN_EMAIL=admin@your.com
+   --set jinbe.env.ADMIN_PASSWORD="<≥12-char-password>"
+
+The Bootstrap Job (auth-jinbe-bootstrap) runs once per Helm install/upgrade
+and is a no-op on subsequent runs (Redis marker rbac:bootstrap:state).

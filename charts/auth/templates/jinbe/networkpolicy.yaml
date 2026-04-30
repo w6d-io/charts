@@ -1,0 +1,63 @@
+{{- if and .Values.jinbe.enabled .Values.jinbe.networkPolicy.enabled }}
+{{/*
+  NetworkPolicy — restrict ingress to the Jinbe Service so only intended
+  callers can reach it. Without this, any pod in the namespace can hit
+  jinbe directly with arbitrary headers (the proxy-header fallback in
+  identity-extractor was removed, but defence in depth still matters —
+  RBAC mutation endpoints, OPAL data sources, etc. should not be reachable
+  from random workloads).
+
+  Allowed ingress:
+    - Oathkeeper proxy pods         (production traffic on port 8080)
+    - OPAL server pods              (datasource pulls)
+    - OPAL client pods              (data fetch)
+    - kubelet / probes from any pod IP on the node (use a wide rule —
+      probes don't carry pod labels)
+    - Optionally extra peers via .Values.jinbe.networkPolicy.extraIngress
+
+  All egress is allowed (jinbe needs Redis, Kratos, OPAL, OPA, GitHub, etc.).
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "auth.jinbe.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Oathkeeper proxy + api pods (kratos chart standard labels)
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: oathkeeper
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        # OPAL server (calls /api/admin/rbac/opal-datasource etc.)
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opal-server
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        # OPAL client (calls /api/admin/rbac/opal/* and /bindings)
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opal-client
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        # Admin UI (kuma) — proxies API calls to jinbe via oathkeeper, but
+        # keep direct path open for in-namespace SPA backend calls.
+        {{- if .Values.adminUi.enabled }}
+        - podSelector:
+            matchLabels:
+              {{- include "auth.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: admin-ui
+        {{- end }}
+        {{- with .Values.jinbe.networkPolicy.extraIngress }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.jinbe.service.port }}
+{{- end }}

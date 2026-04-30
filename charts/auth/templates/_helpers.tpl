@@ -149,6 +149,101 @@ app.kubernetes.io/component: jinbe
 {{- end }}
 
 {{/*
+Jinbe pod annotations — user-provided values + (when global.vault.enabled) the
+banzai vault injector annotations. Used by both the Deployment and the
+post-install Bootstrap Job so they share an identical Vault scope.
+*/}}
+{{- define "auth.jinbe.podAnnotations" -}}
+{{- with .Values.jinbe.podAnnotations -}}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Jinbe environment variables — runtime + bootstrap-required.
+Included verbatim by templates/jinbe/deployment.yaml and
+templates/jinbe/bootstrap-job.yaml so both pods share a single source of truth.
+
+Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
+`if .Values.jinbe.env.ADMIN_*` — only emitted when explicitly set.
+*/}}
+{{- define "auth.jinbe.env" -}}
+- name: NODE_ENV
+  value: {{ .Values.jinbe.env.NODE_ENV | default "production" | quote }}
+- name: APP_NAME
+  value: {{ .Values.jinbe.env.APP_NAME | default "jinbe" | quote }}
+- name: LOG_LEVEL
+  value: {{ .Values.jinbe.env.LOG_LEVEL | default "info" | quote }}
+- name: RELEASE_NAME
+  value: {{ .Release.Name | quote }}
+- name: APP_VERSION
+  value: {{ .Values.jinbe.image.tag | default .Chart.AppVersion | quote }}
+- name: COMMIT_SHA
+  value: {{ .Values.jinbe.env.COMMIT_SHA | default (.Values.jinbe.image.tag | default .Chart.AppVersion) | quote }}
+- name: REDIS_URL
+  value: {{ .Values.jinbe.env.REDIS_URL | default (printf "redis://%s-redis-master:6379" .Release.Name) | quote }}
+- name: KRATOS_PUBLIC_URL
+  value: {{ .Values.jinbe.env.KRATOS_PUBLIC_URL | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
+- name: KRATOS_ADMIN_URL
+  value: {{ .Values.jinbe.env.KRATOS_ADMIN_URL | default (printf "http://%s-kratos-admin:80" .Release.Name) | quote }}
+- name: JINBE_INTERNAL_URL
+  value: {{ .Values.jinbe.env.JINBE_INTERNAL_URL | default (printf "http://%s:%s" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString)) | quote }}
+- name: AUTH_DOMAIN
+  value: {{ .Values.jinbe.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
+- name: APP_DOMAIN
+  value: {{ .Values.jinbe.env.APP_DOMAIN | default (include "auth.appDomain" .) | quote }}
+- name: API_DOMAIN
+  value: {{ .Values.jinbe.env.API_DOMAIN | default (include "auth.appDomain" .) | quote }}
+- name: LOGIN_UI_URL
+  value: {{ .Values.jinbe.env.LOGIN_UI_URL | default (printf "http://%s-kratos-login-ui:80" .Release.Name) | quote }}
+- name: ADMIN_UI_URL
+  value: {{ .Values.jinbe.env.ADMIN_UI_URL | default (printf "http://%s-admin-ui:80" .Release.Name) | quote }}
+- name: ENCRYPTION_KEY
+  value: {{ required "jinbe.env.ENCRYPTION_KEY is required" .Values.jinbe.env.ENCRYPTION_KEY | quote }}
+{{- if .Values.jinbe.env.ADMIN_EMAIL }}
+- name: ADMIN_EMAIL
+  value: {{ .Values.jinbe.env.ADMIN_EMAIL | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.ADMIN_PASSWORD }}
+- name: ADMIN_PASSWORD
+  value: {{ .Values.jinbe.env.ADMIN_PASSWORD | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.ADMIN_NAME }}
+- name: ADMIN_NAME
+  value: {{ .Values.jinbe.env.ADMIN_NAME | quote }}
+{{- end }}
+{{- range $name, $value := .Values.jinbe.extraEnv }}
+- name: {{ $name }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Jinbe runtime-only env — additions on top of auth.jinbe.env that the
+API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
+*/}}
+{{- define "auth.jinbe.envRuntimeOnly" -}}
+- name: PORT
+  value: "3000"
+- name: HOST
+  value: "0.0.0.0"
+- name: OPA_URL
+  value: {{ .Values.jinbe.env.OPA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+- name: OPAL_SERVER_URL
+  value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
+- name: OPA_DATA_URL
+  value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+- name: CORS_ORIGIN
+  value: {{ .Values.jinbe.env.CORS_ORIGIN | default (printf "https://%s,https://%s" (include "auth.appDomain" .) (include "auth.authDomain" .)) | quote }}
+- name: ENABLE_SWAGGER
+  value: {{ .Values.jinbe.env.ENABLE_SWAGGER | default "false" | quote }}
+{{- if .Values.jinbe.env.DATABASE_URL }}
+- name: DATABASE_URL
+  value: {{ .Values.jinbe.env.DATABASE_URL | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
 Auth domain
 */}}
 {{- define "auth.authDomain" -}}
