@@ -40,45 +40,46 @@ spec:
             - name: http
               containerPort: {{ .Values.kratosLoginUi.service.targetPort }}
               protocol: TCP
+          # Login UI reads runtime config via next-runtime-env (PublicEnvScript).
+          # All client-visible config MUST use NEXT_PUBLIC_ prefix to be injected
+          # at request time. KRATOS_PUBLIC_URL stays server-only (no prefix).
           env:
-            - name: APP_NAME
+            - name: NEXT_PUBLIC_APP_NAME
               value: {{ .Values.kratosLoginUi.branding.appName | quote }}
-            - name: LOGO_URL
+            - name: NEXT_PUBLIC_LOGO_URL
               value: {{ .Values.kratosLoginUi.branding.logoUrl | quote }}
-            - name: FAVICON_URL
+            - name: NEXT_PUBLIC_FAVICON_URL
               value: {{ .Values.kratosLoginUi.branding.faviconUrl | quote }}
-            - name: THEME_PRIMARY_COLOR
+            - name: NEXT_PUBLIC_THEME_PRIMARY_COLOR
               value: {{ .Values.kratosLoginUi.theme.primaryColor | quote }}
-            - name: THEME_DARK_MODE
+            - name: NEXT_PUBLIC_THEME_DARK_MODE
               value: {{ .Values.kratosLoginUi.theme.darkMode | quote }}
-            - name: THEME_BACKGROUND_COLOR
+            - name: NEXT_PUBLIC_THEME_BACKGROUND_COLOR
               value: {{ .Values.kratosLoginUi.theme.backgroundColor | quote }}
-            - name: KRATOS_BROWSER_URL
-              value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
             - name: NEXT_PUBLIC_KRATOS_BROWSER_URL
               value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
             - name: KRATOS_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.kratos.publicUrl | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
-            - name: DEFAULT_RETURN_URL
+            - name: NEXT_PUBLIC_DEFAULT_RETURN_URL
               value: {{ .Values.kratosLoginUi.redirects.defaultReturnUrl | quote }}
-            - name: ALLOWED_RETURN_URLS
+            - name: NEXT_PUBLIC_ALLOWED_RETURN_URLS
               value: {{ .Values.kratosLoginUi.redirects.allowedReturnUrls | quote }}
-            - name: LOGIN_TITLE
+            - name: NEXT_PUBLIC_LOGIN_TITLE
               value: {{ .Values.kratosLoginUi.texts.loginTitle | quote }}
-            - name: LOGIN_SUBTITLE
+            - name: NEXT_PUBLIC_LOGIN_SUBTITLE
               value: {{ .Values.kratosLoginUi.texts.loginSubtitle | quote }}
-            - name: REGISTER_TITLE
+            - name: NEXT_PUBLIC_REGISTER_TITLE
               value: {{ .Values.kratosLoginUi.texts.registerTitle | quote }}
-            - name: REGISTER_SUBTITLE
+            - name: NEXT_PUBLIC_REGISTER_SUBTITLE
               value: {{ .Values.kratosLoginUi.texts.registerSubtitle | quote }}
-            - name: RECOVERY_TITLE
+            - name: NEXT_PUBLIC_RECOVERY_TITLE
               value: {{ .Values.kratosLoginUi.texts.recoveryTitle | quote }}
-            - name: RECOVERY_SUBTITLE
+            - name: NEXT_PUBLIC_RECOVERY_SUBTITLE
               value: {{ .Values.kratosLoginUi.texts.recoverySubtitle | quote }}
-            - name: FOOTER_TEXT
+            - name: NEXT_PUBLIC_FOOTER_TEXT
               value: {{ .Values.kratosLoginUi.footer.text | quote }}
             {{- if .Values.kratosLoginUi.footer.links }}
-            - name: FOOTER_LINKS
+            - name: NEXT_PUBLIC_FOOTER_LINKS
               value: {{ .Values.kratosLoginUi.footer.links | toJson | quote }}
             {{- end }}
           livenessProbe:
