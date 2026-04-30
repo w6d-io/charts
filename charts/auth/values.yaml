@@ -325,6 +325,21 @@ jinbe:
       cpu: 500m
       memory: 512Mi
 
+  # Bootstrap Job — runs `node dist/cli/bootstrap.js` as a Helm post-install /
+  # post-upgrade hook. Idempotent: skipped via Redis marker on subsequent runs.
+  # The Job uses the same image, ServiceAccount, and Vault podAnnotations as
+  # the API Deployment.
+  bootstrap:
+    enabled: true
+    activeDeadlineSeconds: 600
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
 # =============================================================================
 # Redis - Data Store (Bitnami)
 # =============================================================================

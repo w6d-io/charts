@@ -1,0 +1,59 @@
+{{- if and .Values.jinbe.enabled .Values.jinbe.bootstrap.enabled }}
+{{/*
+  Jinbe bootstrap Job — runs `node dist/cli/bootstrap.js` once per Helm
+  install/upgrade.
+
+  Idempotent: the CLI checks the marker key `rbac:bootstrap:state` in Redis
+  and exits 0 immediately if already initialized.
+
+  Stable name (no .Release.Revision) — under ArgoCD, .Release.Revision is
+  always 1 because ArgoCD calls `helm template`, not `helm upgrade`. Using
+  `before-hook-creation` lets Helm delete the prior Job (and pod) right
+  before creating a new one, so each deploy gets a fresh run.
+
+  Kept across success/failure (no `hook-succeeded` policy, no
+  `ttlSecondsAfterFinished`) so logs are inspectable until the next deploy.
+
+  Dual annotations: helm.sh/* for `helm install/upgrade`, argocd.argoproj.io/*
+  for ArgoCD's hook lifecycle. Both are honored in their respective tools.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}-bootstrap
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jinbe-bootstrap
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ .Values.jinbe.bootstrap.activeDeadlineSeconds | default 600 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.jinbe.labels" . | nindent 8 }}
+        app.kubernetes.io/component: jinbe-bootstrap
+      annotations:
+        {{- include "auth.jinbe.podAnnotations" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      {{- if and .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
+      serviceAccountName: {{ include "auth.jinbe.serviceAccountName" . }}
+      {{- end }}
+      containers:
+        - name: bootstrap
+          image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
+          command: ["node", "dist/cli/bootstrap.js"]
+          env:
+            {{- include "auth.jinbe.env" . | nindent 12 }}
+          {{- with .Values.jinbe.bootstrap.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
