@@ -37,6 +37,10 @@ spec:
           env:
             - name: API_BASE
               value: {{ .Values.adminUi.env.API_BASE | default "" | quote }}
+            # AUTH_DOMAIN is substituted into kuma's index.html at container start
+            # (envsubst → window.__AUTH_DOMAIN__). Drives the 401 redirect target.
+            - name: AUTH_DOMAIN
+              value: {{ .Values.adminUi.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
             {{- range $name, $value := .Values.adminUi.extraEnv }}
             - name: {{ $name }}
               value: {{ $value | quote }}

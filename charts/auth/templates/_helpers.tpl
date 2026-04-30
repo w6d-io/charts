@@ -233,8 +233,6 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
   value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
 - name: OPA_DATA_URL
   value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
-- name: INTERNAL_TRUSTED_HOSTS
-  value: {{ printf "%s:%s,%s" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString) (include "auth.jinbe.fullname" .) | quote }}
 - name: CORS_ORIGIN
   value: {{ .Values.jinbe.env.CORS_ORIGIN | default (printf "https://%s,https://%s" (include "auth.appDomain" .) (include "auth.authDomain" .)) | quote }}
 - name: ENABLE_SWAGGER
