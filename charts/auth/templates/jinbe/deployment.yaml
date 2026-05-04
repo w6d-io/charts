@@ -5,6 +5,10 @@ metadata:
   name: {{ include "auth.jinbe.fullname" . }}
   labels:
     {{- include "auth.jinbe.labels" . | nindent 4 }}
+  annotations:
+    # Sync after the bootstrap Job (sync-wave 5). jinbe gates startup on the
+    # bootstrap marker; running this Deployment first would deadlock the sync.
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   replicas: {{ .Values.jinbe.replicaCount }}
   selector:
