@@ -16,6 +16,12 @@
 
   Dual annotations: helm.sh/* for `helm install/upgrade`, argocd.argoproj.io/*
   for ArgoCD's hook lifecycle. Both are honored in their respective tools.
+
+  ArgoCD ordering: `hook: Sync` runs as part of the main Sync phase (not
+  post-Sync) with `sync-wave: "5"`, so it executes BEFORE the jinbe
+  Deployment (sync-wave: "10"). Required because jinbe gates startup on the
+  bootstrap marker — if the Job ran post-Sync, jinbe would never become
+  Ready and Sync would deadlock.
 */}}
 apiVersion: batch/v1
 kind: Job
@@ -28,8 +34,9 @@ metadata:
     helm.sh/hook: post-install,post-upgrade
     helm.sh/hook-weight: "5"
     helm.sh/hook-delete-policy: before-hook-creation
-    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: {{ .Values.jinbe.bootstrap.activeDeadlineSeconds | default 600 }}
