@@ -41,6 +41,15 @@ helm install auth ./charts/auth --values my-values.yaml
 
 First user to register gets `super_admin` access. Done.
 
+> Works with **plain Helm or ArgoCD**. The bootstrap Job runs as a `helm.sh/hook: post-install,post-upgrade` so plug-and-play installs do not need ArgoCD's `sync-wave`. OPAL ordering is enforced by the `wait-for-data-source` initContainer + the OPAL client's bindings-aware startup probe — no Argo dependency.
+
+## Security gates (out of the box)
+
+- **Privilege escalation** — non-super_admin actors cannot grant a group whose mapping confers admin power (global `super_admin` or service `*` role). Backend returns `422 privilege_escalation_blocked`; admin UI disables the checkbox preemptively.
+- **MFA-gated privileged assignment** — a target identity must have a second factor (TOTP / WebAuthn / backup codes) before being added to a system group with admin power. Backend returns `422 mfa_required` with a `hint` field.
+- **AAL2 step-up** — when an identity has TOTP enrolled, Kratos demands `aal2` for sensitive endpoints. The bundled login UI probes `/sessions/whoami` before initialising the flow and forwards `aal=aal2` to Kratos so the second-factor prompt renders instead of looping back through Oathkeeper's redirect.
+- **Single CORS source** — ingress-nginx is the canonical CORS layer. Oathkeeper proxy CORS is disabled and jinbe ships with `DISABLE_CORS=true`. The chart sets `nginx.ingress.kubernetes.io/custom-http-errors: "999"` on the proxy Ingress so 4xx/5xx bodies + CORS headers reach the browser instead of being rewritten by a cluster-wide error backend.
+
 ## Required Values
 
 | Value | Description | Example |

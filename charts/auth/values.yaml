@@ -155,7 +155,12 @@ kratos:
       enabled: true
       type: initContainer
 
-    # Example identity schemas - customize for your use case
+    # Example identity schemas - customize for your use case.
+    # The default schema declares the email trait as the identifier for
+    # password, totp account_name, and webauthn — all three are required
+    # for those flows to attach correctly. Without `totp.account_name`
+    # the QR/secret would have no human-readable label; without
+    # `webauthn.identifier` registering a security key fails.
     identitySchemas:
       person.schema.json: |
         {
@@ -172,7 +177,11 @@ kratos:
                   "format": "email",
                   "title": "Email",
                   "ory.sh/kratos": {
-                    "credentials": { "password": { "identifier": true } },
+                    "credentials": {
+                      "password": { "identifier": true },
+                      "totp": { "account_name": true },
+                      "webauthn": { "identifier": true }
+                    },
                     "verification": { "via": "email" },
                     "recovery": { "via": "email" }
                   }
@@ -199,6 +208,17 @@ oathkeeper:
   oathkeeper:
     helmTemplatedConfigEnabled: true
     config:
+      # CORS is delegated to ingress-nginx via the Ingress annotations
+      # (see oathkeeper.ingress.proxy.annotations below). Ingress-nginx
+      # is the only layer that can attach Access-Control-* headers to
+      # error responses (401/403/500), which oathkeeper's rs/cors
+      # middleware skips. Disabling here avoids duplicate headers from
+      # two layers — browsers reject responses with two
+      # Access-Control-Allow-Origin values.
+      serve:
+        proxy:
+          cors:
+            enabled: false
       access_rules:
         matching_strategy: regexp
         repositories:
@@ -265,7 +285,25 @@ oathkeeper:
     proxy:
       enabled: true
       className: ""
-      annotations: {}
+      # ingress-nginx is the canonical CORS source. Annotations below
+      # cover ALL responses (including 401/403/500) since oathkeeper's
+      # rs/cors-based middleware does not touch error paths.
+      # The custom-http-errors=999 sentinel disables the cluster-wide
+      # custom-http-errors list for THIS Ingress only — without it,
+      # ingress-nginx ConfigMaps that route 4xx/5xx to a default error
+      # backend strip the JSON body and CORS headers, leaving SPA
+      # clients with "Failed to fetch" and no error.code visible.
+      # Override `cors-allow-origin` with the actual origins; defaults
+      # are derived from `global.{authDomain,appDomain}` via the
+      # auth.corsAllowOrigin helper.
+      annotations:
+        nginx.ingress.kubernetes.io/enable-cors: "true"
+        nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+        nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+        nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With"
+        nginx.ingress.kubernetes.io/cors-max-age: "600"
+        nginx.ingress.kubernetes.io/custom-http-errors: "999"
       hosts:
         - host: auth.example.com
           paths:
@@ -378,8 +416,13 @@ jinbe:
     # ADMIN_PASSWORD: password for default admin (default: changeme123!)
     # ADMIN_NAME: display name for default admin
 
-  # Additional environment variables (map format: NAME: value)
-  extraEnv: {}
+  # Additional environment variables (map format: NAME: value).
+  # DISABLE_CORS=true skips Fastify's @fastify/cors plugin since the
+  # ingress-nginx layer is the canonical CORS source for the stack.
+  # Without this flag jinbe and ingress-nginx both emit
+  # Access-Control-* headers and browsers reject the duplicate.
+  extraEnv:
+    DISABLE_CORS: "true"
 
   # Pod annotations (e.g., for Vault integration)
   podAnnotations: {}
