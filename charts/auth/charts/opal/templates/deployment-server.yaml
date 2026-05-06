@@ -7,6 +7,11 @@ metadata:
   name: {{ $nm }}
   labels:
     {{- include "opal.serverLabels" . | nindent 4 }}
+  annotations:
+    # Sync after the data-source publisher (jinbe, sync-wave 10). Without
+    # this, opal-server can boot first, hit a 503 from jinbe, give up, and
+    # leave OPA's bindings empty until a manual rollout restart.
+    argocd.argoproj.io/sync-wave: "11"
 spec:
   replicas: {{ .Values.server.replicas }}
   selector:
@@ -47,8 +52,39 @@ spec:
           emptyDir: {}
       {{- end }}
 
-      {{- if .Values.e2e }}
+      {{- if or .Values.e2e (and .Values.server.waitForDataSource .Values.server.waitForDataSource.enabled) }}
       initContainers:
+        {{- if and .Values.server.waitForDataSource .Values.server.waitForDataSource.enabled }}
+        - name: wait-for-data-source
+          # Polls the external data source URL until it returns a healthy
+          # response, then exits. Prevents opal-server from booting, fetching
+          # an empty dataset, and silently leaving OPA without bindings.
+          # Configured via .Values.server.waitForDataSource.url.
+          image: {{ .Values.server.waitForDataSource.image | default "curlimages/curl:8.10.1" | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              # Fall back to the conventional auth-chart jinbe service when no
+              # URL was passed. Avoids burning maxAttempts*2s on an empty URL
+              # in fresh installs that follow the documented release layout.
+              URL='{{ default (printf "http://%s-jinbe:8080/api/admin/rbac/opal-datasource" .Release.Name) .Values.server.waitForDataSource.url }}'
+              echo "waiting for data source: $URL"
+              attempts=0
+              max={{ .Values.server.waitForDataSource.maxAttempts | default 120 }}
+              until curl --silent --fail --max-time 5 "$URL" > /dev/null; do
+                attempts=$((attempts+1))
+                if [ "$attempts" -ge "$max" ]; then
+                  echo "data source still unreachable after $max attempts — giving up"
+                  exit 1
+                fi
+                echo "  attempt $attempts/$max — sleeping 2s"
+                sleep 2
+              done
+              echo "data source ready"
+        {{- end }}
+        {{- if .Values.e2e }}
         - name: git-init
           image: {{ include "opal.serverImage" . | quote }}
           imagePullPolicy: IfNotPresent
@@ -84,6 +120,7 @@ spec:
               git push
 
               echo ">>>> HEAD: $(git rev-parse --short HEAD) <<<<"
+        {{- end }}
       {{- end }}
       containers:
         - name: opal-server
