@@ -304,6 +304,16 @@ opal:
       external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/opal-datasource
       # Override in environment-specific values with actual Jinbe URL
 
+    # Init container that polls the data publisher (jinbe) until it serves
+    # /api/admin/rbac/opal-datasource. Defends against the failure mode where
+    # opal-server boots first, gets a 503, gives up, and leaves OPA with an
+    # empty bindings dataset until a manual rollout restart.
+    waitForDataSource:
+      enabled: true
+      url: ""  # Required when enabled — set per-release to the jinbe datasource URL
+      image: "curlimages/curl:8.10.1"
+      maxAttempts: 120  # 120 * 2s = 4 minutes total wait
+
   client:
     port: 7000
     opaPort: 8181
@@ -311,6 +321,15 @@ opal:
     # NOTE: Must be overridden per-release since OPAL subchart doesn't support tpl
     # Use: --set opal.client.serverUrl=http://{release}-opal-server:7002
     serverUrl: ""  # Auto-computed by OPAL subchart if empty
+
+    # Block opal-client Ready until OPA has loaded actual RBAC bindings from
+    # the publisher. Without this, the client can be Ready while OPA's
+    # dataset is empty, causing silent 403s for valid super-admin users.
+    requireBindings:
+      enabled: true
+      path: "bindings/group_membership"  # OPA path that must contain at least one '@'
+      failureThreshold: 60               # 60 * 5s = 5 min before pod is killed
+      periodSeconds: 5
 
 # =============================================================================
 # Jinbe - RBAC API & OPA Bundle Server
