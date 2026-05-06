@@ -7,6 +7,10 @@ metadata:
   name: {{ $nm }}
   labels:
     {{- include "opal.clientLabels" . | nindent 4 }}
+  annotations:
+    # Sync after opal-server (sync-wave 11). Client pulls policy + data from
+    # the server, so server must be running first.
+    argocd.argoproj.io/sync-wave: "12"
 spec:
   replicas: {{ .Values.client.replicas }}
   selector:
@@ -110,6 +114,26 @@ spec:
             failureThreshold: 5
             timeoutSeconds: 10
             periodSeconds: 30
+          {{- if and .Values.client.requireBindings .Values.client.requireBindings.enabled }}
+          # Stay NotReady until OPA has actually loaded RBAC bindings from
+          # the data publisher. Catches the silent "OPA empty" failure mode
+          # where opal-server fetched the data sources too early and ended
+          # up with an empty dataset; without this probe, requests would
+          # cross the Service and get 403'd at runtime.
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  body=$(wget -qO- "http://127.0.0.1:{{ .Values.client.opaPort }}/v1/data/{{ .Values.client.requireBindings.path | default "bindings/group_membership" }}")
+                  echo "$body" | grep -q '"result"' || exit 1
+                  echo "$body" | grep -q '@' || exit 1
+            failureThreshold: {{ .Values.client.requireBindings.failureThreshold | default 60 }}
+            periodSeconds: {{ .Values.client.requireBindings.periodSeconds | default 5 }}
+            timeoutSeconds: 5
+          {{- end }}
           {{- if .Values.client.resources }}
           resources:
             {{- toYaml .Values.client.resources | nindent 12 }}
