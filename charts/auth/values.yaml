@@ -303,7 +303,15 @@ oathkeeper:
         nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
         nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With"
         nginx.ingress.kubernetes.io/cors-max-age: "600"
-        nginx.ingress.kubernetes.io/custom-http-errors: "999"
+        # Sentinel HTTP code that the backends will never emit (418 "I'm
+        # a teapot"). ingress-nginx 1.12+ validates this annotation as a
+        # valid HTTP status, so a placeholder like "999" is rejected and
+        # the entire Ingress is dropped from the rendered config. 418
+        # passes validation and replaces the cluster-wide
+        # custom-http-errors list with [418], leaving real 4xx/5xx
+        # responses unmolested so JSON bodies + CORS headers reach the
+        # SPA.
+        nginx.ingress.kubernetes.io/custom-http-errors: "418"
       hosts:
         - host: auth.example.com
           paths:
