@@ -126,10 +126,11 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  set -e
-                  body=$(wget -qO- "http://127.0.0.1:{{ .Values.client.opaPort }}/v1/data/{{ .Values.client.requireBindings.path | default "bindings/group_membership" }}")
-                  echo "$body" | grep -q '"result"' || exit 1
-                  echo "$body" | grep -q '@' || exit 1
+                  # The opal-client image (permitio/opal-client) does not ship
+                  # wget or curl with execute perms; python3 is always present.
+                  # Fail closed if the bindings path returns no '@' character
+                  # (i.e. no email key — empty result map).
+                  python3 -c "import urllib.request,sys; b=urllib.request.urlopen('http://127.0.0.1:{{ .Values.client.opaPort }}/v1/data/{{ .Values.client.requireBindings.path | default "bindings/group_membership" }}',timeout=4).read().decode(); sys.exit(0 if 'result' in b and '@' in b else 1)"
             failureThreshold: {{ .Values.client.requireBindings.failureThreshold | default 60 }}
             periodSeconds: {{ .Values.client.requireBindings.periodSeconds | default 5 }}
             timeoutSeconds: 5
