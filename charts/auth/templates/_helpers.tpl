@@ -233,6 +233,14 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
   value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
 - name: OPA_DATA_URL
   value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+- name: OPA_AUTHZ_REMOTE
+  value: {{ .Values.jinbe.env.OPA_AUTHZ_REMOTE | default (printf "http://%s:%s/v1/data/rbac/allow" (include "auth.opaAuthzProxy.fullname" .) (.Values.opaAuthzProxy.service.port | toString)) | quote }}
+- name: SERVICE_DEFAULT_NAMESPACE
+  value: {{ .Values.jinbe.env.SERVICE_DEFAULT_NAMESPACE | default .Release.Namespace | quote }}
+- name: SERVICE_DEFAULT_DOMAIN
+  value: {{ .Values.jinbe.env.SERVICE_DEFAULT_DOMAIN | default (include "auth.appDomain" .) | quote }}
+- name: SERVICE_DEFAULT_PORT
+  value: {{ .Values.jinbe.env.SERVICE_DEFAULT_PORT | default "8080" | quote }}
 - name: CORS_ORIGIN
   value: {{ .Values.jinbe.env.CORS_ORIGIN | default (printf "https://%s,https://%s" (include "auth.appDomain" .) (include "auth.authDomain" .)) | quote }}
 - name: ENABLE_SWAGGER
@@ -240,6 +248,18 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
 {{- if .Values.jinbe.env.DATABASE_URL }}
 - name: DATABASE_URL
   value: {{ .Values.jinbe.env.DATABASE_URL | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.BACKUP_IMAGE_MONGO }}
+- name: BACKUP_IMAGE_MONGO
+  value: {{ .Values.jinbe.env.BACKUP_IMAGE_MONGO | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.BACKUP_IMAGE_POSTGRES }}
+- name: BACKUP_IMAGE_POSTGRES
+  value: {{ .Values.jinbe.env.BACKUP_IMAGE_POSTGRES | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.BACKUP_GCP_PROJECT_ID }}
+- name: BACKUP_GCP_PROJECT_ID
+  value: {{ .Values.jinbe.env.BACKUP_GCP_PROJECT_ID | quote }}
 {{- end }}
 {{- end }}
 
