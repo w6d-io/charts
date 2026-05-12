@@ -58,7 +58,7 @@ oathkeeper:
   ingress:
     proxy:
       enabled: true
-      className: nginx
+      className: ing-strada
       hosts:
         - host: auth.dev.stradatms.net
           paths:
