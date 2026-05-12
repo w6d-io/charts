@@ -756,7 +756,7 @@ adminUi:
   replicaCount: 1
   image:
     repository: ghcr.io/w6d-io/kuma
-    tag: "2.2.0"
+    tag: "v2.6.0"
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
