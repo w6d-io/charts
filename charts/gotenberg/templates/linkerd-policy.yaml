@@ -1,0 +1,31 @@
+{{- if .Values.linkerd.enabled }}
+{{- $fullname := include "gotenberg.fullname" . -}}
+apiVersion: {{ .Values.linkerd.serverApiVersion }}
+kind: Server
+metadata:
+  name: {{ $fullname }}-server
+  labels:
+    {{- include "gotenberg.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "gotenberg.selectorLabels" . | nindent 6 }}
+  port: {{ .Values.linkerd.port }}
+  proxyProtocol: {{ .Values.linkerd.proxyProtocol }}
+  {{- if and .Values.linkerd.accessPolicy (eq .Values.linkerd.serverApiVersion "policy.linkerd.io/v1beta3") }}
+  accessPolicy: {{ .Values.linkerd.accessPolicy }}
+  {{- end }}
+---
+apiVersion: policy.linkerd.io/v1alpha1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $fullname }}-allow-all
+  labels:
+    {{- include "gotenberg.labels" . | nindent 4 }}
+spec:
+  targetRef:
+    group: policy.linkerd.io
+    kind: Server
+    name: {{ $fullname }}-server
+  requiredAuthenticationRefs: []
+{{- end }}

@@ -1,0 +1,135 @@
+replicaCount: 1
+
+image:
+  repository: gotenberg/gotenberg
+  pullPolicy: IfNotPresent
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+automountServiceAccountToken: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# Gotenberg CLI args. The first element MUST be "gotenberg" (entrypoint).
+args:
+  - gotenberg
+  - --api-port=3000
+  - --api-timeout=60s
+
+# Container port name reused by Service.targetPort, probes and Linkerd Server.
+containerPort: 3000
+
+env:
+  TMPDIR: /tmp/gotenberg
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Gotenberg writes scratch PDFs to /tmp/gotenberg with readOnlyRootFilesystem — mount tmpfs.
+# /home/gotenberg is touched by some converters too.
+volumes:
+  tmp:
+    sizeLimit: 256Mi
+    medium: Memory
+  home:
+    sizeLimit: 64Mi
+
+service:
+  type: ClusterIP
+  port: 3000
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Namespace creation. Leave false when Argo creates the namespace via syncOptions.
+namespace:
+  create: false
+  labels:
+    linkerd.io/inject: enabled
+
+# Linkerd policy. Set serverApiVersion to v1beta1 on Linkerd ≤ 2.14 (qualif on Strada).
+# v1beta3 on edge-25.x / Linkerd ≥ 2.15.
+# accessPolicy=audit matches the Strada fleet convention (observe-only, no enforcement) —
+# AuthorizationPolicy allow-all handles the actual traffic; audit gives L7 visibility.
+# Only meaningful when serverApiVersion is v1beta3+ (the field doesn't exist on v1beta1).
+linkerd:
+  enabled: true
+  serverApiVersion: policy.linkerd.io/v1beta3
+  accessPolicy: audit
+  port: http
+  proxyProtocol: HTTP/1
+
+# NetworkPolicies. Each entry is rendered as a separate object.
+# Defaults are GENERIC (chart-as-library): zero-trust default-deny + DNS egress.
+# Ingress allow rules (which clients can reach Gotenberg) are deployment-specific
+# and MUST be defined per-environment in the consumer values file — see README.
+# To override, redefine the full list (yq merge replaces lists, not concatenates).
+networkPolicies:
+  - name: default-deny
+    podSelector: {}
+    policyTypes: [Ingress, Egress]
+  - name: allow-egress-dns
+    policyTypes: [Egress]
+    egress:
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+            podSelector:
+              matchLabels:
+                k8s-app: kube-dns
+        ports:
+          - port: 53
+            protocol: UDP
+          - port: 53
+            protocol: TCP
