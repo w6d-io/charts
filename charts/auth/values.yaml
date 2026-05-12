@@ -38,6 +38,15 @@ kratos:
       name: kratos
       annotations: {}
     automountServiceAccountToken: true
+    # extraEnv is tpl-rendered by the kratos subchart, so {{ .Release.Name }}
+    # resolves to the actual release at install time. Used here to wire the
+    # DSN against the bundled postgres Service ({release}-postgresql) without
+    # forcing every consumer to copy/paste the DSN into a per-env overlay.
+    # Override the entire entry (or set kratos.kratos.config.dsn) if you point
+    # Kratos at an external database.
+    extraEnv:
+      - name: DSN
+        value: "postgresql://kratos:kratos@{{ .Release.Name }}-postgresql:5432/kratos?sslmode=disable"
 
   ingress:
     public:
@@ -68,7 +77,12 @@ kratos:
       #
       #   - In-memory (state lost on pod restart — testing only):
       #       dsn: memory
-      dsn: postgresql://kratos:kratos@auth-postgresql:5432/kratos?sslmode=disable
+      #
+      # Leave empty here and feed DSN via deployment.extraEnv below so the
+      # release name (which the bundled postgres Service is prefixed with)
+      # is interpolated at install time — keeps the default plug-and-play
+      # regardless of `helm install <whatever> ...`.
+      dsn: ""
 
       # ─── Cryptographic secrets ────────────────────────────────────────────
       # Ory schema constraints:
@@ -375,10 +389,13 @@ opal:
     # Increase + set broadcastUri when scaling.
     uvicornWorkers: 1
     replicas: 1
-    # OPAL fetches RBAC data from Jinbe (external data source)
+    # OPAL fetches RBAC data from Jinbe (external data source). The opal
+    # subchart tpl-renders this value so {{ .Release.Name }} expands at
+    # install time — no per-env override needed for the bundled topology.
+    # Replace with a hard-coded URL only when pointing at an external
+    # publisher.
     dataConfigSources:
-      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/opal-datasource
-      # Override in environment-specific values with actual Jinbe URL
+      external_source_url: "http://{{ .Release.Name }}-jinbe:8080/api/admin/rbac/opal-datasource"
 
     # Init container that polls the data publisher (jinbe) until it serves
     # /api/admin/rbac/opal-datasource. Defends against the failure mode where
@@ -426,7 +443,10 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    tag: ""              # empty → falls back to .Chart.AppVersion (currently v0.5.0)
+    # Image tags carry the `v` prefix (v0.5.0), Chart.appVersion does not
+    # (0.5.0). Hard-pin here so the chart's default install resolves to
+    # an existing tag without relying on the fallback.
+    tag: "v0.5.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -493,12 +513,18 @@ jinbe:
     # (e.g. additional namespaceSelector / podSelector). Yaml-merge friendly.
     extraIngress: []
 
-  # Bootstrap Job — runs `node dist/cli/bootstrap.js` as a Helm post-install /
-  # post-upgrade hook. Idempotent: skipped via Redis marker on subsequent runs.
-  # The Job uses the same image, ServiceAccount, and Vault podAnnotations as
-  # the API Deployment.
+  # Bootstrap — runs `node dist/cli/bootstrap.js` as an initContainer on
+  # every jinbe pod. Idempotent (Redis marker rbac:bootstrap:state); each
+  # pod restart is a fast no-op once the marker exists.
+  #
+  # The initContainer is the canonical bootstrap path: it lets `helm install`
+  # converge without a post-install hook (which would deadlock against
+  # jinbe's readiness gate on the marker). Set standaloneJob: true to also
+  # emit a separate Job manifest — useful when an ArgoCD pipeline wants a
+  # discrete Sync-phase resource for ops visibility.
   bootstrap:
     enabled: true
+    standaloneJob: false
     activeDeadlineSeconds: 600
     resources:
       requests:

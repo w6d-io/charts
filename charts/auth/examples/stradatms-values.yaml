@@ -93,8 +93,13 @@ adminUi:
 
 jinbe:
   env:
-    # Bootstrap a super-admin so the first login lands on a usable dashboard.
-    # Override before going to prod.
-    BOOTSTRAP_SUPER_ADMIN_EMAIL: admin@dev.stradatms.net
+    # Bootstrap a super-admin on first install so the dashboard is reachable
+    # right away. The CLI is idempotent: ADMIN_PASSWORD is consumed once,
+    # then the marker key rbac:bootstrap:state in Redis prevents re-runs.
+    # Rotate the password via Kratos settings flow after first login;
+    # in production replace these literals with Vault references.
+    ADMIN_EMAIL: admin@dev.stradatms.net
+    ADMIN_PASSWORD: changeme-stradatms-poc-2026
+    ADMIN_NAME: StradaTMS Admin
     ENCRYPTION_KEY: changeme-32char-stradatms-poc-aaa
     CORS_ORIGIN: https://kuma.dev.stradatms.net,https://auth.dev.stradatms.net,https://jinbe.dev.stradatms.net,https://dummy.dev.stradatms.net

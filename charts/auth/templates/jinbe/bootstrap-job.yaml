@@ -1,4 +1,16 @@
-{{- if and .Values.jinbe.enabled .Values.jinbe.bootstrap.enabled }}
+{{/*
+  Standalone bootstrap Job — opt-in via jinbe.bootstrap.standaloneJob.
+
+  Disabled by default because the jinbe Deployment now runs the bootstrap
+  CLI as an initContainer, which is plug-and-play for `helm install`
+  (post-install hooks would deadlock against jinbe's readiness gate on
+  the Redis marker).
+
+  Enable for ArgoCD-managed installs that want a discrete Sync-phase
+  Job for ops visibility; the CLI is idempotent so running both paths
+  is safe.
+*/}}
+{{- if and .Values.jinbe.enabled .Values.jinbe.bootstrap.enabled .Values.jinbe.bootstrap.standaloneJob }}
 {{/*
   Jinbe bootstrap Job — runs `node dist/cli/bootstrap.js` once per Helm
   install/upgrade.
