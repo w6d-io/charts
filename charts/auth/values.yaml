@@ -38,6 +38,15 @@ kratos:
       name: kratos
       annotations: {}
     automountServiceAccountToken: true
+    # extraEnv is tpl-rendered by the kratos subchart, so {{ .Release.Name }}
+    # resolves to the actual release at install time. Used here to wire the
+    # DSN against the bundled postgres Service ({release}-postgresql) without
+    # forcing every consumer to copy/paste the DSN into a per-env overlay.
+    # Override the entire entry (or set kratos.kratos.config.dsn) if you point
+    # Kratos at an external database.
+    extraEnv:
+      - name: DSN
+        value: "postgresql://kratos:kratos@{{ .Release.Name }}-postgresql:5432/kratos?sslmode=disable"
 
   ingress:
     public:
@@ -68,7 +77,12 @@ kratos:
       #
       #   - In-memory (state lost on pod restart — testing only):
       #       dsn: memory
-      dsn: postgresql://kratos:kratos@auth-postgresql:5432/kratos?sslmode=disable
+      #
+      # Leave empty here and feed DSN via deployment.extraEnv below so the
+      # release name (which the bundled postgres Service is prefixed with)
+      # is interpolated at install time — keeps the default plug-and-play
+      # regardless of `helm install <whatever> ...`.
+      dsn: ""
 
       # ─── Cryptographic secrets ────────────────────────────────────────────
       # Ory schema constraints:
@@ -102,9 +116,21 @@ kratos:
           domain: example.com
           same_site: Lax
           persistent: true
+        # Keep AAL1 sessions valid for cross-subdomain whoami checks.
+        # Kratos >=0.11 defaults to highest_available, which forces every
+        # session check to demand AAL2 as soon as the user enrols TOTP
+        # or WebAuthn — breaking SSO across tenant subdomains. Step-up
+        # still happens on privileged self-service flows (settings) via
+        # privileged_session_max_age below.
+        whoami:
+          required_aal: aal1
       selfservice:
+        # Wildcard covers every tenant subdomain of {domain}. Kratos
+        # globs are supported since v0.10, and kratos-login-ui's
+        # regex-translated matcher accepts the same pattern.
         allowed_return_urls:
-          - https://app.example.com
+          - https://*.example.com
+          - http://*.example.com
         default_browser_return_url: https://app.example.com
         methods:
           password:
@@ -241,7 +267,19 @@ oathkeeper:
         remote_json:
           enabled: true
           config:
-            remote: 'http://{{ .Release.Name }}-opa-authz-proxy:8080/v1/data/rbac/allow'
+            # /decision returns {allow, groups}. opa-authz-proxy emits
+            # X-User-Groups from the server-side bindings (Redis via OPAL),
+            # which the line below forwards to the upstream. This keeps
+            # Kratos metadata_admin private (it is never exposed through
+            # /sessions/whoami) while still giving upstreams the user's
+            # groups header. Groups in the payload are intentionally
+            # omitted — OPA reads them from data.bindings.group_membership.
+            #
+            # Oathkeeper template syntax is escaped with {{ "{{" }} ... {{ "}}" }}
+            # so it survives the chart's tpl pass (helmTemplatedConfigEnabled
+            # only resolves Helm directives like .Release.Name) and reaches
+            # oathkeeper intact for per-request evaluation.
+            remote: 'http://{{ .Release.Name }}-opa-authz-proxy:8080/v1/data/rbac/decision'
             payload: |
               {
                 "input": {
@@ -251,28 +289,50 @@ oathkeeper:
                   "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
                 }
               }
+            forward_response_headers_to_upstream:
+              - X-User-Groups
       mutators:
         noop:
           enabled: true
         header:
           enabled: true
           config:
-            # Oathkeeper runtime templates — escaped so helm's tpl pass leaves
-            # them intact for oathkeeper to evaluate per-request. The email
-            # template is nil-safe so requests reaching this rule via the
-            # noop fallback authenticator (no session) don't crash.
+            # Header names use canonical case. Go's net/http canonicalizes
+            # them anyway; defining the same header under both X-User-Id
+            # and x-user-id produces a non-deterministic Set() race.
+            # X-User-Groups is intentionally NOT set here — it comes from
+            # the remote_json authorizer (server-side trusted source) via
+            # forward_response_headers_to_upstream. The email template is
+            # nil-safe so requests reaching this rule via the noop fallback
+            # authenticator (no session) don't crash.
             headers:
-              x-user-id: '{{ "{{" }} print .Subject {{ "}}" }}'
-              x-user-email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
+              X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
+              X-User-Email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
       errors:
+        # `unauthorized` (no Kratos session) is the only error that
+        # still triggers a cross-host redirect to the login page —
+        # everything else (`forbidden`, missing route_map match,
+        # rule miss) returns the upstream status and lets
+        # ingress-nginx hand the request over to the in-chart
+        # error-page Service via custom-http-errors. That keeps
+        # `kuma.{domain}/x` showing a 403 page on kuma.{domain}
+        # rather than redirecting to auth.{domain}/login, which
+        # used to cause an AAL2 step-up loop for already-logged-in
+        # users hitting a route they don't have permission for.
         fallback: [redirect, json]
         handlers:
           redirect:
             enabled: true
             config:
-              to: https://auth.example.com/auth/login?return_to=https://app.example.com/
+              # Resolved against global.{domain,authDomain} via the chart's
+              # tpl pass (helmTemplatedConfigEnabled). Oathkeeper appends
+              # the original URL as ?return_to=... when return_to_query_param
+              # is set, so the hard-coded query string from the upstream
+              # chart's example is dropped.
+              to: 'https://{{ default (printf "auth.%s" .Values.global.domain) .Values.global.authDomain }}/login'
+              return_to_query_param: return_to
               when:
-                - error: [unauthorized, forbidden]
+                - error: [unauthorized]
                   request:
                     header:
                       accept: [text/html]
@@ -303,15 +363,21 @@ oathkeeper:
         nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
         nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With"
         nginx.ingress.kubernetes.io/cors-max-age: "600"
-        # Sentinel HTTP code that the backends will never emit (418 "I'm
-        # a teapot"). ingress-nginx 1.12+ validates this annotation as a
-        # valid HTTP status, so a placeholder like "999" is rejected and
-        # the entire Ingress is dropped from the rendered config. 418
-        # passes validation and replaces the cluster-wide
-        # custom-http-errors list with [418], leaving real 4xx/5xx
-        # responses unmolested so JSON bodies + CORS headers reach the
-        # SPA.
-        nginx.ingress.kubernetes.io/custom-http-errors: "418"
+        # Route 401/403/404 to the in-chart error-page Service so the
+        # browser sees a styled HTML page on the SAME host (e.g.
+        # kuma.{domain}/403) instead of being redirected to
+        # auth.{domain}/login for every authz error. 401 only fires
+        # for requests that don't match the redirect handler's
+        # text/html condition (XHR, fetch); HTML navigations still
+        # get the cross-host /login redirect from Oathkeeper above.
+        nginx.ingress.kubernetes.io/custom-http-errors: "401,403,404"
+        # Points at the literal Service name from
+        # templates/error-page/service.yaml. The oathkeeper subchart
+        # ingress template renders annotations with toYaml (no tpl pass),
+        # so this value cannot use {{ .Release.Name }} — the error-page
+        # Service is intentionally named without a release prefix so the
+        # annotation works under any release name.
+        nginx.ingress.kubernetes.io/default-backend: error-page
       hosts:
         - host: auth.example.com
           paths:
@@ -345,10 +411,13 @@ opal:
     # Increase + set broadcastUri when scaling.
     uvicornWorkers: 1
     replicas: 1
-    # OPAL fetches RBAC data from Jinbe (external data source)
+    # OPAL fetches RBAC data from Jinbe (external data source). The opal
+    # subchart tpl-renders this value so {{ .Release.Name }} expands at
+    # install time — no per-env override needed for the bundled topology.
+    # Replace with a hard-coded URL only when pointing at an external
+    # publisher.
     dataConfigSources:
-      external_source_url: ""  # Auto: http://{release}-auth-jinbe:8080/api/admin/rbac/opal-datasource
-      # Override in environment-specific values with actual Jinbe URL
+      external_source_url: "http://{{ .Release.Name }}-jinbe:8080/api/admin/rbac/opal-datasource"
 
     # Init container that polls the data publisher (jinbe) until it serves
     # /api/admin/rbac/opal-datasource. Defends against the failure mode where
@@ -396,7 +465,10 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    tag: ""              # empty → falls back to .Chart.AppVersion
+    # Image tags carry the `v` prefix (v0.5.0), Chart.appVersion does not
+    # (0.5.0). Hard-pin here so the chart's default install resolves to
+    # an existing tag without relying on the fallback.
+    tag: "v0.5.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -416,6 +488,10 @@ jinbe:
     # OPAL_SERVER_URL: auto-computed as http://<release>-opal-server:7002
     # JINBE_INTERNAL_URL: auto-computed as http://<release>-jinbe:8080
     # OPA_DATA_URL: auto-computed as http://<release>-opal-client:8181
+    # OPA_AUTHZ_REMOTE: auto-computed as http://<release>-opa-authz-proxy:<port>/v1/data/rbac/allow
+    # SERVICE_DEFAULT_NAMESPACE: auto-computed as .Release.Namespace
+    # SERVICE_DEFAULT_DOMAIN: auto-computed as the chart's app domain (global.appDomain or app.<global.domain>)
+    # SERVICE_DEFAULT_PORT: 8080
     # CORS_ORIGIN: auto-computed from global.appDomain and global.authDomain
     # ENABLE_SWAGGER: "false"
     # LOG_LEVEL: info
@@ -423,6 +499,9 @@ jinbe:
     # ADMIN_EMAIL: auto-created on first boot with super_admin access
     # ADMIN_PASSWORD: password for default admin (default: changeme123!)
     # ADMIN_NAME: display name for default admin
+    # BACKUP_IMAGE_MONGO / BACKUP_IMAGE_POSTGRES: private-registry images
+    #   for the /backups feature. Unset = backups disabled.
+    # BACKUP_GCP_PROJECT_ID: GCP project ID injected into backup job env
 
   # Additional environment variables (map format: NAME: value).
   # DISABLE_CORS=true skips Fastify's @fastify/cors plugin since the
@@ -456,12 +535,18 @@ jinbe:
     # (e.g. additional namespaceSelector / podSelector). Yaml-merge friendly.
     extraIngress: []
 
-  # Bootstrap Job — runs `node dist/cli/bootstrap.js` as a Helm post-install /
-  # post-upgrade hook. Idempotent: skipped via Redis marker on subsequent runs.
-  # The Job uses the same image, ServiceAccount, and Vault podAnnotations as
-  # the API Deployment.
+  # Bootstrap — runs `node dist/cli/bootstrap.js` as an initContainer on
+  # every jinbe pod. Idempotent (Redis marker rbac:bootstrap:state); each
+  # pod restart is a fast no-op once the marker exists.
+  #
+  # The initContainer is the canonical bootstrap path: it lets `helm install`
+  # converge without a post-install hook (which would deadlock against
+  # jinbe's readiness gate on the marker). Set standaloneJob: true to also
+  # emit a separate Job manifest — useful when an ArgoCD pipeline wants a
+  # discrete Sync-phase resource for ops visibility.
   bootstrap:
     enabled: true
+    standaloneJob: false
     activeDeadlineSeconds: 600
     resources:
       requests:
@@ -496,7 +581,12 @@ opaAuthzProxy:
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
-    tag: "v0.1.0"
+    # v0.3.1 sticks to HTTP 403 on deny (oathkeeper's remote_json
+    # authorizer rejects any other status as an internal error). The
+    # rego's decision.reason still rides along as an `X-Authz-Reason`
+    # response header for upstreams that want to distinguish a
+    # route_map miss from a permission denial.
+    tag: "v0.3.1"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
@@ -518,18 +608,16 @@ opaAuthzProxy:
 # Kratos Login UI
 # =============================================================================
 kratosLoginUi:
-  # Disabled by default — the image is not published to a public registry.
-  # To enable, set `kratosLoginUi.enabled: true` and provide a working image
-  # repository (W6D internal: 095...ecr.../infra/frontend/kratos-login-ui/w6d).
-  # The Oathkeeper rule `selfservice-ui` upstream points at this Service —
-  # auth/registration UI flows require this enabled.
-  enabled: false
+  # Public image at ghcr.io/w6d-io/kratos-login-ui:v0.1.0. Enabled by
+  # default — the Oathkeeper rule `selfservice-ui` upstream points at
+  # this Service, so auth/registration UI flows require it running.
+  enabled: true
   replicaCount: 1
 
   image:
     repository: ghcr.io/w6d-io/kratos-login-ui
     pullPolicy: IfNotPresent
-    tag: "0.1.0-alpha.35"
+    tag: "v0.1.0"
 
   branding:
     appName: "My App"
@@ -626,14 +714,49 @@ postgresqlSimple:
       memory: 512Mi
 
 # =============================================================================
+# Error Page — inline 401/403/404 backend
+# =============================================================================
+# Tiny nginx Service that ingress-nginx points custom-http-errors at.
+# Renders the same-host error pages so a forbidden request to
+# kuma.{domain}/x returns HTML on kuma.{domain} instead of redirecting
+# to auth.{domain}/login. Style is overridable via .branding.
+errorPage:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  branding:
+    appName: ""           # defaults to global.domain
+    primaryColor: "#3B82F6"
+    backgroundColor: "#111827"
+    textColor: "#F9FAFB"
+    homeUrl: ""           # defaults to https://{appDomain}
+    supportEmail: ""
+  resources:
+    requests:
+      cpu: 5m
+      memory: 8Mi
+    limits:
+      cpu: 50m
+      memory: 32Mi
+
+# =============================================================================
 # Admin UI (Kuma) - RBAC Management Dashboard
 # =============================================================================
 adminUi:
-  enabled: false  # Enable to deploy the admin dashboard
+  # Public image at ghcr.io/w6d-io/kuma. Enabled by default so a fresh
+  # install gets the RBAC dashboard out of the box; disable if you ship
+  # your own admin UI.
+  enabled: true
   replicaCount: 1
   image:
-    repository: ""  # Set your admin UI image
-    tag: ""
+    repository: ghcr.io/w6d-io/kuma
+    tag: "v2.6.0"
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}

@@ -167,7 +167,14 @@ spec:
               value: {{ .Values.server.uvicornWorkers | quote }}
             {{- if .Values.server.dataConfigSources.external_source_url }}
             - name: OPAL_DATA_CONFIG_SOURCES
-              value: {{ dict "external_source_url" .Values.server.dataConfigSources.external_source_url | toRawJson | squote }}
+              {{- /*
+                 tpl-render the URL so callers can keep {{ .Release.Name }}
+                 in the default — the parent chart's value lives at
+                 opal.server.dataConfigSources.external_source_url and is
+                 set to "http://{{ .Release.Name }}-jinbe:8080/...", which
+                 needs Helm-side expansion before the env var is emitted.
+              */}}
+              value: {{ dict "external_source_url" (tpl .Values.server.dataConfigSources.external_source_url $) | toRawJson | squote }}
             {{- else if and .Values.server.dataConfigSources.config .Values.server.dataConfigSources.config.entries }}
             - name: OPAL_DATA_CONFIG_SOURCES
               value: {{ dict "config" .Values.server.dataConfigSources.config | toRawJson | squote }}

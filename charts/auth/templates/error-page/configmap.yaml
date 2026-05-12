@@ -1,0 +1,77 @@
+{{- if .Values.errorPage.enabled }}
+{{- $name := "error-page" }}
+{{- $brand := .Values.errorPage.branding }}
+{{- $appName := default .Values.global.domain $brand.appName }}
+{{- $homeUrl := default (printf "https://%s" (include "auth.appDomain" .)) $brand.homeUrl }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: error-page
+data:
+  # Nginx routes / requests based on the X-Code header that ingress-nginx
+  # attaches when forwarding 401/403/404 responses to the default-backend.
+  # `return $http_x_code` cannot use a variable for the status code in
+  # vanilla nginx, so the supported codes are matched explicitly and the
+  # body comes from a static error_page mapping under /usr/share/nginx/html.
+  default.conf: |
+    # Reflect the request's Origin so SPA fetch/XHR doesn't fail with
+    # "CORS error" when ingress-nginx reroutes a 403/404 here. Without
+    # these headers the upstream's CORS metadata is stripped during the
+    # custom-http-errors rewrite, and the browser blocks the response
+    # before the frontend can render the real status.
+    map $http_origin $cors_origin {
+      default "$http_origin";
+      ""      "*";
+    }
+
+    server {
+      listen 8080 default_server;
+      default_type text/html;
+      root /usr/share/nginx/html;
+
+      add_header Access-Control-Allow-Origin      $cors_origin always;
+      add_header Access-Control-Allow-Credentials "true"        always;
+      add_header Access-Control-Allow-Methods     "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+      add_header Access-Control-Allow-Headers     "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With" always;
+      add_header Access-Control-Max-Age           "600"          always;
+      add_header Vary                             "Origin"       always;
+
+      # Health probe — never gated.
+      location = /healthz {
+        return 200 "ok";
+        add_header Content-Type text/plain;
+      }
+
+      # Short-circuit preflight requests reaching the error-page directly.
+      if ($request_method = OPTIONS) {
+        return 204;
+      }
+
+      location / {
+        # Reflect the X-Code header back as the response status. ingress-nginx
+        # sets it to one of: 401, 403, 404. Unknown codes fall through to 404.
+        if ($http_x_code = '401') { return 401 ''; }
+        if ($http_x_code = '403') { return 403 ''; }
+        if ($http_x_code = '404') { return 404 ''; }
+        return 404 '';
+      }
+
+      error_page 401 /401.html;
+      error_page 403 /403.html;
+      error_page 404 /404.html;
+
+      location = /401.html { internal; }
+      location = /403.html { internal; }
+      location = /404.html { internal; }
+    }
+
+  401.html: |
+    {{- include "auth.errorPage.html" (dict "code" "401" "title" "Sign in required" "msg" "You need to sign in to continue." "appName" $appName "homeUrl" $homeUrl "brand" $brand) | nindent 4 }}
+  403.html: |
+    {{- include "auth.errorPage.html" (dict "code" "403" "title" "Access denied" "msg" "You're signed in but don't have permission for this resource." "appName" $appName "homeUrl" $homeUrl "brand" $brand) | nindent 4 }}
+  404.html: |
+    {{- include "auth.errorPage.html" (dict "code" "404" "title" "Not found" "msg" "The page you requested doesn't exist on this tenant." "appName" $appName "homeUrl" $homeUrl "brand" $brand) | nindent 4 }}
+{{- end }}

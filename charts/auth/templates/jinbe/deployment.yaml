@@ -24,6 +24,25 @@ spec:
       {{- if and .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
       serviceAccountName: {{ include "auth.jinbe.serviceAccountName" . }}
       {{- end }}
+      {{- if .Values.jinbe.bootstrap.enabled }}
+      initContainers:
+        # Run the bootstrap CLI inline so the pod can't enter its main
+        # container before Redis is seeded and Kratos has the default admin.
+        # Idempotent (Redis marker rbac:bootstrap:state); subsequent restarts
+        # exit 0 immediately. This makes `helm install` plug-and-play —
+        # without the init container, jinbe's readiness gate on the marker
+        # would deadlock the post-install bootstrap Job.
+        - name: bootstrap
+          image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
+          command: ["node", "dist/cli/bootstrap.js"]
+          env:
+            {{- include "auth.jinbe.env" . | nindent 12 }}
+          {{- with .Values.jinbe.bootstrap.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
       containers:
         - name: jinbe
           image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"

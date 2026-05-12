@@ -1,0 +1,64 @@
+{{- if .Values.errorPage.enabled }}
+{{- $name := "error-page" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: error-page
+spec:
+  replicas: {{ .Values.errorPage.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: error-page
+  template:
+    metadata:
+      labels:
+        {{- include "auth.labels" . | nindent 8 }}
+        app.kubernetes.io/component: error-page
+    spec:
+      containers:
+        - name: nginx
+          image: "{{ .Values.errorPage.image.repository }}:{{ .Values.errorPage.image.tag }}"
+          imagePullPolicy: {{ .Values.errorPage.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # Drop the stock /etc/nginx/conf.d/default.conf in favour of the
+          # ConfigMap-supplied one. The static HTML pages live alongside it
+          # at /usr/share/nginx/html/{401,403,404}.html.
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
+            - name: conf
+              mountPath: /usr/share/nginx/html/401.html
+              subPath: 401.html
+              readOnly: true
+            - name: conf
+              mountPath: /usr/share/nginx/html/403.html
+              subPath: 403.html
+              readOnly: true
+            - name: conf
+              mountPath: /usr/share/nginx/html/404.html
+              subPath: 404.html
+              readOnly: true
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 30
+          {{- with .Values.errorPage.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: conf
+          configMap:
+            name: {{ $name }}
+{{- end }}

@@ -1,0 +1,141 @@
+# =============================================================================
+# Plug-and-play overlay: example.org tenant
+# =============================================================================
+# Drop-in starter to deploy the auth stack on a brand-new domain. Point
+# DNS for the four hosts below at the ingress controller's load balancer
+# and run:
+#
+#   helm install auth ./charts/auth \
+#     -f examples/example-org-values.yaml \
+#     --namespace auth --create-namespace
+#
+# Hosts after deploy:
+#   auth.example.org    — Kratos selfservice UI + APIs
+#   kuma.example.org    — Admin RBAC dashboard
+#   jinbe.example.org   — RBAC control plane API
+#   dummy.example.org   — Sample protected upstream (see examples/example-org-dummy.yaml)
+#
+# Replace every "example.org" with your real domain. Search-and-replace
+# is safe — no other identifiers carry the same string.
+# =============================================================================
+
+global:
+  domain: example.org
+
+# All host-bearing URLs derive from {domain}. Override only when the
+# chart's default {prefix}.{domain} convention does not fit.
+kratos:
+  kratos:
+    config:
+      serve:
+        public:
+          base_url: https://auth.example.org/
+          cors:
+            allowed_origins:
+              - https://auth.example.org
+              - https://kuma.example.org
+              - https://jinbe.example.org
+              - https://dummy.example.org
+      session:
+        cookie:
+          domain: example.org   # parent — propagates to every subdomain
+      selfservice:
+        allowed_return_urls:
+          - https://*.example.org
+          - http://*.example.org
+        default_browser_return_url: https://kuma.example.org
+        flows:
+          error:
+            ui_url: https://auth.example.org/error
+          login:
+            ui_url: https://auth.example.org/login
+          registration:
+            ui_url: https://auth.example.org/register
+          recovery:
+            ui_url: https://auth.example.org/recovery
+          verification:
+            ui_url: https://auth.example.org/verification
+          settings:
+            ui_url: https://auth.example.org/settings
+          logout:
+            after:
+              default_browser_return_url: https://auth.example.org/login
+
+oathkeeper:
+  ingress:
+    proxy:
+      enabled: true
+      # Pick the IngressClass watched by the controller that fronts your
+      # cluster (kubectl get ingressclass). "nginx" is the upstream
+      # ingress-nginx default.
+      className: nginx
+      # Override CORS allow-origin: the chart default of "*" is rejected
+      # by browsers when the request carries credentials (cookies). List
+      # the tenant origins explicitly; ingress-nginx echoes back the one
+      # that matches the request's Origin header so credentialed
+      # XHR/fetch from kuma → jinbe succeeds.
+      annotations:
+        nginx.ingress.kubernetes.io/cors-allow-origin: "https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org"
+      hosts:
+        - host: auth.example.org
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: kuma.example.org
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: jinbe.example.org
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: dummy.example.org
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+
+kratosLoginUi:
+  kratos:
+    browserUrl: https://auth.example.org
+  redirects:
+    defaultReturnUrl: https://kuma.example.org
+    allowedReturnUrls: https://*.example.org
+  branding:
+    appName: Example Org
+
+adminUi:
+  env:
+    API_BASE: https://jinbe.example.org/api
+    AUTH_DOMAIN: auth.example.org
+
+jinbe:
+  env:
+    # Tenant subdomain layout differs from the chart default (which uses
+    # app.{domain} for both UI and API). Split the kuma frontend off to
+    # kuma.{domain} and pin the jinbe REST API to jinbe.{domain}. Jinbe
+    # seeds Oathkeeper access rules from these env vars, so they must
+    # match the ingress hosts above.
+    APP_DOMAIN: kuma.example.org
+    API_DOMAIN: jinbe.example.org
+    # Bootstrap a super-admin on first install so the dashboard is reachable
+    # right away. The CLI is idempotent: ADMIN_PASSWORD is consumed once,
+    # then the marker key rbac:bootstrap:state in Redis prevents re-runs.
+    # Rotate the password via Kratos settings flow after first login;
+    # in production replace these literals with Vault references.
+    ADMIN_EMAIL: admin@example.org
+    ADMIN_PASSWORD: changeme-example-org-2026
+    ADMIN_NAME: Example Org Admin
+    ENCRYPTION_KEY: changeme-32char-example-org-poc-aa
+    CORS_ORIGIN: https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org
+
+# Inline 401/403/404 pages — same host, no cross-domain redirect.
+# Override the palette/copy to match the tenant's brand; all values
+# flow into the page's inline CSS (`:root{--bg/--fg/--accent}`).
+errorPage:
+  branding:
+    appName: Example Org
+    primaryColor: "#22D3EE"        # cyan-400 accent
+    backgroundColor: "#0F172A"     # slate-900 background
+    textColor: "#F1F5F9"           # slate-100 text
+    homeUrl: https://kuma.example.org
+    supportEmail: ops@example.org

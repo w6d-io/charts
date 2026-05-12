@@ -1,0 +1,22 @@
+{{- if .Values.errorPage.enabled }}
+{{- $name := "error-page" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: error-page
+spec:
+  type: {{ .Values.errorPage.service.type }}
+  ports:
+    - name: http
+      # ingress-nginx forwards default-backend requests to this Service.
+      # Service port is 80 (browser-facing convention) → container 8080.
+      port: {{ .Values.errorPage.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "auth.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: error-page
+{{- end }}
