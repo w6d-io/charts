@@ -416,6 +416,10 @@ jinbe:
     # OPAL_SERVER_URL: auto-computed as http://<release>-opal-server:7002
     # JINBE_INTERNAL_URL: auto-computed as http://<release>-jinbe:8080
     # OPA_DATA_URL: auto-computed as http://<release>-opal-client:8181
+    # OPA_AUTHZ_REMOTE: auto-computed as http://<release>-opa-authz-proxy:<port>/v1/data/rbac/allow
+    # SERVICE_DEFAULT_NAMESPACE: auto-computed as .Release.Namespace
+    # SERVICE_DEFAULT_DOMAIN: auto-computed as the chart's app domain (global.appDomain or app.<global.domain>)
+    # SERVICE_DEFAULT_PORT: 8080
     # CORS_ORIGIN: auto-computed from global.appDomain and global.authDomain
     # ENABLE_SWAGGER: "false"
     # LOG_LEVEL: info
@@ -423,6 +427,9 @@ jinbe:
     # ADMIN_EMAIL: auto-created on first boot with super_admin access
     # ADMIN_PASSWORD: password for default admin (default: changeme123!)
     # ADMIN_NAME: display name for default admin
+    # BACKUP_IMAGE_MONGO / BACKUP_IMAGE_POSTGRES: private-registry images
+    #   for the /backups feature. Unset = backups disabled.
+    # BACKUP_GCP_PROJECT_ID: GCP project ID injected into backup job env
 
   # Additional environment variables (map format: NAME: value).
   # DISABLE_CORS=true skips Fastify's @fastify/cors plugin since the
