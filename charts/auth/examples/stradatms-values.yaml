@@ -93,6 +93,13 @@ adminUi:
 
 jinbe:
   env:
+    # Tenant subdomain layout differs from the chart default (which uses
+    # app.{domain} for both UI and API). Split the kuma frontend off to
+    # kuma.{domain} and pin the jinbe REST API to jinbe.{domain}. Jinbe
+    # seeds Oathkeeper access rules from these env vars, so they must
+    # match the ingress hosts above.
+    APP_DOMAIN: kuma.dev.stradatms.net
+    API_DOMAIN: jinbe.dev.stradatms.net
     # Bootstrap a super-admin on first install so the dashboard is reachable
     # right away. The CLI is idempotent: ADMIN_PASSWORD is consumed once,
     # then the marker key rbac:bootstrap:state in Redis prevents re-runs.
