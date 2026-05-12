@@ -7188,6 +7188,30 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/dlm-0.1.0/dlm-0.1.0.tgz
     version: 0.1.0
+  gotenberg:
+  - apiVersion: v2
+    appVersion: "8"
+    created: "2026-05-12T14:00:33.795080417Z"
+    description: A Helm chart for Gotenberg — a Docker-powered stateless API for PDF
+      files.
+    digest: 4ee47aba74bb6f0d53728cd65c3342897b189763110c74afa0e2f6232f2433a1
+    home: https://gotenberg.dev/
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - gotenberg
+    - pdf
+    - office
+    - converter
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: gotenberg
+    sources:
+    - https://github.com/gotenberg/gotenberg
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/gotenberg-0.1.0/gotenberg-0.1.0.tgz
+    version: 0.1.0
   helper:
   - apiVersion: v2
     created: "2025-07-31T13:43:11.563984518Z"
@@ -8266,4 +8290,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-07T07:16:28.443687756Z"
+generated: "2026-05-12T14:00:33.795584331Z"
