@@ -1,0 +1,100 @@
+# =============================================================================
+# Plug-and-play overlay: dev.stradatms.net tenant
+# =============================================================================
+# helm template auth ./charts/auth -f examples/stradatms-values.yaml
+# helm install   auth ./charts/auth -f examples/stradatms-values.yaml \
+#   --namespace auth --create-namespace
+#
+# Hosts after deploy (point DNS at the ingress LB):
+#   auth.dev.stradatms.net   — Kratos selfservice UI + APIs
+#   kuma.dev.stradatms.net   — Admin RBAC dashboard
+#   jinbe.dev.stradatms.net  — RBAC control plane API
+#   dummy.dev.stradatms.net  — Sample protected upstream (bring your own)
+# =============================================================================
+
+global:
+  domain: dev.stradatms.net
+
+# All host-bearing URLs derive from {domain}. Override only when the
+# chart's default {prefix}.{domain} convention does not fit.
+kratos:
+  kratos:
+    config:
+      serve:
+        public:
+          base_url: https://auth.dev.stradatms.net/
+          cors:
+            allowed_origins:
+              - https://auth.dev.stradatms.net
+              - https://kuma.dev.stradatms.net
+              - https://jinbe.dev.stradatms.net
+              - https://dummy.dev.stradatms.net
+      session:
+        cookie:
+          domain: dev.stradatms.net   # parent — propagates to every subdomain
+      selfservice:
+        allowed_return_urls:
+          - https://*.dev.stradatms.net
+          - http://*.dev.stradatms.net
+        default_browser_return_url: https://kuma.dev.stradatms.net
+        flows:
+          error:
+            ui_url: https://auth.dev.stradatms.net/error
+          login:
+            ui_url: https://auth.dev.stradatms.net/login
+          registration:
+            ui_url: https://auth.dev.stradatms.net/register
+          recovery:
+            ui_url: https://auth.dev.stradatms.net/recovery
+          verification:
+            ui_url: https://auth.dev.stradatms.net/verification
+          settings:
+            ui_url: https://auth.dev.stradatms.net/settings
+          logout:
+            after:
+              default_browser_return_url: https://auth.dev.stradatms.net/login
+
+oathkeeper:
+  ingress:
+    proxy:
+      enabled: true
+      className: nginx
+      hosts:
+        - host: auth.dev.stradatms.net
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: kuma.dev.stradatms.net
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: jinbe.dev.stradatms.net
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+        - host: dummy.dev.stradatms.net
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+
+kratosLoginUi:
+  kratos:
+    browserUrl: https://auth.dev.stradatms.net
+  redirects:
+    defaultReturnUrl: https://kuma.dev.stradatms.net
+    allowedReturnUrls: https://*.dev.stradatms.net
+  branding:
+    appName: StradaTMS
+
+adminUi:
+  env:
+    API_BASE: https://jinbe.dev.stradatms.net/api
+    AUTH_DOMAIN: auth.dev.stradatms.net
+
+jinbe:
+  env:
+    # Bootstrap a super-admin so the first login lands on a usable dashboard.
+    # Override before going to prod.
+    BOOTSTRAP_SUPER_ADMIN_EMAIL: admin@dev.stradatms.net
+    ENCRYPTION_KEY: changeme-32char-stradatms-poc-aaa
+    CORS_ORIGIN: https://kuma.dev.stradatms.net,https://auth.dev.stradatms.net,https://jinbe.dev.stradatms.net,https://dummy.dev.stradatms.net

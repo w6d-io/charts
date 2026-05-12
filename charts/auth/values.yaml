@@ -102,9 +102,21 @@ kratos:
           domain: example.com
           same_site: Lax
           persistent: true
+        # Keep AAL1 sessions valid for cross-subdomain whoami checks.
+        # Kratos >=0.11 defaults to highest_available, which forces every
+        # session check to demand AAL2 as soon as the user enrols TOTP
+        # or WebAuthn — breaking SSO across tenant subdomains. Step-up
+        # still happens on privileged self-service flows (settings) via
+        # privileged_session_max_age below.
+        whoami:
+          required_aal: aal1
       selfservice:
+        # Wildcard covers every tenant subdomain of {domain}. Kratos
+        # globs are supported since v0.10, and kratos-login-ui's
+        # regex-translated matcher accepts the same pattern.
         allowed_return_urls:
-          - https://app.example.com
+          - https://*.example.com
+          - http://*.example.com
         default_browser_return_url: https://app.example.com
         methods:
           password:
@@ -248,14 +260,19 @@ oathkeeper:
             # /sessions/whoami) while still giving upstreams the user's
             # groups header. Groups in the payload are intentionally
             # omitted — OPA reads them from data.bindings.group_membership.
+            #
+            # Oathkeeper template syntax is escaped with {{ "{{" }} ... {{ "}}" }}
+            # so it survives the chart's tpl pass (helmTemplatedConfigEnabled
+            # only resolves Helm directives like .Release.Name) and reaches
+            # oathkeeper intact for per-request evaluation.
             remote: 'http://{{ .Release.Name }}-opa-authz-proxy:8080/v1/data/rbac/decision'
             payload: |
               {
                 "input": {
-                  "sub": "{{ print .Subject }}",
-                  "email": "{{ index .Extra.identity.traits "email" }}",
-                  "object": "{{ .MatchContext.URL.Path }}",
-                  "action": "{{ .MatchContext.Method }}"
+                  "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
+                  "email": "{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}",
+                  "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
+                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
                 }
               }
             forward_response_headers_to_upstream:
@@ -271,14 +288,12 @@ oathkeeper:
             # and x-user-id produces a non-deterministic Set() race.
             # X-User-Groups is intentionally NOT set here — it comes from
             # the remote_json authorizer (server-side trusted source) via
-            # forward_response_headers_to_upstream. Setting it here too
-            # would collide with the authorizer-provided header.
-            # The email template is nil-safe so requests reaching this
-            # rule via the noop fallback authenticator (no session) don't
-            # crash.
+            # forward_response_headers_to_upstream. The email template is
+            # nil-safe so requests reaching this rule via the noop fallback
+            # authenticator (no session) don't crash.
             headers:
-              X-User-Id: '{{ print .Subject }}'
-              X-User-Email: '{{ if .Extra.identity }}{{ index .Extra.identity.traits "email" }}{{ end }}'
+              X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
+              X-User-Email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
       errors:
         fallback: [redirect, json]
         handlers:
@@ -411,7 +426,7 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    tag: ""              # empty → falls back to .Chart.AppVersion
+    tag: ""              # empty → falls back to .Chart.AppVersion (currently v0.5.0)
     pullPolicy: IfNotPresent
 
   service:
@@ -518,7 +533,7 @@ opaAuthzProxy:
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
-    tag: "v0.1.0"
+    tag: "v0.2.0"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
@@ -540,18 +555,16 @@ opaAuthzProxy:
 # Kratos Login UI
 # =============================================================================
 kratosLoginUi:
-  # Disabled by default — the image is not published to a public registry.
-  # To enable, set `kratosLoginUi.enabled: true` and provide a working image
-  # repository (W6D internal: 095...ecr.../infra/frontend/kratos-login-ui/w6d).
-  # The Oathkeeper rule `selfservice-ui` upstream points at this Service —
-  # auth/registration UI flows require this enabled.
-  enabled: false
+  # Public image at ghcr.io/w6d-io/kratos-login-ui:v0.1.0. Enabled by
+  # default — the Oathkeeper rule `selfservice-ui` upstream points at
+  # this Service, so auth/registration UI flows require it running.
+  enabled: true
   replicaCount: 1
 
   image:
     repository: ghcr.io/w6d-io/kratos-login-ui
     pullPolicy: IfNotPresent
-    tag: "0.1.0-alpha.35"
+    tag: "v0.1.0"
 
   branding:
     appName: "My App"
@@ -651,11 +664,14 @@ postgresqlSimple:
 # Admin UI (Kuma) - RBAC Management Dashboard
 # =============================================================================
 adminUi:
-  enabled: false  # Enable to deploy the admin dashboard
+  # Public image at ghcr.io/w6d-io/kuma. Enabled by default so a fresh
+  # install gets the RBAC dashboard out of the box; disable if you ship
+  # your own admin UI.
+  enabled: true
   replicaCount: 1
   image:
-    repository: ""  # Set your admin UI image
-    tag: ""
+    repository: ghcr.io/w6d-io/kuma
+    tag: "2.2.0"
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
