@@ -1,0 +1,18 @@
+apiVersion: v2
+name: gotenberg
+description: A Helm chart for Gotenberg — a Docker-powered stateless API for PDF files.
+type: application
+keywords:
+  - gotenberg
+  - pdf
+  - office
+  - converter
+home: https://gotenberg.dev/
+sources:
+  - https://github.com/gotenberg/gotenberg
+maintainers:
+  - name: WILDCARD
+    url: https://w6d.io
+icon: https://w6d.io/favicon.ico
+appVersion: "8"
+version: 0.1.0
