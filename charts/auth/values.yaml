@@ -324,7 +324,13 @@ oathkeeper:
           redirect:
             enabled: true
             config:
-              to: https://auth.example.com/auth/login?return_to=https://app.example.com/
+              # Resolved against global.{domain,authDomain} via the chart's
+              # tpl pass (helmTemplatedConfigEnabled). Oathkeeper appends
+              # the original URL as ?return_to=... when return_to_query_param
+              # is set, so the hard-coded query string from the upstream
+              # chart's example is dropped.
+              to: 'https://{{ default (printf "auth.%s" .Values.global.domain) .Values.global.authDomain }}/login'
+              return_to_query_param: return_to
               when:
                 - error: [unauthorized]
                   request:
