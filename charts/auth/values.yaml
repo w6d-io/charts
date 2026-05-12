@@ -581,7 +581,10 @@ opaAuthzProxy:
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
-    tag: "v0.2.0"
+    # v0.3.0 emits HTTP 404 when OPA's decision.reason is "not_found"
+    # (route_map miss) so ingress-nginx routes it to the error-page as
+    # a proper 404. Earlier tags collapsed the case into a 403.
+    tag: "v0.3.0"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
