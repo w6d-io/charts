@@ -241,29 +241,44 @@ oathkeeper:
         remote_json:
           enabled: true
           config:
-            remote: 'http://{{ .Release.Name }}-opa-authz-proxy:8080/v1/data/rbac/allow'
+            # /decision returns {allow, groups}. opa-authz-proxy emits
+            # X-User-Groups from the server-side bindings (Redis via OPAL),
+            # which the line below forwards to the upstream. This keeps
+            # Kratos metadata_admin private (it is never exposed through
+            # /sessions/whoami) while still giving upstreams the user's
+            # groups header. Groups in the payload are intentionally
+            # omitted — OPA reads them from data.bindings.group_membership.
+            remote: 'http://{{ .Release.Name }}-opa-authz-proxy:8080/v1/data/rbac/decision'
             payload: |
               {
                 "input": {
-                  "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
-                  "email": "{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}",
-                  "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
-                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
+                  "sub": "{{ print .Subject }}",
+                  "email": "{{ index .Extra.identity.traits "email" }}",
+                  "object": "{{ .MatchContext.URL.Path }}",
+                  "action": "{{ .MatchContext.Method }}"
                 }
               }
+            forward_response_headers_to_upstream:
+              - X-User-Groups
       mutators:
         noop:
           enabled: true
         header:
           enabled: true
           config:
-            # Oathkeeper runtime templates — escaped so helm's tpl pass leaves
-            # them intact for oathkeeper to evaluate per-request. The email
-            # template is nil-safe so requests reaching this rule via the
-            # noop fallback authenticator (no session) don't crash.
+            # Header names use canonical case. Go's net/http canonicalizes
+            # them anyway; defining the same header under both X-User-Id
+            # and x-user-id produces a non-deterministic Set() race.
+            # X-User-Groups is intentionally NOT set here — it comes from
+            # the remote_json authorizer (server-side trusted source) via
+            # forward_response_headers_to_upstream. Setting it here too
+            # would collide with the authorizer-provided header.
+            # The email template is nil-safe so requests reaching this
+            # rule via the noop fallback authenticator (no session) don't
+            # crash.
             headers:
-              x-user-id: '{{ "{{" }} print .Subject {{ "}}" }}'
-              x-user-email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
+              X-User-Id: '{{ print .Subject }}'
+              X-User-Email: '{{ if .Extra.identity }}{{ index .Extra.identity.traits "email" }}{{ end }}'
       errors:
         fallback: [redirect, json]
         handlers:
