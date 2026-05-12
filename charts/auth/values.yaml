@@ -309,6 +309,16 @@ oathkeeper:
               X-User-Id: '{{ "{{" }} print .Subject {{ "}}" }}'
               X-User-Email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
       errors:
+        # `unauthorized` (no Kratos session) is the only error that
+        # still triggers a cross-host redirect to the login page —
+        # everything else (`forbidden`, missing route_map match,
+        # rule miss) returns the upstream status and lets
+        # ingress-nginx hand the request over to the in-chart
+        # error-page Service via custom-http-errors. That keeps
+        # `kuma.{domain}/x` showing a 403 page on kuma.{domain}
+        # rather than redirecting to auth.{domain}/login, which
+        # used to cause an AAL2 step-up loop for already-logged-in
+        # users hitting a route they don't have permission for.
         fallback: [redirect, json]
         handlers:
           redirect:
@@ -316,7 +326,7 @@ oathkeeper:
             config:
               to: https://auth.example.com/auth/login?return_to=https://app.example.com/
               when:
-                - error: [unauthorized, forbidden]
+                - error: [unauthorized]
                   request:
                     header:
                       accept: [text/html]
@@ -347,15 +357,21 @@ oathkeeper:
         nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
         nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With"
         nginx.ingress.kubernetes.io/cors-max-age: "600"
-        # Sentinel HTTP code that the backends will never emit (418 "I'm
-        # a teapot"). ingress-nginx 1.12+ validates this annotation as a
-        # valid HTTP status, so a placeholder like "999" is rejected and
-        # the entire Ingress is dropped from the rendered config. 418
-        # passes validation and replaces the cluster-wide
-        # custom-http-errors list with [418], leaving real 4xx/5xx
-        # responses unmolested so JSON bodies + CORS headers reach the
-        # SPA.
-        nginx.ingress.kubernetes.io/custom-http-errors: "418"
+        # Route 401/403/404 to the in-chart error-page Service so the
+        # browser sees a styled HTML page on the SAME host (e.g.
+        # kuma.{domain}/403) instead of being redirected to
+        # auth.{domain}/login for every authz error. 401 only fires
+        # for requests that don't match the redirect handler's
+        # text/html condition (XHR, fetch); HTML navigations still
+        # get the cross-host /login redirect from Oathkeeper above.
+        nginx.ingress.kubernetes.io/custom-http-errors: "401,403,404"
+        # Points at the literal Service name from
+        # templates/error-page/service.yaml. The oathkeeper subchart
+        # ingress template renders annotations with toYaml (no tpl pass),
+        # so this value cannot use {{ .Release.Name }} — the error-page
+        # Service is intentionally named without a release prefix so the
+        # annotation works under any release name.
+        nginx.ingress.kubernetes.io/default-backend: error-page
       hosts:
         - host: auth.example.com
           paths:
@@ -685,6 +701,38 @@ postgresqlSimple:
     limits:
       cpu: 500m
       memory: 512Mi
+
+# =============================================================================
+# Error Page — inline 401/403/404 backend
+# =============================================================================
+# Tiny nginx Service that ingress-nginx points custom-http-errors at.
+# Renders the same-host error pages so a forbidden request to
+# kuma.{domain}/x returns HTML on kuma.{domain} instead of redirecting
+# to auth.{domain}/login. Style is overridable via .branding.
+errorPage:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  branding:
+    appName: ""           # defaults to global.domain
+    primaryColor: "#3B82F6"
+    backgroundColor: "#111827"
+    textColor: "#F9FAFB"
+    homeUrl: ""           # defaults to https://{appDomain}
+    supportEmail: ""
+  resources:
+    requests:
+      cpu: 5m
+      memory: 8Mi
+    limits:
+      cpu: 50m
+      memory: 32Mi
 
 # =============================================================================
 # Admin UI (Kuma) - RBAC Management Dashboard
