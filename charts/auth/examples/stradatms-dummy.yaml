@@ -1,0 +1,51 @@
+# Sample protected upstream for the stradatms POC. Apply with:
+#   kubectl -n stradatms-poc apply -f examples/stradatms-dummy.yaml
+# Then register it in Jinbe so Oathkeeper has rules + route_map:
+#   curl -X POST https://jinbe.dev.stradatms.net/api/admin/rbac/services \
+#     -H 'Content-Type: application/json' -b admin-cookie.txt \
+#     -d '{"name":"dummy","upstreamUrl":"http://dummy-echo:8080","hosts":["dummy.dev.stradatms.net"]}'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dummy-echo
+  labels:
+    app.kubernetes.io/name: dummy-echo
+    app.kubernetes.io/component: poc-upstream
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dummy-echo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dummy-echo
+    spec:
+      containers:
+        - name: echo
+          image: mendhak/http-https-echo:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - { name: HTTP_PORT,  value: "8080" }
+            - { name: HTTPS_PORT, value: "8443" }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dummy-echo
+  labels:
+    app.kubernetes.io/name: dummy-echo
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dummy-echo
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
