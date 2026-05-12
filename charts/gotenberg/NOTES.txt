@@ -1,0 +1,17 @@
+Thank you for installing Gotenberg.
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Chart: {{ .Chart.Name }}-{{ .Chart.Version }} (app {{ .Chart.AppVersion }})
+
+To reach the service from within the cluster:
+  http://{{ include "gotenberg.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+Quick smoke test (run from an inside-cluster pod or kubectl port-forward):
+  curl -sf http://{{ include "gotenberg.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/health
+
+{{- if .Values.linkerd.enabled }}
+
+Linkerd policy: {{ .Values.linkerd.serverApiVersion }} on port {{ .Values.linkerd.port }} ({{ .Values.linkerd.proxyProtocol }}).
+  - Override serverApiVersion to policy.linkerd.io/v1beta1 on clusters running Linkerd ≤ 2.14.
+{{- end }}
