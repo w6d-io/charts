@@ -17,21 +17,37 @@ data:
   # vanilla nginx, so the supported codes are matched explicitly and the
   # body comes from a static error_page mapping under /usr/share/nginx/html.
   default.conf: |
-    map $http_x_code $stylesheet {
-      default        404;
-      401            401;
-      403            403;
-      404            404;
+    # Reflect the request's Origin so SPA fetch/XHR doesn't fail with
+    # "CORS error" when ingress-nginx reroutes a 403/404 here. Without
+    # these headers the upstream's CORS metadata is stripped during the
+    # custom-http-errors rewrite, and the browser blocks the response
+    # before the frontend can render the real status.
+    map $http_origin $cors_origin {
+      default "$http_origin";
+      ""      "*";
     }
+
     server {
       listen 8080 default_server;
       default_type text/html;
       root /usr/share/nginx/html;
 
+      add_header Access-Control-Allow-Origin      $cors_origin always;
+      add_header Access-Control-Allow-Credentials "true"        always;
+      add_header Access-Control-Allow-Methods     "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+      add_header Access-Control-Allow-Headers     "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With" always;
+      add_header Access-Control-Max-Age           "600"          always;
+      add_header Vary                             "Origin"       always;
+
       # Health probe — never gated.
       location = /healthz {
         return 200 "ok";
         add_header Content-Type text/plain;
+      }
+
+      # Short-circuit preflight requests reaching the error-page directly.
+      if ($request_method = OPTIONS) {
+        return 204;
       }
 
       location / {

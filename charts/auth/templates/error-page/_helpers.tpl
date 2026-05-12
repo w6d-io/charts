@@ -48,6 +48,12 @@
     margin: 0 0 1.5rem;
     opacity: 0.8;
   }
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
   a {
     color: var(--accent);
     text-decoration: none;
@@ -58,6 +64,12 @@
     display: inline-block;
   }
   a:hover { background: var(--accent); color: var(--bg); }
+  a.secondary {
+    color: var(--fg);
+    border-color: rgba(255,255,255,0.2);
+    opacity: 0.7;
+  }
+  a.secondary:hover { background: transparent; color: var(--fg); opacity: 1; border-color: rgba(255,255,255,0.5); }
   .meta {
     margin-top: 2rem;
     font-size: 0.8rem;
@@ -70,7 +82,16 @@
   <p class="code">{{ .code }}</p>
   <h1>{{ .title }}</h1>
   <p>{{ .msg }}</p>
-  <a href="{{ .homeUrl }}">Back to {{ .appName }}</a>
+  <div class="actions">
+    {{/*
+      Primary: go back to the page the user was on (history.back).
+      Falls back to the configured home URL when there is no history
+      entry (e.g. the error page was opened in a new tab) or when
+      JavaScript is disabled — same href the anchor would have used.
+    */}}
+    <a id="back" href="{{ .homeUrl }}" onclick="if(history.length>1){history.back();return false;}">Go back</a>
+    <a class="secondary" href="{{ .homeUrl }}">{{ .appName }} home</a>
+  </div>
   {{- if $brand.supportEmail }}
   <p class="meta">Need help? <a href="mailto:{{ $brand.supportEmail }}" style="border:none;padding:0;">{{ $brand.supportEmail }}</a></p>
   {{- end }}
