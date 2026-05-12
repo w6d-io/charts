@@ -59,6 +59,13 @@ oathkeeper:
     proxy:
       enabled: true
       className: ing-strada
+      # Override CORS allow-origin: the chart default of "*" is rejected
+      # by browsers when the request carries credentials (cookies). List
+      # the tenant origins explicitly; ingress-nginx echoes back the
+      # one that matches the request's Origin header so credentialed
+      # XHR/fetch from kuma → jinbe succeeds.
+      annotations:
+        nginx.ingress.kubernetes.io/cors-allow-origin: "https://kuma.dev.stradatms.net,https://auth.dev.stradatms.net,https://jinbe.dev.stradatms.net,https://dummy.dev.stradatms.net"
       hosts:
         - host: auth.dev.stradatms.net
           paths:
