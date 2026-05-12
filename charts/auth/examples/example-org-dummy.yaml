@@ -1,9 +1,9 @@
-# Sample protected upstream for the stradatms POC. Apply with:
-#   kubectl -n stradatms-poc apply -f examples/stradatms-dummy.yaml
+# Sample protected upstream for the example.org POC. Apply with:
+#   kubectl -n auth apply -f examples/example-org-dummy.yaml
 # Then register it in Jinbe so Oathkeeper has rules + route_map:
-#   curl -X POST https://jinbe.dev.stradatms.net/api/admin/rbac/services \
+#   curl -X POST https://jinbe.example.org/api/admin/rbac/services \
 #     -H 'Content-Type: application/json' -b admin-cookie.txt \
-#     -d '{"name":"dummy","upstreamUrl":"http://dummy-echo:8080","hosts":["dummy.dev.stradatms.net"]}'
+#     -d '{"name":"dummy","upstreamUrl":"http://dummy-echo:8080","hosts":["dummy.example.org"]}'
 apiVersion: apps/v1
 kind: Deployment
 metadata:

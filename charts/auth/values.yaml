@@ -581,10 +581,12 @@ opaAuthzProxy:
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
-    # v0.3.0 emits HTTP 404 when OPA's decision.reason is "not_found"
-    # (route_map miss) so ingress-nginx routes it to the error-page as
-    # a proper 404. Earlier tags collapsed the case into a 403.
-    tag: "v0.3.0"
+    # v0.3.1 sticks to HTTP 403 on deny (oathkeeper's remote_json
+    # authorizer rejects any other status as an internal error). The
+    # rego's decision.reason still rides along as an `X-Authz-Reason`
+    # response header for upstreams that want to distinguish a
+    # route_map miss from a permission denial.
+    tag: "v0.3.1"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
