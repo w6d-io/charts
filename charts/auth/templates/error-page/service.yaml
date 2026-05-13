@@ -1,5 +1,5 @@
 {{- if .Values.errorPage.enabled }}
-{{- $name := "error-page" }}
+{{- $name := printf "%s-error-page" .Release.Name }}
 apiVersion: v1
 kind: Service
 metadata:
