@@ -757,7 +757,12 @@ adminUi:
   replicaCount: 1
   image:
     repository: ghcr.io/w6d-io/kuma
-    tag: "v2.6.0"
+    # v2.6.1 fixes the false-positive "🔐 enabled" MFA badge — Kratos
+    # auto-creates an empty credentials.webauthn entry for every identity
+    # when the schema declares webauthn as an identifier; v2.6.1 now looks
+    # at the actual config (totp_url / webauthn.credentials[] /
+    # lookup_secret.recovery_codes[]) instead of credential key presence.
+    tag: "v2.6.1"
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
