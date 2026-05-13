@@ -231,6 +231,97 @@ kratos:
 oathkeeper:
   enabled: true
 
+  # HA + crashloop-resistant defaults.
+  #
+  # Two replicas keep the proxy available during a rolling restart and
+  # during single-node disruptions; the PDB below guarantees at least
+  # one stays serving.
+  replicaCount: 2
+
+  # PodDisruptionBudget - protect quorum on voluntary disruptions
+  # (node drain, eviction, surge). Wired natively by the subchart
+  # template at charts/auth/charts/oathkeeper-0.61.0.tgz!templates/pdb.yaml.
+  pdb:
+    enabled: true
+    spec:
+      minAvailable: 1
+      maxUnavailable: ""
+
+  deployment:
+    # Zero-downtime: never drop below replicaCount during a roll.
+    # Combined with replicaCount: 2 + pdb.minAvailable: 1, a rollout
+    # always keeps one healthy pod serving traffic.
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+
+    # Steady-state for oathkeeper sits at ~10-15m CPU and ~60-80Mi RSS.
+    # Request 50m/96Mi to escape BestEffort QoS (BestEffort was the
+    # eviction trigger behind a multi-restart incident); cap at 300m/256Mi
+    # to absorb startup + rule re-fetch bursts without letting a runaway
+    # leak starve neighbours. Override per environment if your load
+    # profile differs.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 96Mi
+      limits:
+        cpu: 300m
+        memory: 256Mi
+
+    # Wait for jinbe's /api/oathkeeper/rules endpoint before starting
+    # the oathkeeper process. Root cause of the 7-restarts-in-14h
+    # incident: on cold install / jinbe restart, oathkeeper's
+    # `access_rules.repositories` fetch failed and the process exited
+    # fatal - crashloop until jinbe answered.
+    #
+    # busybox `wget --spider` returns 0 on any 2xx/3xx (HEAD-style).
+    # 3s backoff with no fixed retry cap - initContainers inherit the
+    # pod's `activeDeadlineSeconds` (unset by default, so they wait
+    # forever, which is what we want for a cold install). The
+    # CrashLoopBackOff on the main container is therefore replaced
+    # by a quiet `Init:0/1` until jinbe is ready.
+    #
+    # `extraInitContainers` is a tpl-rendered string (subchart
+    # idiom), so `{{ .Release.Name }}` resolves at parent render
+    # time. The image registry tracks `image.initContainer.*` from
+    # the subchart values (busybox:stable by default).
+    extraInitContainers: |
+      - name: wait-for-jinbe
+        image: "{{ .Values.image.initContainer.repository }}:{{ .Values.image.initContainer.tag }}"
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - |
+            set -eu
+            url="http://{{ .Release.Name }}-jinbe:8080/api/oathkeeper/rules"
+            echo "wait-for-jinbe: polling $url every 3s"
+            until wget -q --spider --timeout=3 "$url"; do
+              echo "wait-for-jinbe: not ready, sleeping 3s"
+              sleep 3
+            done
+            echo "wait-for-jinbe: jinbe is ready, exiting init"
+        securityContext:
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
+
   oathkeeper:
     helmTemplatedConfigEnabled: true
     config:
