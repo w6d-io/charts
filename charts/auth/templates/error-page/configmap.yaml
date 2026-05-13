@@ -1,5 +1,5 @@
 {{- if .Values.errorPage.enabled }}
-{{- $name := "error-page" }}
+{{- $name := printf "%s-error-page" .Release.Name }}
 {{- $brand := .Values.errorPage.branding }}
 {{- $appName := default .Values.global.domain $brand.appName }}
 {{- $homeUrl := default (printf "https://%s" (include "auth.appDomain" .)) $brand.homeUrl }}

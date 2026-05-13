@@ -61,38 +61,40 @@ kratos:
             after:
               default_browser_return_url: https://auth.example.org/login
 
-oathkeeper:
-  ingress:
-    proxy:
-      enabled: true
-      # Pick the IngressClass watched by the controller that fronts your
-      # cluster (kubectl get ingressclass). "nginx" is the upstream
-      # ingress-nginx default.
-      className: nginx
-      # Override CORS allow-origin: the chart default of "*" is rejected
-      # by browsers when the request carries credentials (cookies). List
-      # the tenant origins explicitly; ingress-nginx echoes back the one
-      # that matches the request's Origin header so credentialed
-      # XHR/fetch from kuma → jinbe succeeds.
-      annotations:
-        nginx.ingress.kubernetes.io/cors-allow-origin: "https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org"
-      hosts:
-        - host: auth.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: kuma.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: jinbe.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: dummy.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
+# The oathkeeper proxy Ingress lives at the parent-chart top level
+# (`oathkeeperProxyIngress:`) since chart 0.7.3 so that annotation values
+# can reference `{{ .Release.Name }}` through a real `tpl` pass. The
+# schema mirrors the previous `oathkeeper.ingress.proxy.*` keys 1:1.
+oathkeeperProxyIngress:
+  enabled: true
+  # Pick the IngressClass watched by the controller that fronts your
+  # cluster (kubectl get ingressclass). "nginx" is the upstream
+  # ingress-nginx default.
+  className: nginx
+  # Override CORS allow-origin: the chart default of "*" is rejected
+  # by browsers when the request carries credentials (cookies). List
+  # the tenant origins explicitly; ingress-nginx echoes back the one
+  # that matches the request's Origin header so credentialed
+  # XHR/fetch from kuma → jinbe succeeds.
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org"
+  hosts:
+    - host: auth.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: kuma.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: jinbe.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: dummy.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
 
 kratosLoginUi:
   kratos:

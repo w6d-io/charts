@@ -271,6 +271,30 @@ Auth domain
 {{- end }}
 
 {{/*
+Oathkeeper fullname — mirrors the upstream `oathkeeper.fullname` helper so
+that parent-side templates (e.g. templates/oathkeeper/ingress-proxy.yaml)
+can reference subchart-owned resources (Services, ConfigMaps) by name
+without invoking the subchart's named template (which is out of scope from
+the parent's perspective).
+
+If a deployer sets `oathkeeper.fullnameOverride`, this helper honours it.
+Otherwise it reproduces the subchart's "release name contains chart name"
+short-circuit, falling back to `<release>-<chart>`.
+*/}}
+{{- define "auth.oathkeeper.fullname" -}}
+{{- if .Values.oathkeeper.fullnameOverride -}}
+{{- .Values.oathkeeper.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := default "oathkeeper" .Values.oathkeeper.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 App domain
 */}}
 {{- define "auth.appDomain" -}}
