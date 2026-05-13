@@ -61,38 +61,40 @@ kratos:
             after:
               default_browser_return_url: https://auth.example.org/login
 
-oathkeeper:
-  ingress:
-    proxy:
-      enabled: true
-      # Pick the IngressClass watched by the controller that fronts your
-      # cluster (kubectl get ingressclass). "nginx" is the upstream
-      # ingress-nginx default.
-      className: nginx
-      # Override CORS allow-origin: the chart default of "*" is rejected
-      # by browsers when the request carries credentials (cookies). List
-      # the tenant origins explicitly; ingress-nginx echoes back the one
-      # that matches the request's Origin header so credentialed
-      # XHR/fetch from kuma → jinbe succeeds.
-      annotations:
-        nginx.ingress.kubernetes.io/cors-allow-origin: "https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org"
-      hosts:
-        - host: auth.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: kuma.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: jinbe.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: dummy.example.org
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
+# The oathkeeper proxy Ingress lives at the parent-chart top level
+# (`oathkeeperProxyIngress:`) since chart 0.7.3 so that annotation values
+# can reference `{{ .Release.Name }}` through a real `tpl` pass. The
+# schema mirrors the previous `oathkeeper.ingress.proxy.*` keys 1:1.
+oathkeeperProxyIngress:
+  enabled: true
+  # Pick the IngressClass watched by the controller that fronts your
+  # cluster (kubectl get ingressclass). "nginx" is the upstream
+  # ingress-nginx default.
+  className: nginx
+  # Override CORS allow-origin: the chart default of "*" is rejected
+  # by browsers when the request carries credentials (cookies). List
+  # the tenant origins explicitly; ingress-nginx echoes back the one
+  # that matches the request's Origin header so credentialed
+  # XHR/fetch from kuma → jinbe succeeds.
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org"
+  hosts:
+    - host: auth.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: kuma.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: jinbe.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: dummy.example.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
 
 kratosLoginUi:
   kratos:
@@ -122,11 +124,50 @@ jinbe:
     # then the marker key rbac:bootstrap:state in Redis prevents re-runs.
     # Rotate the password via Kratos settings flow after first login;
     # in production replace these literals with Vault references.
+    #
+    # ADMIN_PASSWORD must be at least 16 chars and must NOT start with
+    # a well-known weak prefix (`changeme`, `password`, `admin`, `123`,
+    # case-insensitive). Both the zod schema and a runtime guard in the
+    # bootstrap CLI enforce this — example value below is a placeholder
+    # only; rotate in your own overlay or wire it from Vault.
     ADMIN_EMAIL: admin@example.org
-    ADMIN_PASSWORD: changeme-example-org-2026
+    ADMIN_PASSWORD: ExampleOrgInitialBootstrap2026!
     ADMIN_NAME: Example Org Admin
     ENCRYPTION_KEY: changeme-32char-example-org-poc-aa
     CORS_ORIGIN: https://kuma.example.org,https://auth.example.org,https://jinbe.example.org,https://dummy.example.org
+
+# -----------------------------------------------------------------------------
+# Multi-organization illustration (Path 3 hybrid)
+# -----------------------------------------------------------------------------
+# The chart's Kratos identity schema declares `metadata_admin.organizations`
+# as an array of UUIDs (see values.yaml). That field is admin-only and is
+# populated through the jinbe API (PUT /api/admin/users/:email/organizations)
+# after install, not through Helm values — Kratos itself does not validate
+# metadata against the schema. The OPA rego policy uses the array (mirrored
+# into Redis as `bindings.user_organizations[email]`) to decide whether a
+# request whose `X-Tenant-Id` is set may proceed.
+#
+# Example identity (illustration only, shown in the Kratos JSON shape):
+#
+#   {
+#     "traits": {
+#       "email": "alice@example.org",
+#       "name": "Alice",
+#       "picture": "https://cdn.example.org/u/alice.png"
+#     },
+#     "metadata_admin": {
+#       "organizations": [
+#         "11111111-1111-1111-1111-111111111111",
+#         "22222222-2222-2222-2222-222222222222"
+#       ]
+#     }
+#   }
+#
+# Browsers attach `X-Tenant-Id: <uuid>` on each org-scoped request; oathkeeper
+# forwards it through opa-authz-proxy, and rego rejects if the UUID is not in
+# the identity's `organizations` array. The legacy single-org pointer
+# `traits.organization_id` (when a tenant schema declares it) remains
+# acceptable as a fallback for the same-org case — that's the "hybrid" bit.
 
 # Inline 401/403/404 pages — same host, no cross-domain redirect.
 # Override the palette/copy to match the tenant's brand; all values

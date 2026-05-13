@@ -187,6 +187,19 @@ kratos:
     # for those flows to attach correctly. Without `totp.account_name`
     # the QR/secret would have no human-readable label; without
     # `webauthn.identifier` registering a security key fails.
+    #
+    # The traits block keeps `additionalProperties: false` so unknown
+    # user-editable fields are rejected at the boundary. `picture` is
+    # added as an optional URI for the SPA avatar slot.
+    #
+    # `metadata_admin` is shown for documentation purposes. Kratos does
+    # NOT validate metadata against the identity schema (see
+    # https://www.ory.sh/docs/kratos/manage-identities/managing-users-identities-metadata)
+    # — the structure is enforced by jinbe at the admin API boundary.
+    # `organizations` is the array of organization UUIDs the identity
+    # may act in for authorization purposes (Path 3 hybrid: the legacy
+    # single `organization_id` trait remains primary for billing /
+    # employment semantics; this array is additive and drives authz).
     identitySchemas:
       person.schema.json: |
         {
@@ -212,10 +225,31 @@ kratos:
                     "recovery": { "via": "email" }
                   }
                 },
-                "name": { "type": "string", "title": "Name" }
+                "name": { "type": "string", "title": "Name" },
+                "picture": {
+                  "type": "string",
+                  "format": "uri",
+                  "title": "Avatar URL"
+                }
               },
               "required": ["email"],
               "additionalProperties": false
+            },
+            "metadata_admin": {
+              "type": "object",
+              "properties": {
+                "organizations": {
+                  "type": "array",
+                  "title": "Organization memberships",
+                  "description": "List of organization UUIDs the identity belongs to. Authoritative for authorization (rbac.user_in_org). The legacy traits.organization_id, if present in a tenant schema, remains the primary single-org pointer for billing/employment semantics.",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "uniqueItems": true,
+                  "default": []
+                }
+              }
             }
           }
         }
@@ -341,58 +375,78 @@ oathkeeper:
             config:
               verbose: false
 
+  # The subchart's Ingress emission is DISABLED here on purpose.
+  # The parent chart owns the proxy Ingress now (see the top-level
+  # `oathkeeperProxyIngress:` block below) so that annotation values can
+  # be `tpl`-evaluated and reference `{{ .Release.Name }}` — necessary
+  # for the release-prefixed error-page Service that ingress-nginx's
+  # `default-backend` reroute points at.
+  #
+  # Do NOT flip this back to `true` in an overlay; it would emit a
+  # second Ingress with the same name as the parent-owned one and the
+  # install/upgrade will fail with an ownership conflict.
   ingress:
     proxy:
-      enabled: true
-      className: ""
-      # ingress-nginx is the canonical CORS source. Annotations below
-      # cover ALL responses (including 401/403/500) since oathkeeper's
-      # rs/cors-based middleware does not touch error paths.
-      # The custom-http-errors=999 sentinel disables the cluster-wide
-      # custom-http-errors list for THIS Ingress only — without it,
-      # ingress-nginx ConfigMaps that route 4xx/5xx to a default error
-      # backend strip the JSON body and CORS headers, leaving SPA
-      # clients with "Failed to fetch" and no error.code visible.
-      # Override `cors-allow-origin` with the actual origins; defaults
-      # are derived from `global.{authDomain,appDomain}` via the
-      # auth.corsAllowOrigin helper.
-      annotations:
-        nginx.ingress.kubernetes.io/enable-cors: "true"
-        nginx.ingress.kubernetes.io/cors-allow-origin: "*"
-        nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-        nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With"
-        nginx.ingress.kubernetes.io/cors-max-age: "600"
-        # Route 401/403/404 to the in-chart error-page Service so the
-        # browser sees a styled HTML page on the SAME host (e.g.
-        # kuma.{domain}/403) instead of being redirected to
-        # auth.{domain}/login for every authz error. 401 only fires
-        # for requests that don't match the redirect handler's
-        # text/html condition (XHR, fetch); HTML navigations still
-        # get the cross-host /login redirect from Oathkeeper above.
-        nginx.ingress.kubernetes.io/custom-http-errors: "401,403,404"
-        # Points at the literal Service name from
-        # templates/error-page/service.yaml. The oathkeeper subchart
-        # ingress template renders annotations with toYaml (no tpl pass),
-        # so this value cannot use {{ .Release.Name }} — the error-page
-        # Service is intentionally named without a release prefix so the
-        # annotation works under any release name.
-        nginx.ingress.kubernetes.io/default-backend: error-page
-      hosts:
-        - host: auth.example.com
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-        - host: app.example.com
-          paths:
-            - path: /
-              pathType: ImplementationSpecific
-      tls: []
+      enabled: false
+    api:
+      enabled: false
 
   # Access rules - now served by Jinbe HTTP endpoint
   # If you still need a static ConfigMap fallback, provide inline JSON here
   # externalAccessRulesConfigMap: "my-access-rules-configmap"
   accessRules: ""
+
+# =============================================================================
+# Oathkeeper Proxy Ingress — parent-chart-owned, replaces the subchart's
+# Ingress so annotation values get a real `tpl` pass (the subchart renders
+# annotations through bare `toYaml`, which strands `{{ .Release.Name }}`
+# inside the YAML literal). Inputs match the subchart's schema 1:1 so
+# overlays only need to rename the top-level key when migrating.
+# =============================================================================
+oathkeeperProxyIngress:
+  enabled: true
+  className: ""
+  # ingress-nginx is the canonical CORS source. Annotations below
+  # cover ALL responses (including 401/403/500) since oathkeeper's
+  # rs/cors-based middleware does not touch error paths.
+  # Annotations are passed through `tpl` by the parent template, so
+  # values may use Helm directives like `{{ .Release.Name }}`.
+  # Override `cors-allow-origin` with the actual origins; defaults
+  # are derived from `global.{authDomain,appDomain}`.
+  annotations:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Request-ID, Cookie, X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "600"
+    # Route 401/403/404 to the in-chart error-page Service so the
+    # browser sees a styled HTML page on the SAME host (e.g.
+    # kuma.{domain}/403) instead of being redirected to
+    # auth.{domain}/login for every authz error. 401 only fires
+    # for requests that don't match the redirect handler's
+    # text/html condition (XHR, fetch); HTML navigations still
+    # get the cross-host /login redirect from Oathkeeper above.
+    nginx.ingress.kubernetes.io/custom-http-errors: "401,403,404"
+    # Points at the release-prefixed error-page Service from
+    # templates/error-page/service.yaml. `{{ .Release.Name }}` is
+    # resolved by the parent chart's `tpl` pass on annotations.
+    nginx.ingress.kubernetes.io/default-backend: '{{ .Release.Name }}-error-page'
+  hosts:
+    - host: auth.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  # Subchart-compatible spec.defaultBackend for unmatched paths within
+  # this Ingress. Distinct from the `default-backend` ANNOTATION above
+  # (which controls ingress-nginx's custom-http-errors reroute). Leave
+  # empty to drop the spec field entirely.
+  defaultBackend: {}
 
 # =============================================================================
 # OPAL - Policy Administration (Permit.io)
