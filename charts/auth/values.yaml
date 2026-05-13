@@ -187,6 +187,19 @@ kratos:
     # for those flows to attach correctly. Without `totp.account_name`
     # the QR/secret would have no human-readable label; without
     # `webauthn.identifier` registering a security key fails.
+    #
+    # The traits block keeps `additionalProperties: false` so unknown
+    # user-editable fields are rejected at the boundary. `picture` is
+    # added as an optional URI for the SPA avatar slot.
+    #
+    # `metadata_admin` is shown for documentation purposes. Kratos does
+    # NOT validate metadata against the identity schema (see
+    # https://www.ory.sh/docs/kratos/manage-identities/managing-users-identities-metadata)
+    # — the structure is enforced by jinbe at the admin API boundary.
+    # `organizations` is the array of organization UUIDs the identity
+    # may act in for authorization purposes (Path 3 hybrid: the legacy
+    # single `organization_id` trait remains primary for billing /
+    # employment semantics; this array is additive and drives authz).
     identitySchemas:
       person.schema.json: |
         {
@@ -212,10 +225,31 @@ kratos:
                     "recovery": { "via": "email" }
                   }
                 },
-                "name": { "type": "string", "title": "Name" }
+                "name": { "type": "string", "title": "Name" },
+                "picture": {
+                  "type": "string",
+                  "format": "uri",
+                  "title": "Avatar URL"
+                }
               },
               "required": ["email"],
               "additionalProperties": false
+            },
+            "metadata_admin": {
+              "type": "object",
+              "properties": {
+                "organizations": {
+                  "type": "array",
+                  "title": "Organization memberships",
+                  "description": "List of organization UUIDs the identity belongs to. Authoritative for authorization (rbac.user_in_org). The legacy traits.organization_id, if present in a tenant schema, remains the primary single-org pointer for billing/employment semantics.",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "uniqueItems": true,
+                  "default": []
+                }
+              }
             }
           }
         }
