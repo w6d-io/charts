@@ -465,10 +465,14 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    # Image tags carry the `v` prefix (v0.5.0), Chart.appVersion does not
-    # (0.5.0). Hard-pin here so the chart's default install resolves to
-    # an existing tag without relying on the fallback.
-    tag: "v0.5.0"
+    # Image tags carry the `v` prefix (v0.5.x), Chart.appVersion does not.
+    # Hard-pin here so the chart's default install resolves to an existing
+    # tag without relying on the fallback. v0.5.1 ships the
+    # notifyOpal/notifyOpalRoles fix so every RBAC mutation publishes the
+    # full data-source list (incl. /route_map/{service}); previously a
+    # route added through the admin UI never reached OPA until an
+    # opal-client restart.
+    tag: "v0.5.1"
     pullPolicy: IfNotPresent
 
   service:
@@ -756,7 +760,15 @@ adminUi:
   replicaCount: 1
   image:
     repository: ghcr.io/w6d-io/kuma
-    tag: "v2.6.0"
+    # v2.6.1 fixes the false-positive MFA badge: real enrolment is now
+    # derived from credentials.totp.config.totp_url /
+    # credentials.webauthn.config.credentials[] /
+    # credentials.lookup_secret.config.recovery_codes[] rather than
+    # credential-key presence. Earlier images flagged every freshly
+    # registered user as MFA-enabled because Kratos auto-creates an
+    # empty credentials.webauthn entry when the schema declares webauthn
+    # as an identifier.
+    tag: "v2.6.1"
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
