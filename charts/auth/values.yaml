@@ -465,10 +465,11 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    # Image tags carry the `v` prefix (v0.5.0), Chart.appVersion does not
-    # (0.5.0). Hard-pin here so the chart's default install resolves to
-    # an existing tag without relying on the fallback.
-    tag: "v0.5.0"
+    # v0.5.1 ships the OPAL publish-on-mutation fix — every RBAC change
+    # now re-publishes the full entries list (incl. /route_map/{svc})
+    # instead of only /bindings + /bindings/groups. Earlier tags left OPA
+    # stale on route additions until an opal-client restart.
+    tag: "v0.5.1"
     pullPolicy: IfNotPresent
 
   service:
