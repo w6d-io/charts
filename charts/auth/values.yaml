@@ -257,12 +257,12 @@ oathkeeper:
         maxUnavailable: 0
         maxSurge: 1
 
-    # Steady-state observed in dev-aws-1/auth-w6d: oathkeeper sits at
-    # ~10-15m CPU and ~60-80Mi RSS. Request 50m/96Mi to escape
-    # BestEffort QoS class (was the eviction trigger in the 7-restart
-    # incident); cap at 300m/256Mi to absorb startup + rule re-fetch
-    # bursts without letting a runaway leak starve neighbours.
-    # Override per-environment if your load profile differs.
+    # Steady-state for oathkeeper sits at ~10-15m CPU and ~60-80Mi RSS.
+    # Request 50m/96Mi to escape BestEffort QoS (BestEffort was the
+    # eviction trigger behind a multi-restart incident); cap at 300m/256Mi
+    # to absorb startup + rule re-fetch bursts without letting a runaway
+    # leak starve neighbours. Override per environment if your load
+    # profile differs.
     resources:
       requests:
         cpu: 50m
