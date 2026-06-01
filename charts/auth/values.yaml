@@ -621,7 +621,7 @@ kratosLoginUi:
   image:
     repository: ghcr.io/w6d-io/kratos-login-ui
     pullPolicy: IfNotPresent
-    tag: "v0.1.1"
+    tag: "v0.1.2"
 
   branding:
     appName: "My App"
