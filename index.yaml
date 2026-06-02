@@ -3,6 +3,30 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v3.1.5
+    created: "2026-06-02T08:02:15.642237625Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.2.1'
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: cc0526886a4ae20d3c160138a7265aadd49889cf63ddd48cef06f02f000e962c
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-3.1.6/app-3.1.6.tgz
+    version: 3.1.6
+  - apiVersion: v2
+    appVersion: v3.1.5
     created: "2026-02-25T11:18:07.016055871Z"
     dependencies:
     - name: helper
@@ -8515,4 +8539,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-01T11:04:49.308585762Z"
+generated: "2026-06-02T08:02:15.642754151Z"
