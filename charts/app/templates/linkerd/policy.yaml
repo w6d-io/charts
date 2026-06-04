@@ -12,7 +12,11 @@
 {{- /* Server resources — one per port */ -}}
 {{- range $p := $ports }}
 ---
+{{- if $.Capabilities.APIVersions.Has "policy.linkerd.io/v1beta3" }}
 apiVersion: policy.linkerd.io/v1beta3
+{{- else }}
+apiVersion: policy.linkerd.io/v1beta1
+{{- end }}
 kind: Server
 metadata:
   name: {{ $fullname }}-server{{ if not $singlePort }}-{{ $p.port }}{{ end }}
@@ -24,7 +28,9 @@ spec:
       {{- include "helper.labels.matchLabels" $ | nindent 6 }}
   port: {{ $p.port }}
   proxyProtocol: {{ default "unknown" $p.proxyProtocol }}
+{{- if $.Capabilities.APIVersions.Has "policy.linkerd.io/v1beta3" }}
   accessPolicy: {{ if $hasCommunications }}deny{{ else }}audit{{ end }}
+{{- end }}
 {{- end }}
 {{- if $hasCommunications }}
 {{- /* MeshTLSAuthentication — one per comm (shared across ports) */ -}}
