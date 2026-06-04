@@ -12,7 +12,7 @@
 {{- /* Server resources — one per port */ -}}
 {{- range $p := $ports }}
 ---
-{{- if $.Capabilities.APIVersions.Has "policy.linkerd.io/v1beta3" }}
+{{- if $.Capabilities.APIVersions.Has "policy.linkerd.io/v1beta3/Server" }}
 apiVersion: policy.linkerd.io/v1beta3
 {{- else }}
 apiVersion: policy.linkerd.io/v1beta1
@@ -28,7 +28,7 @@ spec:
       {{- include "helper.labels.matchLabels" $ | nindent 6 }}
   port: {{ $p.port }}
   proxyProtocol: {{ default "unknown" $p.proxyProtocol }}
-{{- if $.Capabilities.APIVersions.Has "policy.linkerd.io/v1beta3" }}
+{{- if $.Capabilities.APIVersions.Has "policy.linkerd.io/v1beta3/Server" }}
   accessPolicy: {{ if $hasCommunications }}deny{{ else }}audit{{ end }}
 {{- end }}
 {{- end }}
