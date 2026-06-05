@@ -17,4 +17,4 @@ dependencies:
   version: ">=0.2.1"
   repository: https://charts.w6d.io
 appVersion: v3.1.5
-version: 3.1.7
+version: 3.1.8
