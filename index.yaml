@@ -3,6 +3,30 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v3.1.9
+    created: "2026-06-10T08:33:28.347961927Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.2.1'
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: a5f8a8ef01c686b48c8b23857fb2e671e0911d2b700b37f8531a1fac2fd0190e
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-3.1.10/app-3.1.10.tgz
+    version: 3.1.10
+  - apiVersion: v2
+    appVersion: v3.1.9
     created: "2026-06-08T12:24:34.721719992Z"
     dependencies:
     - name: helper
@@ -3535,6 +3559,56 @@ entries:
     - https://github.com/w6d-io/charts/releases/download/app-1.0.0/app-1.0.0.tgz
     version: 1.0.0
   auth:
+  - apiVersion: v2
+    appVersion: 0.5.1
+    created: "2026-06-10T08:33:28.63593389Z"
+    dependencies:
+    - condition: kratos.enabled
+      name: kratos
+      repository: https://k8s.ory.sh/helm/charts
+      version: 0.61.0
+    - condition: oathkeeper.enabled
+      name: oathkeeper
+      repository: https://k8s.ory.sh/helm/charts
+      version: 0.61.0
+    - condition: hydra.enabled
+      name: hydra
+      repository: https://k8s.ory.sh/helm/charts
+      version: 0.62.1
+    - condition: opal.enabled
+      name: opal
+      repository: file://charts/opal
+      version: 0.0.29
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: ~19
+    description: Complete authentication stack with Kratos, Oathkeeper, OPAL, Jinbe,
+      and Redis
+    digest: 3c08d47898b1f8341f9486ab9c73fc099e26282f4a1da058ef2a8cb2c2636c9a
+    home: https://github.com/w6d-io/charts
+    icon: https://w6d.io/favicon.ico
+    keywords:
+    - auth
+    - kratos
+    - oathkeeper
+    - hydra
+    - opal
+    - opa
+    - jinbe
+    - redis
+    - identity
+    - authorization
+    maintainers:
+    - name: WILDCARD
+      url: https://w6d.io
+    name: auth
+    sources:
+    - https://github.com/w6d-io/charts
+    type: application
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/auth-0.8.0/auth-0.8.0.tgz
+    version: 0.8.0
   - apiVersion: v2
     appVersion: 0.5.1
     created: "2026-06-01T11:04:49.30795045Z"
@@ -8611,4 +8685,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-08T12:24:34.723147938Z"
+generated: "2026-06-10T08:33:28.636620335Z"
