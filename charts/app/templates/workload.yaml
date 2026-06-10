@@ -1,3 +1,4 @@
+{{- if .Values.workload.enabled }}
 {{- $image := (include "helper.images.image" ( dict "imageRoot" .Values.image ) ) }}
 {{- $volumes := list }}
 {{- if .Values.lifecycle.enabled }}
@@ -195,3 +196,4 @@ spec:
   {{-   end }}
   {{-   include "helper.volumes.volumeClaimTemplates" (dict "volumes" $volumes) | nindent 2 }}
   {{- end }}
+{{- end }}

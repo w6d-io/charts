@@ -5,11 +5,14 @@ dependencies:
 - name: oathkeeper
   repository: https://k8s.ory.sh/helm/charts
   version: 0.61.0
+- name: hydra
+  repository: https://k8s.ory.sh/helm/charts
+  version: 0.62.1
 - name: opal
   repository: file://charts/opal
   version: 0.0.29
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 19.6.4
-digest: sha256:76c3b5a174d4d0d97213dcfd45a8a34f725426f8df2510dead4364de1fbf99fb
-generated: "2026-04-24T09:44:51.398910813+02:00"
+digest: sha256:8a82f3bbf36eb80ed602f64612583e05568516f7ed437276df685d3f64856a9b
+generated: "2026-06-09T16:14:38.767165+02:00"

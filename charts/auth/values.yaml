@@ -395,6 +395,48 @@ oathkeeper:
   accessRules: ""
 
 # =============================================================================
+# Hydra - OAuth2 / OpenID Connect server (M2M client_credentials API keys)
+# =============================================================================
+# Opt-in. Disabled by default so existing consumers are unaffected. When
+# enabled, Hydra issues OAuth2 clients used as scoped, per-organization API
+# keys (grant_type=client_credentials). It MUST use its own database (do NOT
+# share the Kratos schema). Provide DSN + secrets via your environment overlay
+# (e.g. Vault), the same way Kratos is wired.
+#
+#   - secrets.system / DSN: inject via hydra.deployment.extraEnv referencing
+#     your secret store (e.g. value: vault:infra/data/auth#hydra-dsn).
+#   - Access-token strategy: 'opaque' is recommended so deleting a client
+#     revokes access on next introspection. Use 'jwt' only with short TTLs.
+hydra:
+  enabled: false
+
+  # maester reconciles OAuth2Client CRDs; not needed when clients are created
+  # via the Admin API by the customer-area backend. Disabled to reduce surface.
+  maester:
+    enabled: false
+
+  hydra:
+    automigration:
+      enabled: true
+    config:
+      # dsn and secrets.system are intentionally empty here; supply them via
+      # the environment overlay (extraEnv -> Vault) so they are never committed.
+      dsn: ""
+      secrets: {}
+      urls:
+        self:
+          issuer: ""
+      oauth2:
+        expose_internal_errors: false
+      strategies:
+        access_token: opaque
+      ttl:
+        access_token: 15m
+      log:
+        level: info
+        format: json
+
+# =============================================================================
 # OPAL - Policy Administration (Permit.io)
 # =============================================================================
 opal:

@@ -1,3 +1,4 @@
+{{- if .Values.service.enabled }}
 {{- $serviceName := ((include "helper.names.service" (dict "name" .Values.service.name "context" $)) | lower ) }}
 ---
 apiVersion: v1
@@ -41,3 +42,4 @@ spec:
   type: {{ default "ClusterIP" .Values.service.type }}
   selector:
     {{- include "helper.labels.matchLabels" . | nindent 4 }}
+{{- end }}
