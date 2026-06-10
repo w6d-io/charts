@@ -2,12 +2,13 @@ apiVersion: v2
 name: auth
 description: Complete authentication stack with Kratos, Oathkeeper, OPAL, Jinbe, and Redis
 type: application
-version: 0.7.5
+version: 0.8.0
 appVersion: "0.5.1"
 keywords:
   - auth
   - kratos
   - oathkeeper
+  - hydra
   - opal
   - opa
   - jinbe
@@ -34,6 +35,13 @@ dependencies:
     version: "0.61.0"
     repository: https://k8s.ory.sh/helm/charts
     condition: oathkeeper.enabled
+
+  # Hydra - OAuth2 / OpenID Connect server (M2M client_credentials API keys)
+  # Opt-in: disabled by default so existing consumers are unaffected.
+  - name: hydra
+    version: "0.62.1"
+    repository: https://k8s.ory.sh/helm/charts
+    condition: hydra.enabled
 
   # OPAL - Policy Administration (Server + Client + OPA)
   # Vendored for custom template modifications (podAnnotations for Vault)
