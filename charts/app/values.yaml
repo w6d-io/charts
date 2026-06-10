@@ -8,6 +8,11 @@ namespace: ""
 
 kind: ""
 
+# Main workload (Deployment/StatefulSet/DaemonSet/Job from `kind`).
+# Disable to render only extraResources (e.g. CronJob-only deployments).
+workload:
+  enabled: true
+
 database:
   host: ""
   adminpassword: ""
@@ -63,6 +68,7 @@ lifecycle:
 resources: {}
 
 service:
+  enabled: true
   name: "-"
   internalPort: 8080
   externalPort: 8080
