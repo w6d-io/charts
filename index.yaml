@@ -3,6 +3,34 @@ entries:
   app:
   - apiVersion: v2
     appVersion: v3.1.9
+    created: "2026-06-11T09:47:33.91172007Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.2.1'
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 15.5.38
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: ac8e3dd25c4a9952b2519a4e252635e94e8d10227b4e61d547e9d5ff6865f7bf
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-3.1.11/app-3.1.11.tgz
+    version: 3.1.11
+  - apiVersion: v2
+    appVersion: v3.1.9
     created: "2026-06-10T08:33:28.347961927Z"
     dependencies:
     - name: helper
@@ -8685,4 +8713,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-10T08:33:28.636620335Z"
+generated: "2026-06-11T09:47:33.912243768Z"
