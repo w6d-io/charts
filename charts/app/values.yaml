@@ -13,6 +13,12 @@ kind: ""
 workload:
   enabled: true
 
+# Optional bundled PostgreSQL (bitnami subchart). Disabled by default; enable
+# and configure under this key to deploy a database alongside (or instead of)
+# the app workload. See https://github.com/bitnami/charts/tree/main/bitnami/postgresql
+postgresql:
+  enabled: false
+
 database:
   host: ""
   adminpassword: ""

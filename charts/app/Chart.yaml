@@ -16,5 +16,11 @@ dependencies:
 - name: helper
   version: ">=0.2.1"
   repository: https://charts.w6d.io
+# PostgreSQL - optional bundled database (opt-in; disabled by default so
+# existing consumers are unaffected). Enable with postgresql.enabled=true.
+- name: postgresql
+  version: "15.5.38"
+  repository: https://charts.bitnami.com/bitnami
+  condition: postgresql.enabled
 appVersion: v3.1.9
-version: 3.1.10
+version: 3.1.11
