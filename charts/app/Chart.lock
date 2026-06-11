@@ -2,5 +2,8 @@ dependencies:
 - name: helper
   repository: https://charts.w6d.io
   version: 0.2.1
-digest: sha256:94ae0be617e0a4ed46c6d65070bd6d8a085e76c8a102fc52ba4396f60d6b8488
-generated: "2025-07-31T15:46:45.925337+02:00"
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 15.5.38
+digest: sha256:91138142d5c87c3a76732c9ca749bbffc6bba2b38bcc0a01c49ffbd872948c1f
+generated: "2026-06-11T11:37:45.610885+02:00"
