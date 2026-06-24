@@ -514,7 +514,7 @@ jinbe:
     # full data-source list (incl. /route_map/{service}); previously a
     # route added through the admin UI never reached OPA until an
     # opal-client restart.
-    tag: "v0.6.0"
+    tag: v0.6.1
     pullPolicy: IfNotPresent
 
   service:
@@ -810,7 +810,7 @@ adminUi:
     # registered user as MFA-enabled because Kratos auto-creates an
     # empty credentials.webauthn entry when the schema declares webauthn
     # as an identifier.
-    tag: "v2.6.1"
+    tag: v2.6.3
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
