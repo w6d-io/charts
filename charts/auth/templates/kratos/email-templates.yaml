@@ -1,0 +1,124 @@
+{{- /*
+Branded Kratos courier templates for every enabled email flow.
+
+Each rendered ConfigMap holds the three files Kratos expects under a
+template_override_path:
+    email.subject.gotmpl / email.body.gotmpl / email.body.plaintext.gotmpl
+
+Two families are rendered:
+
+  Code flows (login_code, registration_code, recovery_code, verification_code),
+  status "valid", from files/email/code.body.* — these carry a one-time code.
+
+  No-code flows (recovery_code/invalid, verification_code/invalid,
+  verifiable_address_changed), from files/email/message.body.* — notices with no
+  code (attempt on an unregistered/again address, or address-changed alert).
+
+The HTML/text bodies live as version-controlled files under files/email/ and are
+rendered here with these substitutions. All branding is injected from values at
+render time so this chart carries no environment-specific identifiers and is safe
+to publish; the bodies keep only generic copy + tokens.
+
+  HEADER_BLOCK  -> an <img> banner when authEmail.bannerUrl is set, else a text
+                   title (so the email still renders if no banner URL is given).
+  INTRO_TOKEN   -> the per-flow lead-in sentence, so each flow reads correctly
+                   (e.g. recovery says "récupération", the address-changed notice
+                   describes the change). May itself contain BRAND_NAME /
+                   SUPPORT_EMAIL tokens, which are substituted after it is inlined.
+  CODE_TOKEN    -> (code flows only) the Kratos Go-template variable for that flow
+                   ({{ .LoginCode }} / {{ .RegistrationCode }} / {{ .RecoveryCode }}
+                   / {{ .VerificationCode }}), built without a literal "{{" so Helm
+                   does not try to evaluate it here.
+  BRAND_NAME    -> authEmail.brandName
+  SUPPORT_EMAIL -> authEmail.supportEmail
+
+Subject is per-flow by default. authEmail.subject, if non-empty, overrides the
+subject for every flow (single global subject escape hatch).
+
+Wiring (set in the deployed values overlay, NOT here, so the chart is safe by
+default): kratos.kratos.config.courier.template_override_path=/conf/courier-templates
+and kratos.statefulSet / kratos.deployment extraVolumes+extraVolumeMounts to mount
+each ConfigMap at /conf/courier-templates/<type>/<status> (or, for the address
+changed notice, /conf/courier-templates/verifiable_address_changed). Disabled ->
+no ConfigMaps, Kratos defaults.
+*/}}
+{{- if .Values.authEmail.enabled }}
+{{- $lb := "{" }}
+{{- $rb := "}" }}
+{{- $codeHtml := .Files.Get "files/email/code.body.html" }}
+{{- $codeText := .Files.Get "files/email/code.body.txt" }}
+{{- $msgHtml := .Files.Get "files/email/message.body.html" }}
+{{- $msgText := .Files.Get "files/email/message.body.txt" }}
+{{- $banner := .Values.authEmail.bannerUrl | default "" }}
+{{- $brand := .Values.authEmail.brandName | default "" }}
+{{- $support := .Values.authEmail.supportEmail | default "" }}
+{{- $subjectOverride := .Values.authEmail.subject | default "" }}
+{{- $header := "" }}
+{{- if $banner }}
+{{-   $header = printf "<img src=\"%s\" alt=\"%s\" width=\"100%%\" style=\"display:block;\">" $banner $brand }}
+{{- else }}
+{{-   $header = printf "<div style=\"padding:24px 0;text-align:center;font-size:22px;font-weight:600;color:#4C6FE7;\">%s</div>" $brand }}
+{{- end }}
+{{- /* ---- Code flows (status "valid"): one ConfigMap per code type ---- */}}
+{{- $loginVar := printf "%s%s .LoginCode %s%s" $lb $lb $rb $rb }}
+{{- $registrationVar := printf "%s%s .RegistrationCode %s%s" $lb $lb $rb $rb }}
+{{- $recoveryVar := printf "%s%s .RecoveryCode %s%s" $lb $lb $rb $rb }}
+{{- $verificationVar := printf "%s%s .VerificationCode %s%s" $lb $lb $rb $rb }}
+{{- $codes := dict "login_code" $loginVar "registration_code" $registrationVar "recovery_code" $recoveryVar "verification_code" $verificationVar }}
+{{- $intros := dict "login_code" "Votre code de connexion pour BRAND_NAME est :" "registration_code" "Bienvenue ! Votre code d'inscription pour BRAND_NAME est :" "recovery_code" "Votre code de récupération pour BRAND_NAME est :" "verification_code" "Votre code de vérification pour BRAND_NAME est :" }}
+{{- $subjects := dict "login_code" "Votre code de connexion BRAND_NAME" "registration_code" "Bienvenue sur BRAND_NAME — votre code" "recovery_code" "Votre code de récupération BRAND_NAME" "verification_code" "Votre code de vérification BRAND_NAME" }}
+{{- range $type, $codeVar := $codes }}
+{{- $intro := index $intros $type }}
+{{- $subject := $subjectOverride }}
+{{- if not $subject }}{{ $subject = index $subjects $type }}{{ end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-email-{{ $type | kebabcase }}-valid
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: kratos-email
+data:
+  "email.subject.gotmpl": |-
+    {{- $subject | replace "BRAND_NAME" $brand | nindent 4 }}
+  "email.body.gotmpl": |-
+    {{- $codeHtml | replace "HEADER_BLOCK" $header | replace "INTRO_TOKEN" $intro | replace "CODE_TOKEN" $codeVar | replace "BRAND_NAME" $brand | replace "SUPPORT_EMAIL" $support | nindent 4 }}
+  "email.body.plaintext.gotmpl": |-
+    {{- $codeText | replace "INTRO_TOKEN" $intro | replace "CODE_TOKEN" $codeVar | replace "BRAND_NAME" $brand | replace "SUPPORT_EMAIL" $support | nindent 4 }}
+{{- end }}
+{{- /* ---- No-code flows: recovery/verification "invalid" + verifiable address changed ---- */}}
+{{- $noCode := list
+    (dict "name" "recovery-code-invalid"
+          "subject" "Tentative de récupération de compte"
+          "intro" "Quelqu'un (peut-être vous) a demandé la récupération d'un compte associé à cette adresse e-mail, mais aucun compte n'y est enregistré. Si c'était vous, vérifiez que vous avez utilisé la bonne adresse ; sinon, vous pouvez ignorer cet e-mail en toute sécurité.")
+    (dict "name" "verification-code-invalid"
+          "subject" "Tentative de vérification d'adresse"
+          "intro" "Quelqu'un (peut-être vous) a tenté de vérifier cette adresse e-mail, mais aucun compte n'y est enregistré. Si c'était vous, vérifiez que vous avez utilisé la bonne adresse ; sinon, vous pouvez ignorer cet e-mail.")
+    (dict "name" "verifiable-address-changed"
+          "subject" "Votre adresse e-mail a été modifiée"
+          "intro" "L'adresse e-mail de votre compte BRAND_NAME vient d'être modifiée. Si vous êtes à l'origine de ce changement, aucune action n'est nécessaire. Sinon, contactez immédiatement SUPPORT_EMAIL.")
+}}
+{{- range $flow := $noCode }}
+{{- $intro := $flow.intro }}
+{{- $subject := $subjectOverride }}
+{{- if not $subject }}{{ $subject = $flow.subject }}{{ end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-email-{{ $flow.name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: kratos-email
+data:
+  "email.subject.gotmpl": |-
+    {{- $subject | replace "BRAND_NAME" $brand | replace "SUPPORT_EMAIL" $support | nindent 4 }}
+  "email.body.gotmpl": |-
+    {{- $msgHtml | replace "HEADER_BLOCK" $header | replace "INTRO_TOKEN" $intro | replace "BRAND_NAME" $brand | replace "SUPPORT_EMAIL" $support | nindent 4 }}
+  "email.body.plaintext.gotmpl": |-
+    {{- $msgText | replace "INTRO_TOKEN" $intro | replace "BRAND_NAME" $brand | replace "SUPPORT_EMAIL" $support | nindent 4 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,12 @@
+Bonjour,
+
+INTRO_TOKEN CODE_TOKEN
+
+Ce code expirera dans 15 minutes.
+
+Important : BRAND_NAME ne vous appellera jamais pour vous demander ce code.
+
+Cordialement,
+L'équipe BRAND_NAME
+
+Besoin d'aide ? SUPPORT_EMAIL

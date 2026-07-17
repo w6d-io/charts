@@ -203,9 +203,9 @@ jinbe:
   podAnnotations:
     vault.security.banzaicloud.io/vault-addr: "http://vault.vault:8200"
     vault.security.banzaicloud.io/vault-role: "auth"
-    vault.security.banzaicloud.io/vault-env-from-path: "infra/data/auth"
+    vault.security.banzaicloud.io/vault-env-from-path: "secret/data/myapp"
   env:
-    ENCRYPTION_KEY: "vault:infra/data/auth#ENCRYPTION_KEY"
+    ENCRYPTION_KEY: "vault:secret/data/myapp#ENCRYPTION_KEY"
 ```
 
 ## Adding a New Service
