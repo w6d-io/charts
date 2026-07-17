@@ -221,6 +221,41 @@ kratos:
         }
 
 # =============================================================================
+# authEmail - branded Kratos courier code emails (recovery + verification)
+# =============================================================================
+# Renders templates/kratos/email-templates.yaml into per-type ConfigMaps that
+# Kratos mounts as courier template overrides. Disabled by default: leaving this
+# off means Kratos uses its built-in default emails (safe, no ConfigMaps).
+#
+# To ENABLE in a values overlay you must set THREE things together (kept in the
+# overlay, not here, so the chart is inert by default):
+#   1. authEmail.enabled: true (+ bannerUrl / brandName / subject below)
+#   2. kratos.kratos.config.courier.template_override_path: /conf/courier-templates
+#   3. kratos.statefulSet.extraVolumes + extraVolumeMounts mounting each
+#      ConfigMap ({release}-email-recovery-code-valid / -verification-code-valid)
+#      at /conf/courier-templates/<recovery_code|verification_code>/valid
+authEmail:
+  # Renders branded Kratos courier templates as ConfigMaps for all seven flows:
+  # login/registration/recovery/verification code-valid emails, the recovery /
+  # verification "invalid" notices, and the verifiable-address-changed alert.
+  # Mount them via kratos.statefulSet/deployment extraVolumes+extraVolumeMounts
+  # under courier.template_override_path. Disabled -> Kratos built-in defaults.
+  enabled: false
+  # Public https URL of the banner image. Must be reachable by the recipient's
+  # mail client (email clients block data: URIs). Empty -> a text brand header
+  # is used instead of an <img>.
+  bannerUrl: ""
+  # Brand name for the <img alt> / text-header fallback and body copy
+  # (replaces the BRAND_NAME token in the bodies).
+  brandName: ""
+  # Support contact email shown in the body/footer (replaces SUPPORT_EMAIL).
+  supportEmail: ""
+  # Optional single subject applied to every flow. Leave empty to use the
+  # per-flow subjects (e.g. "Votre code de connexion <brandName>", the
+  # address-changed alert has its own subject, etc.).
+  subject: ""
+
+# =============================================================================
 # Oathkeeper - API Gateway (Ory)
 # =============================================================================
 # helmTemplatedConfigEnabled allows {{ .Release.Name }} in oathkeeper.config.
@@ -404,7 +439,7 @@ oathkeeper:
 # (e.g. Vault), the same way Kratos is wired.
 #
 #   - secrets.system / DSN: inject via hydra.deployment.extraEnv referencing
-#     your secret store (e.g. value: vault:infra/data/auth#hydra-dsn).
+#     your secret store (e.g. value: vault:secret/data/myapp#hydra-dsn).
 #   - Access-token strategy: 'opaque' is recommended so deleting a client
 #     revokes access on next introspection. Use 'jwt' only with short TTLs.
 hydra:
@@ -620,12 +655,13 @@ opaAuthzProxy:
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
-    # v0.3.1 sticks to HTTP 403 on deny (oathkeeper's remote_json
-    # authorizer rejects any other status as an internal error). The
-    # rego's decision.reason still rides along as an `X-Authz-Reason`
-    # response header for upstreams that want to distinguish a
-    # route_map miss from a permission denial.
-    tag: "v0.3.1"
+    # v0.4.0 forwards X-Tenant-Id into the OPA input and emits an
+    # X-User-Organizations response header — DORMANT until a caller sends
+    # X-Tenant-Id (none do yet). Retains v0.3.1 behaviour: HTTP 403 on deny
+    # (oathkeeper's remote_json authorizer rejects any other status), and the
+    # rego's decision.reason rides along as an `X-Authz-Reason` header for
+    # upstreams that want to distinguish a route_map miss from a denial.
+    tag: "v0.4.0"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
