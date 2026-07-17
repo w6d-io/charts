@@ -1,0 +1,8 @@
+Bonjour,
+
+INTRO_TOKEN
+
+Cordialement,
+L'équipe BRAND_NAME
+
+Besoin d'aide ? SUPPORT_EMAIL
