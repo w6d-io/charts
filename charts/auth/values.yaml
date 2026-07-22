@@ -318,10 +318,10 @@ oathkeeper:
             payload: |
               {
                 "input": {
-                  "sub": "{{ print .Subject }}",
-                  "email": "{{ index .Extra.identity.traits "email" }}",
-                  "object": "{{ .MatchContext.URL.Path }}",
-                  "action": "{{ .MatchContext.Method }}"
+                  "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
+                  "email": "{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}",
+                  "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
+                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
                 }
               }
             forward_response_headers_to_upstream:
@@ -341,8 +341,8 @@ oathkeeper:
             # nil-safe so requests reaching this rule via the noop fallback
             # authenticator (no session) don't crash.
             headers:
-              x-user-id: '{{ print .Subject }}'
-              x-user-email: '{{ index .Extra.identity.traits "email" }}'
+              x-user-id: '{{ "{{" }} print .Subject {{ "}}" }}'
+              x-user-email: '{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
       errors:
         # `unauthorized` (no Kratos session) is the only error that
         # still triggers a cross-host redirect to the login page —
