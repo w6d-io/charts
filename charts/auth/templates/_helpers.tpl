@@ -200,6 +200,10 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.ADMIN_UI_URL | default (printf "http://%s-admin-ui:80" .Release.Name) | quote }}
 - name: ENCRYPTION_KEY
   value: {{ required "jinbe.env.ENCRYPTION_KEY is required" .Values.jinbe.env.ENCRYPTION_KEY | quote }}
+# Audit event stream cap (Redis XADD MAXLEN ~). Shared by the API server and
+# the bootstrap CLI so both trim the audit stream to the same bound.
+- name: REDIS_AUDIT_MAXLEN
+  value: {{ .Values.jinbe.env.REDIS_AUDIT_MAXLEN | default 100000 | quote }}
 {{- if .Values.jinbe.env.ADMIN_EMAIL }}
 - name: ADMIN_EMAIL
   value: {{ .Values.jinbe.env.ADMIN_EMAIL | quote }}
@@ -245,6 +249,14 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
   value: {{ .Values.jinbe.env.CORS_ORIGIN | default (printf "https://%s,https://%s" (include "auth.appDomain" .) (include "auth.authDomain" .)) | quote }}
 - name: ENABLE_SWAGGER
   value: {{ .Values.jinbe.env.ENABLE_SWAGGER | default "false" | quote }}
+# Shared secret authenticating the Kratos web_hook that POSTs auth events to
+# /api/webhooks/kratos. jinbe constant-time compares it against the request's
+# `x-kratos-webhook-secret` header (or `Authorization: Bearer <secret>`). MUST
+# equal the api_key value on the Kratos after-hooks (kratos.kratos.config
+# selfservice flows). Default is a Vault reference — never a literal secret;
+# override jinbe.env.KRATOS_WEBHOOK_SECRET and the Kratos hooks together.
+- name: KRATOS_WEBHOOK_SECRET
+  value: {{ .Values.jinbe.env.KRATOS_WEBHOOK_SECRET | default "vault:secret/data/auth#KRATOS_WEBHOOK_SECRET" | quote }}
 {{- if .Values.jinbe.env.DATABASE_URL }}
 - name: DATABASE_URL
   value: {{ .Values.jinbe.env.DATABASE_URL | quote }}
@@ -275,4 +287,73 @@ App domain
 */}}
 {{- define "auth.appDomain" -}}
 {{- printf "%s" (.Values.global.appDomain | default (printf "app.%s" .Values.global.domain)) }}
+{{- end }}
+
+{{/*
+Backup S3 env for jinbe (main + bootstrap) — mirrors the backup CronJob's S3
+target so jinbe can list/restore snapshots and first-init can pull latest.json.
+Credentials come from the jinbe ServiceAccount's IRSA annotation (no static keys).
+*/}}
+{{- define "auth.backup.env" -}}
+- name: BACKUP_ENABLED
+  value: {{ .Values.backup.enabled | quote }}
+{{- if .Values.backup.enabled }}
+- name: BACKUP_S3_BUCKET
+  value: {{ required "backup.s3.bucket is required when backup.enabled=true" .Values.backup.s3.bucket | quote }}
+- name: BACKUP_S3_PREFIX
+  value: {{ .Values.backup.s3.prefix | default "auth-backup" | quote }}
+- name: BACKUP_S3_REGION
+  value: {{ .Values.backup.s3.region | default "eu-west-3" | quote }}
+- name: BACKUP_SCHEDULE
+  value: {{ .Values.backup.schedule | default "0 2 * * *" | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Oathkeeper enabled-handler keys — comma-joined, deterministically sorted list of
+the handler names in a given Oathkeeper handler map whose `enabled` is true.
+Input context (.) is the handler map itself (authenticators / authorizers /
+mutators / errors.handlers); it may be nil or absent, in which case an empty
+string is returned. Helper for auth.oathkeeper.enabledEnv.
+*/}}
+{{- define "auth.oathkeeper.enabledKeys" -}}
+{{- $handlers := . -}}
+{{- $enabled := list -}}
+{{- if $handlers -}}
+{{- range $name := (keys $handlers | sortAlpha) -}}
+{{- $handler := index $handlers $name -}}
+{{- if kindIs "map" $handler -}}
+{{- if $handler.enabled -}}
+{{- $enabled = append $enabled $name -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- join "," $enabled -}}
+{{- end }}
+
+{{/*
+Oathkeeper enabled-handler env vars for jinbe. Derives, from the chart's OWN
+Oathkeeper config block (.Values.oathkeeper.oathkeeper.config), which handlers
+are enabled per kind and exposes them so jinbe is the single source of truth for
+the Gateway UI pickers and its fail-closed handler validation — no configmap
+coupling, no drift.
+
+Emitted only when Oathkeeper is enabled. Any section that is missing yields an
+empty string (jinbe carries safe defaults). Included verbatim by
+templates/jinbe/deployment.yaml and templates/jinbe/bootstrap-job.yaml.
+*/}}
+{{- define "auth.oathkeeper.enabledEnv" -}}
+{{- if .Values.oathkeeper.enabled -}}
+{{- $config := ((.Values.oathkeeper.oathkeeper | default dict).config | default dict) -}}
+{{- $errors := ($config.errors | default dict) -}}
+- name: OATHKEEPER_ENABLED_AUTHENTICATORS
+  value: {{ include "auth.oathkeeper.enabledKeys" ($config.authenticators | default dict) | quote }}
+- name: OATHKEEPER_ENABLED_AUTHORIZERS
+  value: {{ include "auth.oathkeeper.enabledKeys" ($config.authorizers | default dict) | quote }}
+- name: OATHKEEPER_ENABLED_MUTATORS
+  value: {{ include "auth.oathkeeper.enabledKeys" ($config.mutators | default dict) | quote }}
+- name: OATHKEEPER_ENABLED_ERROR_HANDLERS
+  value: {{ include "auth.oathkeeper.enabledKeys" ($errors.handlers | default dict) | quote }}
+{{- end -}}
 {{- end }}

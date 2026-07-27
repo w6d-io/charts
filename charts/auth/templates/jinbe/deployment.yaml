@@ -38,6 +38,8 @@ spec:
           command: ["node", "dist/cli/bootstrap.js"]
           env:
             {{- include "auth.jinbe.env" . | nindent 12 }}
+            {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
+            {{- include "auth.backup.env" . | nindent 12 }}
           {{- with .Values.jinbe.bootstrap.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -53,6 +55,8 @@ spec:
               protocol: TCP
           env:
             {{- include "auth.jinbe.env" . | nindent 12 }}
+            {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
+            {{- include "auth.backup.env" . | nindent 12 }}
             {{- include "auth.jinbe.envRuntimeOnly" . | nindent 12 }}
           startupProbe:
             httpGet:
