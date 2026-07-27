@@ -22,7 +22,7 @@ spec:
       {{- end }}
       containers:
         - name: opa-authz-proxy
-          image: "{{ .Values.opaAuthzProxy.image.repository }}:{{ .Values.opaAuthzProxy.image.tag }}"
+          image: "{{ .Values.opaAuthzProxy.image.repository }}:{{ .Values.opaAuthzProxy.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.opaAuthzProxy.image.pullPolicy }}
           ports:
             - name: http
