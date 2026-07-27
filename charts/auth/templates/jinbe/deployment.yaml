@@ -21,6 +21,14 @@ spec:
       annotations:
         {{- include "auth.jinbe.podAnnotations" . | nindent 8 }}
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jinbe.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if and .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
       serviceAccountName: {{ include "auth.jinbe.serviceAccountName" . }}
       {{- end }}
@@ -35,6 +43,10 @@ spec:
         - name: bootstrap
           image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
+          {{- with .Values.jinbe.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command: ["node", "dist/cli/bootstrap.js"]
           env:
             {{- include "auth.jinbe.env" . | nindent 12 }}
@@ -49,6 +61,10 @@ spec:
         - name: jinbe
           image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
+          {{- with .Values.jinbe.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 3000
@@ -58,11 +74,18 @@ spec:
             {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
             {{- include "auth.backup.env" . | nindent 12 }}
             {{- include "auth.jinbe.envRuntimeOnly" . | nindent 12 }}
+          # Probe timeouts are deliberately generous. /api/health does light
+          # dependency checks and, under load (the gateway also polls jinbe for
+          # its access rules), can exceed the 1s default — which was SIGTERMing
+          # a healthy-but-busy jinbe on the liveness probe and causing restart
+          # flapping. timeoutSeconds + a higher liveness failureThreshold give a
+          # momentarily-slow-but-alive jinbe room instead of killing it.
           startupProbe:
             httpGet:
               path: /api/health
               port: http
             periodSeconds: 5
+            timeoutSeconds: {{ .Values.jinbe.probes.timeoutSeconds | default 5 }}
             failureThreshold: 72
           readinessProbe:
             httpGet:
@@ -70,12 +93,16 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
+            timeoutSeconds: {{ .Values.jinbe.probes.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.jinbe.probes.readiness.failureThreshold | default 3 }}
           livenessProbe:
             httpGet:
               path: /api/health
               port: http
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: {{ .Values.jinbe.probes.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.jinbe.probes.liveness.failureThreshold | default 6 }}
           {{- with .Values.jinbe.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

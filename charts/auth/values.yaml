@@ -578,7 +578,11 @@ opal:
     policyRepoMainBranch: "main"
     pollingInterval: 30
     broadcastPgsql: false
-    broadcastUri: ""  # Required only when uvicornWorkers > 1 — redis://<release>-redis-master:6379
+    # Required only when uvicornWorkers > 1. Redis is password-protected
+    # (redis.auth.enabled=true), so the broadcast URI MUST embed the password:
+    #   redis://:<redis.auth.password>@<release>-redis-master:6379
+    # Leaving it empty (single worker) means OPAL never connects to redis.
+    broadcastUri: ""
     # Single worker → no need for inter-worker broadcast bus.
     # Increase + set broadcastUri when scaling.
     uvicornWorkers: 1
@@ -629,6 +633,11 @@ jinbe:
     create: true
     name: ""
     token: false
+    # Annotations added to the jinbe ServiceAccount. For the S3 backup feature
+    # (backup.enabled) set an IRSA role-arn here granting s3:PutObject +
+    # s3:GetObject + s3:ListBucket on the bucket, e.g.:
+    #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
+    annotations: {}
   # Jinbe image — REQUIRED override unless your cluster has a pull secret for
   # the W6D registry. The default below is private; a public release (e.g.
   # ghcr.io/w6d-io/jinbe:vX.Y.Z) will be wired in once published.
@@ -637,7 +646,7 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    tag: v0.9.0
+    tag: v0.9.1
     pullPolicy: IfNotPresent
 
   service:
@@ -690,13 +699,50 @@ jinbe:
   # Pod annotations (e.g., for Vault integration)
   podAnnotations: {}
 
+  # Pod-level securityContext applied to BOTH the jinbe Deployment pod and the
+  # bootstrap Job pod. Empty by default so nothing is assumed about the image.
+  # Uncomment fields you need cluster-wide (e.g. fsGroup for a mounted volume).
+  podSecurityContext: {}
+    # fsGroup: 1000
+
+  # Container-level securityContext applied to the jinbe container, the inline
+  # bootstrap initContainer, and the standalone bootstrap Job container.
+  # SAFE hardening defaults that do NOT assume a particular image user, so they
+  # will not break boot. runAsNonRoot and readOnlyRootFilesystem are left
+  # COMMENTED on purpose: the jinbe image's runtime user and its writable-path
+  # requirements are unverified, and enabling either blind can crash the pod.
+  # Verify against the image, then uncomment.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+    # runAsNonRoot: true
+    # readOnlyRootFilesystem: true
+
   resources:
     requests:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
     limits:
-      cpu: 500m
+      # 1 core. 500m throttled jinbe's event loop under the gateway rule-poll +
+      # admin-UI fan-out, pushing /api/health past the probe timeout. Raised so
+      # health stays responsive under load.
+      cpu: "1"
       memory: 512Mi
+
+  # Health-probe tuning (consumed by jinbe/deployment.yaml). /api/health runs
+  # light dependency checks and can be slow under load; a too-tight timeout was
+  # SIGTERMing a busy-but-alive jinbe. Generous timeout + higher liveness
+  # failureThreshold prevent restart flapping. Override per-env if needed.
+  probes:
+    timeoutSeconds: 5
+    readiness:
+      failureThreshold: 3
+    liveness:
+      failureThreshold: 6
 
   # NetworkPolicy — restrict who can reach jinbe Service. Defence in depth:
   # jinbe authenticates exclusively via Kratos session cookie now (the proxy-
@@ -742,11 +788,46 @@ redis:
     registry: ghcr.io
     repository: w6d-io/redis
     tag: "8.2.2"
+  # Password authentication (requirepass) — OPT-IN, DEFAULT OFF. Enabling it on
+  # an EXISTING no-auth redis restarts the server AND requires wiring the OPAL
+  # broadcaster password (see opal.server.broadcastUri); flip it per-env
+  # deliberately, not as a blanket default. When enabled, every in-chart
+  # consumer that connects to redis is wired to the SAME password:
+  #   - jinbe: the auth.jinbe.env helper sources REDIS_PASSWORD from
+  #     redis.auth.password below and embeds it in REDIS_URL, so overriding
+  #     the password here alone propagates to jinbe (single source of truth).
+  #   - OPAL server broadcaster: only connects to redis when
+  #     opal.server.broadcastUri is set (uvicornWorkers > 1). It is empty by
+  #     default so OPAL never touches redis; IF you set broadcastUri you MUST
+  #     embed this password (see opal.server.broadcastUri).
+  # Replace the placeholder before production, or point at an existing secret
+  # via auth.existingSecret / auth.existingSecretPasswordKey. A `vault:` ref
+  # does NOT work here — the bitnami redis subchart is not Vault-aware and
+  # would set requirepass to the literal string.
   auth:
+    enabled: false
+    password: "changeme-redis-password"
+  # Disable the bitnami subchart's own NetworkPolicy: its default is
+  # allowExternal=true (accepts connections from any pod), and a second
+  # co-located NetworkPolicy would be additive (union), so it could not
+  # restrict anything. The parent chart ships a restrictive, release-pinned
+  # NetworkPolicy instead (templates/redis/networkpolicy.yaml, gated by
+  # redisNetworkPolicy.enabled) that allows only jinbe + OPAL pods.
+  networkPolicy:
     enabled: false
   master:
     persistence:
       size: 1Gi
+
+# Redis NetworkPolicy (parent-chart, defense-in-depth). Restricts ingress to
+# the bundled redis to jinbe + OPAL server/client pods on the redis port. Kept
+# OUT of the redis.* block so it does not collide with the bitnami subchart's
+# networkPolicy schema. Set enabled=false if your CNI doesn't support
+# NetworkPolicy. Only rendered when redis.enabled.
+redisNetworkPolicy:
+  enabled: true
+  # extraIngress: additional NetworkPolicyPeer entries appended to the rule.
+  extraIngress: []
 
 # =============================================================================
 # OPA AuthZ Proxy - Translates OPA decisions into HTTP status codes
@@ -785,7 +866,7 @@ opaAuthzProxy:
 # Kratos Login UI
 # =============================================================================
 kratosLoginUi:
-  # Public image at ghcr.io/w6d-io/kratos-login-ui:v0.1.0. Enabled by
+  # Public image at ghcr.io/w6d-io/kratos-login-ui:v0.2.0. Enabled by
   # default — the Oathkeeper rule `selfservice-ui` upstream points at
   # this Service, so auth/registration UI flows require it running.
   enabled: true
@@ -794,7 +875,7 @@ kratosLoginUi:
   image:
     repository: ghcr.io/w6d-io/kratos-login-ui
     pullPolicy: IfNotPresent
-    tag: "v0.1.2"
+    tag: "v0.2.0"
 
   branding:
     appName: "My App"
@@ -936,8 +1017,14 @@ adminUi:
     tag: v2.10.0
     pullPolicy: IfNotPresent
   env:
-    NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
-    NEXT_PUBLIC_AUTH_URL: ""  # Auto: https://auth.{domain}
+    # API_BASE → the SPA's API origin. Empty = same-origin (kuma is served
+    # behind the same host/ingress as the API). Set to https://app.{domain}
+    # only for a split-origin deployment.
+    API_BASE: ""
+    # AUTH_DOMAIN → substituted into kuma's index.html at container start
+    # (envsubst → window.__AUTH_DOMAIN__); drives the 401 redirect target.
+    # Empty auto-derives from global.authDomain (or auth.<global.domain>).
+    AUTH_DOMAIN: ""
   extraEnv: {}
   podAnnotations: {}
   service:

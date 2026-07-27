@@ -61,6 +61,14 @@ spec:
         {{- include "auth.jinbe.podAnnotations" . | nindent 8 }}
     spec:
       restartPolicy: OnFailure
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jinbe.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if and .Values.jinbe.enabled .Values.jinbe.serviceAccount.create }}
       serviceAccountName: {{ include "auth.jinbe.serviceAccountName" . }}
       {{- end }}
@@ -68,6 +76,10 @@ spec:
         - name: bootstrap
           image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
+          {{- with .Values.jinbe.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command: ["node", "dist/cli/bootstrap.js"]
           env:
             {{- include "auth.jinbe.env" . | nindent 12 }}

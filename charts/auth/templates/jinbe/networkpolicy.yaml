@@ -11,11 +11,13 @@
     - Oathkeeper proxy pods         (production traffic on port 8080)
     - OPAL server pods              (datasource pulls)
     - OPAL client pods              (data fetch)
-    - kubelet / probes from any pod IP on the node (use a wide rule —
-      probes don't carry pod labels)
+    - Admin UI (kuma) pods          (when adminUi.enabled)
     - Optionally extra peers via .Values.jinbe.networkPolicy.extraIngress
 
-  All egress is allowed (jinbe needs Redis, Kratos, OPAL, OPA, GitHub, etc.).
+  Kubelet HTTP probes originate from the node and are NOT subject to pod
+  NetworkPolicy, so no explicit probe allowance is needed. Only Ingress is
+  restricted; egress is left unrestricted (jinbe needs Redis, Kratos, OPAL,
+  OPA, GitHub, etc.).
 */}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -31,28 +33,33 @@ spec:
     - Ingress
   ingress:
     - from:
-        # Oathkeeper proxy + api pods (kratos chart standard labels)
+        # Oathkeeper proxy pods (ory oathkeeper subchart labels: the chart
+        # name is NOT release-prefixed, so app.kubernetes.io/name=oathkeeper).
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: oathkeeper
               app.kubernetes.io/instance: {{ .Release.Name }}
-        # OPAL server (calls /api/admin/rbac/opal-datasource etc.)
+        # OPAL server (calls /api/admin/rbac/opal-datasource etc.). The opal
+        # subchart's app.kubernetes.io/name is release-prefixed, so match the
+        # stable opal.ac/role label instead; instance IS carried by opal pods.
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: opal-server
+              opal.ac/role: server
               app.kubernetes.io/instance: {{ .Release.Name }}
         # OPAL client (calls /api/admin/rbac/opal/* and /bindings)
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: opal-client
+              opal.ac/role: client
               app.kubernetes.io/instance: {{ .Release.Name }}
         # Admin UI (kuma) — proxies API calls to jinbe via oathkeeper, but
-        # keep direct path open for in-namespace SPA backend calls.
+        # keep direct path open for in-namespace SPA backend calls. The
+        # admin-ui pods only carry component + instance labels (no
+        # app.kubernetes.io/name), so match exactly those two.
         {{- if .Values.adminUi.enabled }}
         - podSelector:
             matchLabels:
-              {{- include "auth.selectorLabels" . | nindent 14 }}
               app.kubernetes.io/component: admin-ui
+              app.kubernetes.io/instance: {{ .Release.Name }}
         {{- end }}
         {{- with .Values.jinbe.networkPolicy.extraIngress }}
         {{- toYaml . | nindent 8 }}

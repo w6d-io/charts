@@ -149,12 +149,19 @@ app.kubernetes.io/component: jinbe
 {{- end }}
 
 {{/*
-Jinbe pod annotations — user-provided values + (when global.vault.enabled) the
-banzai vault injector annotations. Used by both the Deployment and the
-post-install Bootstrap Job so they share an identical Vault scope.
+Jinbe pod annotations — user-provided values (jinbe.podAnnotations) merged with
+the Banzai Cloud vault injector annotations (auth.vaultAnnotations) when
+global.vault.enabled. Merged as a dict so a key never appears twice; on a key
+collision the user's value wins. When vault is disabled auth.vaultAnnotations
+renders empty and fromYaml yields an empty dict, so only user values remain.
+Used by both the Deployment and the Bootstrap Job so they share an identical
+Vault scope.
 */}}
 {{- define "auth.jinbe.podAnnotations" -}}
-{{- with .Values.jinbe.podAnnotations -}}
+{{- $vault := (include "auth.vaultAnnotations" . | fromYaml) | default dict -}}
+{{- $user := .Values.jinbe.podAnnotations | default dict -}}
+{{- $merged := merge (deepCopy $user) $vault -}}
+{{- with $merged }}
 {{- toYaml . }}
 {{- end }}
 {{- end }}
@@ -180,8 +187,24 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.image.tag | default .Chart.AppVersion | quote }}
 - name: COMMIT_SHA
   value: {{ .Values.jinbe.env.COMMIT_SHA | default (.Values.jinbe.image.tag | default .Chart.AppVersion) | quote }}
+{{/*
+  Redis password: explicit jinbe.env.REDIS_PASSWORD wins; otherwise sourced
+  from redis.auth.password when the bundled redis has auth enabled. Emitted
+  BEFORE REDIS_URL so k8s $(REDIS_PASSWORD) expansion works inside the URL
+  (jinbe's ioredis also reads REDIS_PASSWORD directly, which takes precedence).
+*/}}
+{{- $redisPass := "" -}}
+{{- if .Values.jinbe.env.REDIS_PASSWORD -}}
+{{- $redisPass = .Values.jinbe.env.REDIS_PASSWORD -}}
+{{- else if and .Values.redis.enabled .Values.redis.auth.enabled -}}
+{{- $redisPass = (.Values.redis.auth.password | default "") -}}
+{{- end -}}
+{{- if $redisPass }}
+- name: REDIS_PASSWORD
+  value: {{ $redisPass | quote }}
+{{- end }}
 - name: REDIS_URL
-  value: {{ .Values.jinbe.env.REDIS_URL | default (printf "redis://%s-redis-master:6379" .Release.Name) | quote }}
+  value: {{ .Values.jinbe.env.REDIS_URL | default (printf "redis://%s%s-redis-master:6379" (ternary ":$(REDIS_PASSWORD)@" "" (ne $redisPass "")) .Release.Name) | quote }}
 - name: KRATOS_PUBLIC_URL
   value: {{ .Values.jinbe.env.KRATOS_PUBLIC_URL | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
 - name: KRATOS_ADMIN_URL
@@ -290,9 +313,10 @@ App domain
 {{- end }}
 
 {{/*
-Backup S3 env for jinbe (main + bootstrap) — mirrors the backup CronJob's S3
-target so jinbe can list/restore snapshots and first-init can pull latest.json.
-Credentials come from the jinbe ServiceAccount's IRSA annotation (no static keys).
+Backup S3 env for jinbe (main + bootstrap). jinbe self-schedules the export
+(no external CronJob) and reads the same S3 target so it can list/restore
+snapshots and first-init can pull latest.json. Credentials come from the jinbe
+ServiceAccount's IRSA annotation (no static keys).
 */}}
 {{- define "auth.backup.env" -}}
 - name: BACKUP_ENABLED
