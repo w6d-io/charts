@@ -1,0 +1,63 @@
+{{- if and .Values.redis.enabled .Values.redisNetworkPolicy.enabled }}
+{{/*
+  Redis NetworkPolicy (parent-chart, defense-in-depth) — restrict ingress to
+  the bundled bitnami redis so only intended callers can reach it. The bitnami
+  subchart's own NetworkPolicy is disabled (redis.networkPolicy.enabled=false)
+  because its default allowExternal=true accepts any pod, and a co-located
+  second policy would only be additive (union). This policy is release-pinned.
+
+  Allowed ingress on the redis port:
+    - jinbe pods    (RBAC data store + audit streams; matches the Deployment
+                     pod, which also runs the inline bootstrap initContainer,
+                     and the optional standalone bootstrap Job — all carry the
+                     jinbe name + instance labels)
+    - OPAL server   (broadcaster, only connects when opal.server.broadcastUri
+                     is set; allowed pre-emptively)
+    - OPAL client   (allowed pre-emptively; does not connect by default)
+    - Optionally extra peers via .Values.redisNetworkPolicy.extraIngress
+
+  Kubelet probes are node-originated and NOT subject to pod NetworkPolicy, so
+  redis health checks are unaffected. Only Ingress is restricted; egress is
+  left unrestricted.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "auth.fullname" . }}-redis
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  podSelector:
+    matchLabels:
+      # bitnami labels redis pods with app.kubernetes.io/name = redis.nameOverride
+      # (default "redis"); honor an override (e.g. jinbe-redis) so the selector
+      # still matches when the bundled redis is renamed.
+      app.kubernetes.io/name: {{ .Values.redis.nameOverride | default "redis" }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # jinbe (Deployment pod + inline bootstrap init + standalone Job pod)
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "auth.name" . }}-jinbe
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        # OPAL server (redis broadcaster when uvicornWorkers > 1)
+        - podSelector:
+            matchLabels:
+              opal.ac/role: server
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        # OPAL client
+        - podSelector:
+            matchLabels:
+              opal.ac/role: client
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.redisNetworkPolicy.extraIngress }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 6379
+{{- end }}

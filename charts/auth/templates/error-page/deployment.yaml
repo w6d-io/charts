@@ -18,6 +18,10 @@ spec:
       labels:
         {{- include "auth.labels" . | nindent 8 }}
         app.kubernetes.io/component: error-page
+      annotations:
+        # Roll the pod when the branding/config ConfigMap changes so nginx
+        # picks up new error pages without a manual restart.
+        checksum/config: {{ include (print $.Template.BasePath "/error-page/configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: nginx
