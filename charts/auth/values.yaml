@@ -145,6 +145,74 @@ kratos:
           settings:
             ui_url: https://auth.example.com/auth/settings
             privileged_session_max_age: 15m
+            # ── Audit webhook (auth events → jinbe) ────────────────────────────
+            # After each settings change Kratos POSTs a compact auth event to the
+            # jinbe audit sink. Per-method hooks (password / profile / totp /
+            # webauthn / lookup_secret) each stamp the correct `method`; MFA
+            # enrol/remove is captured via the totp/webauthn/lookup_secret
+            # entries. Per-method (not the global `after.hooks`) is used on
+            # purpose so each event carries its method AND so an update never
+            # fires the hook twice. The `body` is a base64:// Jsonnet template —
+            # function(ctx){...} — emitting ONLY
+            # {flow,identity_id,identity_email,method,ip,ua}: no secrets, no
+            # traits blob. `response.ignore: true` makes the call fire-and-forget
+            # so a slow or down jinbe can never block the user's flow. The
+            # api_key `value` is a Vault reference (never a literal secret) and
+            # MUST resolve to the same value as jinbe's KRATOS_WEBHOOK_SECRET env.
+            # url / method / response / auth are YAML-anchored here and reused by
+            # the login and registration hooks below (Helm expands the anchors).
+            after:
+              password:
+                hooks:
+                  - hook: web_hook
+                    config:
+                      url: &auditWebhookUrl 'http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos'
+                      method: &auditWebhookMethod POST
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwYXNzd29yZCIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                      response: &auditWebhookResponse
+                        ignore: true
+                      auth: &auditWebhookAuth
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: 'vault:secret/data/auth#KRATOS_WEBHOOK_SECRET'
+              profile:
+                hooks:
+                  - hook: web_hook
+                    config:
+                      url: *auditWebhookUrl
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwcm9maWxlIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
+                      response: *auditWebhookResponse
+                      auth: *auditWebhookAuth
+              totp:
+                hooks:
+                  - hook: web_hook
+                    config:
+                      url: *auditWebhookUrl
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ0b3RwIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
+                      response: *auditWebhookResponse
+                      auth: *auditWebhookAuth
+              webauthn:
+                hooks:
+                  - hook: web_hook
+                    config:
+                      url: *auditWebhookUrl
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ3ZWJhdXRobiIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                      response: *auditWebhookResponse
+                      auth: *auditWebhookAuth
+              lookup_secret:
+                hooks:
+                  - hook: web_hook
+                    config:
+                      url: *auditWebhookUrl
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJsb29rdXBfc2VjcmV0IiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
+                      response: *auditWebhookResponse
+                      auth: *auditWebhookAuth
           recovery:
             enabled: true
           verification:
@@ -155,9 +223,34 @@ kratos:
           login:
             ui_url: https://auth.example.com/auth/login
             lifespan: 10m
+            # Audit webhook — emit an auth event to jinbe after every successful
+            # login (any method). Reuses the anchored url/method/response/auth
+            # defined in the settings flow above; see that block for the payload
+            # shape and security notes.
+            after:
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: *auditWebhookUrl
+                    method: *auditWebhookMethod
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogImxvZ2luIiwKICBtZXRob2Q6IG51bGwsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                    response: *auditWebhookResponse
+                    auth: *auditWebhookAuth
           registration:
             lifespan: 10m
             ui_url: https://auth.example.com/auth/registration
+            # Audit webhook — emit an auth event to jinbe after each successful
+            # registration. Reuses the anchored url/method/response/auth from the
+            # settings flow above.
+            after:
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: *auditWebhookUrl
+                    method: *auditWebhookMethod
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc3dvcmQiLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
+                    response: *auditWebhookResponse
+                    auth: *auditWebhookAuth
       log:
         level: info
         format: json
@@ -298,6 +391,8 @@ oathkeeper:
           enabled: true
       authorizers:
         allow:
+          enabled: true
+        deny:
           enabled: true
         remote_json:
           enabled: true
@@ -542,7 +637,7 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    tag: v0.8.0
+    tag: v0.9.0
     pullPolicy: IfNotPresent
 
   service:
@@ -576,6 +671,13 @@ jinbe:
     # BACKUP_IMAGE_MONGO / BACKUP_IMAGE_POSTGRES: private-registry images
     #   for the /backups feature. Unset = backups disabled.
     # BACKUP_GCP_PROJECT_ID: GCP project ID injected into backup job env
+    # REDIS_AUDIT_MAXLEN: cap for the audit event stream (Redis XADD MAXLEN ~).
+    #   Default 100000. Bounds retention of the audit log (Redis-only store).
+    # KRATOS_WEBHOOK_SECRET: shared secret authenticating the Kratos auth-event
+    #   web_hook -> /api/webhooks/kratos. Default is a Vault reference
+    #   (vault:secret/data/auth#KRATOS_WEBHOOK_SECRET); it MUST resolve to the
+    #   same value as the api_key set on the Kratos after-hooks above. Provide
+    #   the secret via Vault (never a literal) and rotate both sides together.
 
   # Additional environment variables (map format: NAME: value).
   # DISABLE_CORS=true skips Fastify's @fastify/cors plugin since the
@@ -831,7 +933,7 @@ adminUi:
   replicaCount: 1
   image:
     repository: ghcr.io/w6d-io/kuma
-    tag: v2.9.0
+    tag: v2.10.0
     pullPolicy: IfNotPresent
   env:
     NEXT_PUBLIC_API_URL: ""  # Auto: https://app.{domain}
@@ -849,27 +951,23 @@ adminUi:
       cpu: 200m
       memory: 256Mi
 
-# ─── Scheduled Backup ──────────────────────────────────────────────────────────
-# Exports all RBAC config + identities as a JSON bundle and uploads to S3.
-# Requires an IAM role with s3:PutObject on the target bucket.
-# Use backup.serviceAccount.annotations to attach an IRSA role.
+# ─── Scheduled Backup + in-app restore ──────────────────────────────────────────
+# When enabled, JINBE ITSELF exports the RBAC bundle on `schedule` and uploads it
+# to s3://<bucket>/<prefix>/{timestamp}.json + a rolling latest.json (no external
+# CronJob — jinbe is self-authenticated and holds the S3 creds). jinbe also reads
+# the bucket so the kuma Backup tab can list snapshots + one-click restore, and a
+# fresh install auto-restores from latest.json before seeding defaults.
+#
+# IAM (IRSA): annotate jinbe.serviceAccount.annotations with a role-arn granting
+# s3:PutObject + s3:GetObject + s3:ListBucket on the bucket, e.g.:
+#   jinbe:
+#     serviceAccount:
+#       annotations:
+#         eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
 backup:
   enabled: false
-  schedule: "0 2 * * *"        # Daily at 02:00 UTC
-  image: ""                     # Default: public.ecr.aws/aws-cli/aws-cli:latest
-  imagePullSecrets: []
-
+  schedule: "0 2 * * *"        # Daily at 02:00 UTC (jinbe-run, cron in UTC)
   s3:
     bucket: ""                  # Required when enabled=true
     prefix: "auth-backup"
     region: "eu-west-3"
-
-  # Internal Host header sent to Jinbe for auth bypass.
-  # Auto-computed as <release>-jinbe:8080 — only override if Jinbe runs in a different namespace.
-  internalHostHeader: ""
-
-  # For IRSA (EKS pod-level IAM) annotate the ServiceAccount:
-  # serviceAccount.annotations:
-  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
-  serviceAccount:
-    annotations: {}
