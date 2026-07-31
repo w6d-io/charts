@@ -112,6 +112,11 @@ kratos:
               - https://auth.example.com
               - https://app.example.com
       session:
+        # Session extender: jinbe's whoami calls PATCH /admin/sessions/{id}/extend
+        # (best-effort). earliest_possible_extend MUST be < lifespan so active users
+        # keep a sliding session with minimal Set-Cookie churn.
+        lifespan: 24h
+        earliest_possible_extend: 1h
         cookie:
           domain: example.com
           same_site: Lax
@@ -359,8 +364,110 @@ authEmail:
 oathkeeper:
   enabled: true
 
+  # rules-sync sidecar — hot-reload Oathkeeper access rules with NO restart / NO GitOps.
+  # A blocking init does the first fetch of jinbe's rules into a shared emptyDir file
+  # (/etc/rules/access-rules.json); a sidecar then polls jinbe and atomically replaces
+  # that file only when it changes. Oathkeeper reads file:///etc/rules/access-rules.json
+  # + fsnotify and reloads in place. The init/sidecar specs live under
+  # oathkeeper.deployment.extra* below (tpl-rendered by the subchart).
+  rulesSync:
+    enabled: true
+    url: ""                       # empty -> http://<release>-jinbe:8080/api/oathkeeper/rules
+    intervalSeconds: 5
+    initRetries: 30
+    image: "curlimages/curl:8.11.1"
+
+  deployment:
+    # Blocking first fetch: guarantees /etc/rules/access-rules.json exists (seeds "[]"
+    # fail-closed after initRetries). tpl-rendered in the subchart context.
+    extraInitContainers: |
+      {{- if .Values.rulesSync.enabled }}
+      - name: rules-sync-init
+        image: {{ .Values.rulesSync.image | quote }}
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -u
+            URL="{{ .Values.rulesSync.url | default (printf "http://%s-jinbe:8080/api/oathkeeper/rules" .Release.Name) }}"
+            DEST=/etc/rules/access-rules.json
+            TMP=/etc/rules/.access-rules.init
+            MAX={{ .Values.rulesSync.initRetries | default 30 }}
+            n=0
+            until curl -fsS --max-time 5 "$URL" -o "$TMP"; do
+              n=$((n+1))
+              if [ "$n" -ge "$MAX" ]; then
+                echo "rules-sync-init: jinbe unreachable after ${n} tries; seeding [] (fail-closed)"
+                printf '[]' > "$TMP"; mv "$TMP" "$DEST"; exit 0
+              fi
+              echo "rules-sync-init: fetch failed (try ${n}/${MAX}), retry in 2s"
+              sleep 2
+            done
+            [ -s "$TMP" ] || printf '[]' > "$TMP"
+            mv "$TMP" "$DEST"
+            echo "rules-sync-init: wrote initial rules to ${DEST}"
+        volumeMounts:
+          - name: {{ include "oathkeeper.name" . }}-rules-volume
+            mountPath: /etc/rules
+            readOnly: false
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+      {{- end }}
+    # Sidecar: poll jinbe every intervalSeconds; atomically mv only on sha256 change
+    # (no fsnotify churn / needless reloads). Logs on change.
+    extraContainers: |
+      {{- if .Values.rulesSync.enabled }}
+      - name: rules-sync
+        image: {{ .Values.rulesSync.image | quote }}
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -u
+            URL="{{ .Values.rulesSync.url | default (printf "http://%s-jinbe:8080/api/oathkeeper/rules" .Release.Name) }}"
+            DEST=/etc/rules/access-rules.json
+            TMP=/etc/rules/.access-rules.next
+            INTERVAL={{ .Values.rulesSync.intervalSeconds | default 5 }}
+            echo "rules-sync: polling ${URL} every ${INTERVAL}s -> ${DEST}"
+            while true; do
+              if curl -fsS --max-time 5 "$URL" -o "$TMP"; then
+                if [ -s "$TMP" ]; then
+                  new=$(sha256sum "$TMP" | cut -d' ' -f1)
+                  cur=$(sha256sum "$DEST" 2>/dev/null | cut -d' ' -f1 || echo none)
+                  if [ "$new" != "$cur" ]; then
+                    mv "$TMP" "$DEST"
+                    echo "rules-sync: rules changed -> updated ${DEST} (sha256=${new})"
+                  fi
+                fi
+              else
+                echo "rules-sync: fetch failed, keeping current rules"
+              fi
+              sleep "$INTERVAL"
+            done
+        volumeMounts:
+          - name: {{ include "oathkeeper.name" . }}-rules-volume
+            mountPath: /etc/rules
+            readOnly: false
+        livenessProbe:
+          exec: { command: ["/bin/sh", "-c", "test -f /etc/rules/access-rules.json"] }
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        resources:
+          requests: { cpu: 10m, memory: 16Mi }
+          limits:   { memory: 32Mi }
+      {{- end }}
+
   oathkeeper:
     helmTemplatedConfigEnabled: true
+    # Rules come as a file in an emptyDir from the rules-sync sidecar (NOT a ConfigMap).
+    # managedAccessRules MUST stay false so the subchart mounts /etc/rules as an emptyDir
+    # + runs its built-in init, instead of mounting a rules ConfigMap. Keep
+    # accessRulesOverride.nameOverride empty (default) for the same reason.
+    managedAccessRules: false
     config:
       # CORS is delegated to ingress-nginx via the Ingress annotations
       # (see oathkeeper.ingress.proxy.annotations below). Ingress-nginx
@@ -375,8 +482,12 @@ oathkeeper:
             enabled: false
       access_rules:
         matching_strategy: regexp
+        # File mode + fsnotify hot-reload. The rules-sync sidecar (oathkeeper.rulesSync
+        # below) polls jinbe and atomically rewrites this file on change, so Oathkeeper
+        # reloads rules with NO pod restart. (An HTTP repo is fetched ONCE at boot,
+        # which is why serving rules over HTTP required an Oathkeeper restart.)
         repositories:
-          - 'http://{{ .Release.Name }}-jinbe:8080/api/oathkeeper/rules'
+          - file:///etc/rules/access-rules.json
       authenticators:
         cookie_session:
           enabled: true
