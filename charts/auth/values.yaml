@@ -20,6 +20,11 @@ global:
     address: http://vault.vault:8200
     role: ""
     envFromPath: ""
+  audit:
+    webhook:
+      secret: vault:secret/data/auth#KRATOS_WEBHOOK_SECRET
+      url: http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos
+
 
 nameOverride: ""
 fullnameOverride: ""
@@ -171,53 +176,73 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: &auditWebhookUrl 'http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos'
+                      url: '{{ .Values.global.audit.webhook.url }}'
                       method: &auditWebhookMethod POST
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwYXNzd29yZCIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                       response: &auditWebhookResponse
                         ignore: true
-                      auth: &auditWebhookAuth
+                      auth:
                         type: api_key
                         config:
                           name: X-Kratos-Webhook-Secret
                           in: header
-                          value: 'vault:secret/data/auth#KRATOS_WEBHOOK_SECRET'
+                          value: '{{ .Values.global.audit.webhook.secret }}'
               profile:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: *auditWebhookUrl
+                      url: '{{ .Values.global.audit.webhook.url }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwcm9maWxlIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
-                      auth: *auditWebhookAuth
+                      auth:
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
               totp:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: *auditWebhookUrl
+                      url: '{{ .Values.global.audit.webhook.url }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ0b3RwIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
-                      auth: *auditWebhookAuth
+                      auth:
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
               webauthn:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: *auditWebhookUrl
+                      url: '{{ .Values.global.audit.webhook.url }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ3ZWJhdXRobiIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                       response: *auditWebhookResponse
-                      auth: *auditWebhookAuth
+                      auth:
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
               lookup_secret:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: *auditWebhookUrl
+                      url: '{{ .Values.global.audit.webhook.url }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJsb29rdXBfc2VjcmV0IiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
-                      auth: *auditWebhookAuth
+                      auth:
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
           recovery:
             enabled: true
           verification:
@@ -236,11 +261,16 @@ kratos:
               hooks:
                 - hook: web_hook
                   config:
-                    url: *auditWebhookUrl
+                    url: '{{ .Values.global.audit.webhook.url }}'
                     method: *auditWebhookMethod
                     body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogImxvZ2luIiwKICBtZXRob2Q6IG51bGwsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                     response: *auditWebhookResponse
-                    auth: *auditWebhookAuth
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
           registration:
             lifespan: 10m
             ui_url: https://auth.example.com/auth/registration
@@ -251,11 +281,16 @@ kratos:
               hooks:
                 - hook: web_hook
                   config:
-                    url: *auditWebhookUrl
+                    url: '{{ .Values.global.audit.webhook.url }}'
                     method: *auditWebhookMethod
                     body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc3dvcmQiLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
                     response: *auditWebhookResponse
-                    auth: *auditWebhookAuth
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
       log:
         level: info
         format: json

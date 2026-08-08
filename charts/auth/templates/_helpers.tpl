@@ -175,6 +175,7 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
 `if .Values.jinbe.env.ADMIN_*` — only emitted when explicitly set.
 */}}
 {{- define "auth.jinbe.env" -}}
+{{ if  .Values.jinbe.enabled }}
 - name: NODE_ENV
   value: {{ .Values.jinbe.env.NODE_ENV | default "production" | quote }}
 - name: APP_NAME
@@ -242,6 +243,7 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
 {{- range $name, $value := .Values.jinbe.extraEnv }}
 - name: {{ $name }}
   value: {{ $value | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 
