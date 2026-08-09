@@ -1,9 +1,8 @@
 {{- if .Values.errorPage.enabled }}
-{{- $name := "error-page" }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $name }}
+  name: {{ include "auth.error-page.fullname" . }}
   labels:
     {{- include "auth.labels" . | nindent 4 }}
     app.kubernetes.io/component: error-page

@@ -1,12 +1,11 @@
 {{- if .Values.errorPage.enabled }}
-{{- $name := "error-page" }}
 {{- $brand := .Values.errorPage.branding }}
 {{- $appName := default .Values.global.domain $brand.appName }}
 {{- $homeUrl := default (printf "https://%s" (include "auth.appDomain" .)) $brand.homeUrl }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $name }}
+  name: {{ include "auth.error-page.fullname" . }}
   labels:
     {{- include "auth.labels" . | nindent 4 }}
     app.kubernetes.io/component: error-page

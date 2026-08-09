@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $name }}
+  name: {{ include "auth.error-page.fullname" . }}
   labels:
     {{- include "auth.labels" . | nindent 4 }}
     app.kubernetes.io/component: error-page
@@ -64,5 +64,5 @@ spec:
       volumes:
         - name: conf
           configMap:
-            name: {{ $name }}
+            name: {{ include "auth.error-page.fullname" . }}
 {{- end }}

@@ -1,4 +1,11 @@
 {{/*
+Error page fullname
+*/}}
+{{- define "auth.error-page.fullname" -}}
+{{- printf "%s-error-page" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
   HTML body for the error-page service. Rendered once per status code by
   configmap.yaml. The page is intentionally static (no JS) and uses inline
   CSS so it works without external network access.
