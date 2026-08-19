@@ -2,8 +2,8 @@ apiVersion: v2
 name: auth
 description: Complete authentication stack with Kratos, Oathkeeper, OPAL, Jinbe, and Redis
 type: application
-version: 0.9.7
-appVersion: "0.9.2"
+version: 0.10.0
+appVersion: "0.10.0"
 keywords:
   - auth
   - kratos

@@ -792,7 +792,6 @@ jinbe:
   #   --set jinbe.image.tag=latest
   image:
     repository: ghcr.io/w6d-io/jinbe
-    tag: v0.9.1
     pullPolicy: IfNotPresent
 
   service:
@@ -833,6 +832,15 @@ jinbe:
     #   (vault:secret/data/auth#KRATOS_WEBHOOK_SECRET); it MUST resolve to the
     #   same value as the api_key set on the Kratos after-hooks above. Provide
     #   the secret via Vault (never a literal) and rotate both sides together.
+
+  # K8S config for m2m authentication
+  k8s:
+    enabled: false
+    audience: jinbe
+    email_domain: serviceaccount.cluster.local
+    subjects: ""
+    # optional; `acme-prod:*` also works
+    # subjects: acme-prod:provisioner
 
   # Additional environment variables (map format: NAME: value).
   # DISABLE_CORS=true skips Fastify's @fastify/cors plugin since the
