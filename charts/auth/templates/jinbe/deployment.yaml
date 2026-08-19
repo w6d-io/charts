@@ -41,7 +41,7 @@ spec:
         # without the init container, jinbe's readiness gate on the marker
         # would deadlock the post-install bootstrap Job.
         - name: bootstrap
-          image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.jinbe.image.repository }}:{{ .Values.jinbe.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.jinbe.image.pullPolicy }}
           {{- with .Values.jinbe.securityContext }}
           securityContext:
