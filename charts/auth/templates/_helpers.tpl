@@ -240,6 +240,16 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
 - name: ADMIN_NAME
   value: {{ .Values.jinbe.env.ADMIN_NAME | quote }}
 {{- end }}
+{{- if .Values.jinbe.k8s.enabled }}
+- name: K8S_SA_AUTH_ENABLED
+  value: {{.Values.jinbe.k8s.enabled | quote }}
+- name: K8S_SA_TOKEN_AUDIENCE
+  value: {{ .Values.jinbe.k8s.audience }}
+- name: K8S_SA_EMAIL_DOMAIN
+  value: {{ .Values.jinbe.k8s.email_domain }}
+- name: K8S_SA_ALLOWED_SUBJECTS
+  value: {{ .Values.jinbe.k8s.subjects }}
+{{- end }}
 {{- range $name, $value := .Values.jinbe.extraEnv }}
 - name: {{ $name }}
   value: {{ $value | quote }}
