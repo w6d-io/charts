@@ -74,7 +74,6 @@ spec:
             {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
             {{- include "auth.backup.env" . | nindent 12 }}
             {{- include "auth.jinbe.envRuntimeOnly" . | nindent 12 }}
-            {{- include "auth.jinbe.k8s.env" . | nindent 12 }}
           # Probe timeouts are deliberately generous. /api/health does light
           # dependency checks and, under load (the gateway also polls jinbe for
           # its access rules), can exceed the 1s default — which was SIGTERMing
