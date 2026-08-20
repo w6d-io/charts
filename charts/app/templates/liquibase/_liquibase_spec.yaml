@@ -13,6 +13,8 @@
       value: {{ .Values.database.name | quote }}
     - name: db_username
       value: {{ .Values.database.adminuser | default "postgres" | quote }}
+    - name: db_port
+      value: {{ .Values.database.port | default 5432 | quote }}
     - name: db_password
       valueFrom:
         secretKeyRef:
@@ -33,7 +35,7 @@
     - |
       set -e
       cd /db
-      liquibase --url jdbc:postgresql://${db_host}:5432/${db_name} \
+      liquibase --url jdbc:postgresql://${db_host}:${db_port}/${db_name} \
         --username "${db_username}" \
         --password "${db_password}" \
         update    
