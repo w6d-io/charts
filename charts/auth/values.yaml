@@ -535,6 +535,34 @@ oathkeeper:
               - ory_kratos_session
         noop:
           enabled: true
+        # API token (Bearer) — scripts/CLIs holding a Kratos session token.
+        # Reads X-Session-Token (NOT Authorization) so it can coexist with
+        # oauth2_introspection on the same rule: Oathkeeper consults the first
+        # authenticator that recognizes the credential FORMAT and stops there,
+        # so both reading Authorization would shadow each other.
+        # jinbe generates rules with this handler when a service enables the
+        # "bearer" sign-in method (kuma → service → Sign-in methods).
+        bearer_token:
+          enabled: true
+          config:
+            check_session_url: 'http://{{ .Release.Name }}-kratos-public:80/sessions/whoami'
+            preserve_path: true
+            extra_from: "@this"
+            subject_from: "identity.id"
+            token_from:
+              header: X-Session-Token
+        # OAuth2 access tokens (Authorization: Bearer) — third-party apps and
+        # M2M API keys issued by Hydra, validated via token introspection.
+        # Requires hydra.enabled=true; the "introspection" sign-in method in
+        # kuma stays locked until this authenticator is enabled here AND
+        # listed in jinbe's OATHKEEPER_ENABLED_AUTHENTICATORS.
+        oauth2_introspection:
+          enabled: true
+          config:
+            introspection_url: 'http://{{ .Release.Name }}-hydra-admin:4445/admin/oauth2/introspect'
+            cache:
+              enabled: true
+              ttl: 60s
       authorizers:
         allow:
           enabled: true
@@ -720,6 +748,11 @@ opal:
 
   server:
     port: 7002
+    # The RBAC policy repo. The policy uses the `import rego.v1` BRIDGE syntax:
+    # it parses on pre-1.0 OPA engines AND OPA >= 1.0 strict mode, so the
+    # opal-client/OPA image can be upgraded independently of the policy.
+    # NEVER revert the policy to plain Rego v0 — an OPA >= 1.0 engine rejects
+    # it at load and the whole gateway fails closed (total outage).
     policyRepoUrl: "https://github.com/w6d-io/policies.git"  # Default W6D RBAC policy
     policyRepoMainBranch: "main"
     pollingInterval: 30
@@ -804,6 +837,11 @@ jinbe:
     NODE_ENV: production
     APP_NAME: jinbe
     ENCRYPTION_KEY: ""  # REQUIRED - set in environment-specific values or Vault
+    # OATHKEEPER_ENABLED_AUTHENTICATORS/-AUTHORIZERS/-MUTATORS/-ERROR_HANDLERS:
+    # auto-derived from oathkeeper.oathkeeper.config by the
+    # auth.oathkeeper.enabledEnv helper — never set them here (duplicate env).
+    # jinbe validates every rule (CRUD, service sign-in methods, bundle import)
+    # fail-closed against those sets.
     # REDIS_URL: auto-computed as redis://<release>-redis-master:6379
     # KRATOS_PUBLIC_URL: auto-computed as http://<release>-kratos-public:80
     # KRATOS_ADMIN_URL: auto-computed as http://<release>-kratos-admin:80
