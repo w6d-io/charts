@@ -216,8 +216,15 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
 - name: APP_DOMAIN
   value: {{ .Values.jinbe.env.APP_DOMAIN | default (include "auth.appDomain" .) | quote }}
+{{- /* API_DOMAIN deliberately has NO appDomain fallback: defaulting it to the
+app domain made jinbe's bootstrap emit a catch-all gateway rule on the SAME
+host as the kuma-* rules — Oathkeeper then 500s the whole host on every
+request ("Expected exactly one rule but found multiple"). Only emitted when
+the deployer explicitly serves the jinbe API on its own domain. */}}
+{{- if .Values.jinbe.env.API_DOMAIN }}
 - name: API_DOMAIN
-  value: {{ .Values.jinbe.env.API_DOMAIN | default (include "auth.appDomain" .) | quote }}
+  value: {{ .Values.jinbe.env.API_DOMAIN | quote }}
+{{- end }}
 - name: LOGIN_UI_URL
   value: {{ .Values.jinbe.env.LOGIN_UI_URL | default (printf "http://%s-kratos-login-ui:80" .Release.Name) | quote }}
 - name: ADMIN_UI_URL
