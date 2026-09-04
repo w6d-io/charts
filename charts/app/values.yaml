@@ -143,6 +143,11 @@ vault:
   envFrom:
     enabled: false
     path: strada/data
+    # Additional KV paths appended (comma separated) to vault-env-from-path.
+    # Keys found in later paths override keys from earlier ones.
+    # extraPaths:
+    #   - strada/data/feature/myapp/my-branch-slug
+    extraPaths: []
 
 linkerd:
   enabled: false
