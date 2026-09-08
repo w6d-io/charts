@@ -1,0 +1,20 @@
+kind: cronjob
+cronjob:
+  schedule: "30 2 * * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  # keep the job from actually firing during ct install runs
+  suspend: true
+fullnameOverride: test-cronjob
+nameOverride: test-cronjob
+# no vault webhook in the ct kind cluster
+vault:
+  enabled: false
+serviceAccount:
+  create: true
+  name: test-cronjob
+env: |
+  - name: HELLO
+    value: "world"

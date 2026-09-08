@@ -1,0 +1,161 @@
+{{/*
+Dedicated CronJob workload, rendered instead of workload.yaml when `kind` is
+cron/cronjob. The pod-spec glue (volumes/env assembly, container dict) is
+deliberately duplicated from workload.yaml so each kind keeps a readable,
+self-contained template; shared logic stays in the helpers
+(_container_spec.yaml, _job_spec.yaml, helper.volumes.*, app.annotations.*).
+Not supported for CronJob (irrelevant for ephemeral batch pods): lifecycle,
+liquibase, sidecars, probes, ports/metrics annotations. Service and Ingress
+are also skipped for this kind (see svc.yaml / ingress.yaml). The linkerd
+annotation is always rendered, `disabled` by default: an injected proxy keeps
+Jobs from ever reaching Complete (even with namespace-level injection).
+*/}}
+{{- $kind := include "helper.workflow.kind" (dict "kind" .Values.kind) }}
+{{- if and .Values.workload.enabled (eq $kind "CronJob") }}
+{{- $image := (include "helper.images.image" ( dict "imageRoot" .Values.image ) ) }}
+{{- $volumes := list }}
+{{- if .Values.volumes }}
+{{-   $volumes = concat $volumes .Values.volumes }}
+{{- end }}
+{{- if .Values.secrets }}
+{{-   range $secret := mustDeepCopy .Values.secrets }}
+{{-     if eq (default "env" $secret.kind) "volume" }}
+{{-       $_ := set $secret "kind" "secret" }}
+{{-       $volumes = append $volumes $secret }}
+{{-     end }}
+{{-   end -}}
+{{- end }}
+{{- if .Values.configs }}
+{{-   range $config := .Values.configs }}
+{{-     $_ := set $config "kind" "configMap" }}
+{{-     $volumes = append $volumes $config }}
+{{-   end }}
+{{- end }}
+{{- if .Values.persistence }}
+{{-   $volumes = concat $volumes .Values.persistence}}
+{{- end }}
+{{- $env := .Values.env }}
+{{- if .Values.extraEnv }}
+{{-   if and $env (ne $env "-" ) }}
+{{-   $env = printf "%s\n%s" $env .Values.extraEnv }}
+{{-   else }}
+{{-   $env = .Values.extraEnv }}
+{{-   end }}
+{{- end }}
+{{- $secrets := .Values.secrets }}
+{{- $configs := .Values.configs }}
+apiVersion: {{ include "helper.capabilities.workflow.apiVersion" (dict "kind" .Values.kind) }}
+kind: CronJob
+metadata:
+  {{- with .Values.annotations }}
+  annotations:
+  {{-   toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+  name: {{ (include "app.names.fullname" .) | lower  }}
+spec:
+  schedule: {{ required "cronjob.schedule is required when kind is cronjob" .Values.cronjob.schedule | quote }}
+  {{- with .Values.cronjob.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  concurrencyPolicy: {{ default "Forbid" .Values.cronjob.concurrencyPolicy }}
+  {{- if not (kindIs "invalid" .Values.cronjob.startingDeadlineSeconds) }}
+  startingDeadlineSeconds: {{ .Values.cronjob.startingDeadlineSeconds }}
+  {{- end }}
+  {{- if .Values.cronjob.suspend }}
+  suspend: true
+  {{- end }}
+  {{- if not (kindIs "invalid" .Values.cronjob.successfulJobsHistoryLimit) }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .Values.cronjob.failedJobsHistoryLimit) }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      {{- include (print $.Template.BasePath "/_job_spec.yaml") .Values.cronjob | nindent 6 }}
+      template:
+        metadata:
+          labels:
+            {{- include "helper.labels.matchLabels" . | nindent 12 }}
+            {{- with .Values.podLabels }}
+            {{-   toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            {{- include "app.annotations.defaultContainer" . | nindent 12 }}
+            {{- include "app.annotations.standard" . | nindent 12 }}
+            linkerd.io/inject: {{ ternary "enabled" "disabled" .Values.linkerd.enabled | quote }}
+            {{- with .Values.podAnnotations }}
+            {{-   toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.revision.enabled }}
+            revision: {{ .Release.Revision | quote }}
+            {{- end }}
+            checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+            checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        spec:
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.serviceAccount.create }}
+          serviceAccountName: {{ (include "app.serviceAccountName" .) | lower }}
+          {{- end }}
+          {{- with .Values.securityContext }}
+          securityContext:
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- $pullSecret := dict "images" (list .Values.image) "context" $ }}
+          {{- include "helper.images.renderPullSecrets" $pullSecret | nindent 10 }}
+          {{- if .Values.initContainers }}
+          initContainers:
+          {{-   $dictionnary := dict "context" $ }}
+          {{-   $_ := set $dictionnary "secrets" $secrets }}
+          {{-   $_ := set $dictionnary "configs" $configs }}
+          {{-   $_ := set $dictionnary "volumes" $volumes }}
+          {{-   $_ := set $dictionnary "extraVolumeMounts" .Values.extraVolumeMounts }}
+          {{-   $_ := set $dictionnary "env" $env }}
+          {{-   range .Values.initContainers }}
+          {{-     $_ := set $dictionnary "image" .image }}
+          {{-     $_ := set $dictionnary "name" (.name | lower ) }}
+          {{-     $_ := set $dictionnary "command" .command }}
+          {{-     $_ := set $dictionnary "args" .args }}
+          {{-     $_ := set $dictionnary "resources" .resources }}
+          {{-     $_ := set $dictionnary "imagePullPolicy" .imagePullPolicy }}
+          {{-     include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 10 }}
+          {{-   end }}
+          {{- end }}
+          containers:
+          {{- $dictionnary := dict "image" $image }}
+          {{- $_ := set $dictionnary "context" $ }}
+          {{- $_ := set $dictionnary "volumes" $volumes }}
+          {{- $_ := set $dictionnary "extraVolumeMounts" .Values.extraVolumeMounts }}
+          {{- $_ := set $dictionnary "name" ((include "app.names.name" $) | lower ) }}
+          {{- $_ := set $dictionnary "env" $env }}
+          {{- $_ := set $dictionnary "configs" $configs }}
+          {{- $_ := set $dictionnary "secrets" $secrets }}
+          {{- $_ := set $dictionnary "imagePullPolicy" .Values.imagePullPolicy }}
+          {{- $_ := set $dictionnary "resources" .Values.resources }}
+          {{- $_ := set $dictionnary "command" .Values.containerCommand }}
+          {{- $_ := set $dictionnary "args" .Values.containerArgs }}
+          {{- include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 10 }}
+          restartPolicy: {{ default "Never" .Values.cronjob.restartPolicy }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end}}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or $volumes .Values.extraVolumes }}
+          volumes:
+            {{- if .Values.extraVolumes }}
+            {{- include "helper.extravolumes.volumes" (dict "volumes" .Values.extraVolumes ) | nindent 12 }}
+            {{- end }}
+            {{- with $volumes }}
+            {{- include "helper.volumes.volumes" (dict "fullname" ((include "app.names.fullname" $) | lower ) "volumes" . "context" $) | nindent 12 }}
+            {{- end }}
+          {{- end }}
+{{- end }}

@@ -7,6 +7,9 @@ Deployment information:
   - Namespace     : {{ .Release.Namespace }}
   - image         : {{ include "helper.images.image" ( dict "imageRoot" .Values.image "global" .Values.global ) }}
   - replicas      : {{ .Values.replicaCount }}
+{{- if eq (include "helper.workflow.kind" (dict "kind" .Values.kind)) "CronJob" }}
+  - schedule      : {{ .Values.cronjob.schedule }} {{ with .Values.cronjob.timeZone }}({{ . }}){{ end }}
+{{- end }}
   - internal host : {{ printf "%s.%s.svc.cluster.local:%v" .Values.service.name .Release.Namespace .Values.service.externalPort }}
 {{- if and .Values.ingress.enabled .Values.ingress.host }}
   - url           : https://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
