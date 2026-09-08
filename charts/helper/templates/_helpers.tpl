@@ -9,7 +9,7 @@ kind: {{ include "helper.workflow.kind" (dict "kind" .Values.kind) }}
 {{- if not (typeIs "string" $kind) -}}
 {{- $kind = "" -}}
 {{- end -}}
-{{- $dictionary := dict "ds" "DaemonSet" "daemonset" "DaemonSet" "sts" "StatefulSet" "statefulset" "StatefulSet" "deploy" "Deployment" "deployment" "Deployment" "job" "Job" -}}
+{{- $dictionary := dict "ds" "DaemonSet" "daemonset" "DaemonSet" "sts" "StatefulSet" "statefulset" "StatefulSet" "deploy" "Deployment" "deployment" "Deployment" "job" "Job" "cron" "CronJob" "cronjob" "CronJob" -}}
 {{- default "Deployment" (get $dictionary (lower $kind)) -}}
 {{- end -}}
 
