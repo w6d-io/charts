@@ -1,4 +1,5 @@
-{{- if .Values.service.enabled }}
+{{- /* No Service for ephemeral batch pods (kind: cronjob) */}}
+{{- if and .Values.service.enabled (ne (include "helper.workflow.kind" (dict "kind" .Values.kind)) "CronJob") }}
 {{- $serviceName := ((include "helper.names.service" (dict "name" .Values.service.name "context" $)) | lower ) }}
 ---
 apiVersion: v1

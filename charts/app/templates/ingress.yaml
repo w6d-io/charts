@@ -1,4 +1,5 @@
-{{- if .Values.ingress.enabled }}
+{{- /* No Ingress for ephemeral batch pods (kind: cronjob) */}}
+{{- if and .Values.ingress.enabled (ne (include "helper.workflow.kind" (dict "kind" .Values.kind)) "CronJob") }}
 {{- $name := .Values.service.name -}}
 {{- $svcPort := .Values.service.externalPort -}}
 {{- $className := (include "ingress.className" . ) }}

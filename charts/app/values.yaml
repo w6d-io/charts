@@ -8,10 +8,39 @@ namespace: ""
 
 kind: ""
 
-# Main workload (Deployment/StatefulSet/DaemonSet/Job from `kind`).
-# Disable to render only extraResources (e.g. CronJob-only deployments).
+# Main workload (Deployment/StatefulSet/DaemonSet/Job/CronJob from `kind`).
+# Disable to render only extraResources.
 workload:
   enabled: true
+
+# CronJob options, used only when kind is cronjob (or cron). Rendered by
+# templates/cronjob.yaml; the pod template reuses the same values as the other
+# kinds (image, env, secrets, configs, vault annotations, serviceAccount,
+# resources, volumes, initContainers, nodeSelector/tolerations/affinity).
+# For this kind, Service and Ingress are never rendered, and the linkerd
+# annotation is forced to "disabled" unless linkerd.enabled is true (an
+# injected proxy keeps Jobs from ever reaching Complete).
+cronjob:
+  # Cron schedule, required when kind is cronjob. e.g. "30 2 * * *"
+  schedule: ""
+  # IANA time zone for the schedule (requires Kubernetes >= 1.27), e.g. "Etc/UTC".
+  # Empty = controller-manager local time (UTC on managed clusters).
+  timeZone: ""
+  # Forbid: skip a run while the previous one is still running (safe batch default)
+  concurrencyPolicy: Forbid
+  # Seconds past schedule time a late run may still start before counting as missed
+  startingDeadlineSeconds: 300
+  suspend: false
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  # Pod restartPolicy of spawned Jobs: Never (recommended) or OnFailure
+  restartPolicy: Never
+  # Job spec knobs (rendered under jobTemplate.spec via _job_spec.yaml)
+  backoffLimit: 2
+  # ttlSecondsAfterFinished: 86400
+  # activeDeadlineSeconds: 3600
+  # parallelism: 1
+  # completions: 1
 
 # Optional bundled PostgreSQL (bitnami subchart). Disabled by default; enable
 # and configure under this key to deploy a database alongside (or instead of)

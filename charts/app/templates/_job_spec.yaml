@@ -10,4 +10,7 @@ parallelism: {{ . }}
 {{- with .completions }}
 completions: {{ . }}
 {{- end -}}
+{{- with .activeDeadlineSeconds }}
+activeDeadlineSeconds: {{ . }}
+{{- end -}}
 

@@ -1,4 +1,5 @@
-{{- if .Values.workload.enabled }}
+{{- $workloadKind := include "helper.workflow.kind" (dict "kind" .Values.kind) }}
+{{- if and .Values.workload.enabled (ne $workloadKind "CronJob") }}{{- /* CronJob is rendered by cronjob.yaml */}}
 {{- $image := (include "helper.images.image" ( dict "imageRoot" .Values.image ) ) }}
 {{- $volumes := list }}
 {{- if .Values.lifecycle.enabled }}
