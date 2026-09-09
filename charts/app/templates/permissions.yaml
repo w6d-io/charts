@@ -1,0 +1,28 @@
+{{- if .Values.permissions }}
+{{- /*
+Which permission each route of this service requires.
+
+Shipped by the service it describes, rather than by the platform: a table living next to the code it
+protects is versioned with it, deployed with it and deleted with it — and cannot go on describing
+routes the service no longer serves.
+
+Written as YAML in the values and rendered to JSON here. The engine reads JSON; a reviewer reads
+this. Asking somebody to review an escaped JSON string embedded in a YAML string is how a
+permission gets approved because nobody could see it.
+
+The NAME is load-bearing: the edge sends it as the service key the engine looks the table up by, so
+it must be the service's own name — hence the standard fullname rather than a suffixed one, unlike
+the other ConfigMaps this chart renders. The LABEL is what the engine's loader selects on; without
+it the object exists and is never read.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "app.names.fullname" . }}
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+    openpolicyagent.org/data: opa
+data:
+  permissions.json: |
+    {{- .Values.permissions | toPrettyJson | nindent 4 }}
+{{- end }}

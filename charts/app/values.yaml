@@ -157,6 +157,19 @@ autoscaling:
 
 extraResources: ""
 
+# Which permission each route of this service requires, for the authorization engine to decide
+# against. Plain YAML here, rendered to the JSON the engine reads — see templates/permissions.yaml.
+# Empty by default: a service that declares nothing renders no ConfigMap and is unaffected.
+#
+#   permissions:
+#     routes:
+#       GET:
+#         vehicles:
+#           segments: [api, v1, vehicles]
+#           class: authorized
+#           permission: vehicle:read
+permissions: {}
+
 mongodb:
   install: false
 
