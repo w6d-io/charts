@@ -163,6 +163,7 @@ spec:
       {{- $_ := set $dictionnary "service" .Values.service }}
       {{- $_ := set $dictionnary "command" .Values.containerCommand }}
       {{- $_ := set $dictionnary "args" .Values.containerArgs }}
+      {{- $_ := set $dictionnary "securityContext" .Values.containerSecurityContext }}
       {{- $_ := set $dictionnary "metrics" .Values.metrics }}
       {{- $_ := set $dictionnary "extraContainerPort" .Values.extraContainerPort }}
       {{- include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 6 }}
