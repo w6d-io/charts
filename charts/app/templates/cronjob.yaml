@@ -139,6 +139,7 @@ spec:
           {{- $_ := set $dictionnary "resources" .Values.resources }}
           {{- $_ := set $dictionnary "command" .Values.containerCommand }}
           {{- $_ := set $dictionnary "args" .Values.containerArgs }}
+          {{- $_ := set $dictionnary "securityContext" .Values.containerSecurityContext }}
           {{- include (print $.Template.BasePath "/_container_spec.yaml") $dictionnary | nindent 10 }}
           restartPolicy: {{ default "Never" .Values.cronjob.restartPolicy }}
           {{- with .Values.nodeSelector }}

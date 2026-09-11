@@ -15,6 +15,10 @@
     {{- toYaml . | nindent 4 }}
   {{- end }}
   name: {{ .name | lower | trunc 14 | trimSuffix "-" }}
+  {{- with .securityContext }}
+  securityContext:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{ if or .volumes .extraVolumeMounts }}
   volumeMounts:
     {{- if .extraVolumeMounts }}

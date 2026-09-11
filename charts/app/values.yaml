@@ -103,6 +103,14 @@ lifecycle:
 
 resources: {}
 
+# Container-level securityContext, applied to the main container of the workload
+# (Deployment/StatefulSet/DaemonSet/Rollout) and of the CronJob pod template.
+# Pod-level securityContext stays under `securityContext`. Example:
+#   containerSecurityContext:
+#     allowPrivilegeEscalation: false
+#     readOnlyRootFilesystem: true
+containerSecurityContext: {}
+
 service:
   enabled: true
   name: "-"
