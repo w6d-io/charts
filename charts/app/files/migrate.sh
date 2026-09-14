@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
 # db-migrator controller (mode b). Runs as an ArgoCD PreSync hook, in-cluster.
-# 1. discovers tenants from ham (GET api/v1/tenants, internal port, no auth, paginated);
+# 1. reads the tenant list from TENANTS (tenant identifiers separated by commas,
+#    whitespace, or newlines), passed by the chart;
 # 2. fans out one child migration Job per tenant (from /scripts/job.tpl.yaml, which is
-#    rendered by the `liquibase` library — Vault creds per tenant via vault-env);
+#    rendered by the `liquibase` library -- Vault creds per tenant via vault-env);
 # 3. by batch (BATCH_SIZE concurrent child Jobs), isolating per-tenant failures;
 # 4. exits non-zero only if the failure rate exceeds FAIL_THRESHOLD_PCT (blocks the Sync).
 #
 set -uo pipefail
 
-HAM_BASE_URL="${HAM_BASE_URL:?}"; HAM_PAGE_SIZE="${HAM_PAGE_SIZE:-200}"
-HAM_STATUS_INCLUDE="${HAM_STATUS_INCLUDE:-}"
+TENANTS="${TENANTS:-}"
 NAMESPACE="${NAMESPACE:?}"; CHILD_TPL="${CHILD_TPL:-/scripts/job.tpl.yaml}"
 RUN_ID="${RUN_ID:?}"; BATCH_SIZE="${BATCH_SIZE:-25}"
 FAIL_THRESHOLD_PCT="${FAIL_THRESHOLD_PCT:-10}"; JOB_TIMEOUT="${JOB_TIMEOUT:-600}"
@@ -19,28 +19,17 @@ RESULT_DIR="$(mktemp -d)/r"; mkdir -p "$RESULT_DIR"
 log() { echo "[db-migrator] $*" >&2; }
 
 ensure_tools() {
-  for b in curl jq envsubst kubectl; do command -v "$b" >/dev/null 2>&1 || MISSING=1; done
+  for b in envsubst kubectl; do command -v "$b" >/dev/null 2>&1 || MISSING=1; done
   [ -z "${MISSING:-}" ] && return 0
-  if command -v apk >/dev/null 2>&1; then apk add --no-cache curl jq gettext >/dev/null 2>&1 || true
-  elif command -v apt-get >/dev/null 2>&1; then apt-get update -qq && apt-get install -y -qq curl jq gettext-base >/dev/null 2>&1 || true; fi
-  for b in curl jq envsubst kubectl; do command -v "$b" >/dev/null 2>&1 || { log "FATAL: $b missing"; exit 2; }; done
+  if command -v apk >/dev/null 2>&1; then apk add --no-cache gettext >/dev/null 2>&1 || true
+  elif command -v apt-get >/dev/null 2>&1; then apt-get update -qq && apt-get install -y -qq gettext-base >/dev/null 2>&1 || true; fi
+  for b in envsubst kubectl; do command -v "$b" >/dev/null 2>&1 || { log "FATAL: $b missing"; exit 2; }; done
 }
 
 discover_tenants() {
-  local page=0 resp re=""
-  [ -n "$HAM_STATUS_INCLUDE" ] && re="$(echo "$HAM_STATUS_INCLUDE" | tr ',' '|')"
-  while : ; do
-    resp="$(curl -sS -m 30 -H 'Accept: application/json' \
-      "${HAM_BASE_URL}/api/v1/tenants?PageIndex=${page}&PageSize=${HAM_PAGE_SIZE}")" \
-      || { log "FATAL: ham call failed"; exit 3; }
-    if [ -n "$re" ]; then
-      echo "$resp" | jq -r --arg re "$re" '.items[] | select(.statutTenantCode|test("^("+$re+")$")) | .namespace'
-    else
-      echo "$resp" | jq -r '.items[].namespace'
-    fi
-    [ "$(echo "$resp" | jq -r '.hasNextPage // false')" = "true" ] || break
-    page=$((page+1))
-  done | sed '/^$/d' | sort -u
+  # Tenant identifiers from the TENANTS env (multiTenantMigration.tenants / kafka.tenants),
+  # separated by commas, whitespace, or newlines.
+  printf '%s' "$TENANTS" | tr -s ' \t\n,' '\n' | sed '/^$/d' | sort -u
 }
 
 migrate_one() {
@@ -62,7 +51,7 @@ migrate_one() {
 ensure_tools
 mapfile -t TENANTS < <(discover_tenants)
 n="${#TENANTS[@]}"
-[ "$n" -eq 0 ] && { log "FATAL: no tenants from ham"; exit 4; }
+[ "$n" -eq 0 ] && { log "FATAL: tenant list is empty"; exit 4; }
 log "migrating ${n} tenant(s), batch=${BATCH_SIZE}, threshold=${FAIL_THRESHOLD_PCT}%"
 
 i=0

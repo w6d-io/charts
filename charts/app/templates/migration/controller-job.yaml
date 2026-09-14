@@ -1,5 +1,7 @@
 {{- if .Values.multiTenantMigration.enabled }}
 {{- $mt := .Values.multiTenantMigration }}
+{{- $kt := "" }}{{- if .Values.kafka }}{{- $kt = .Values.kafka.tenants | default "" }}{{- end }}
+{{- $tenants := $mt.tenants | default $kt }}
 {{- $name := printf "%s-migration" (include "app.names.name" .) }}
 {{- $sa := default $name $mt.controller.serviceAccountName }}
 {{- $runId := (.Values.image.tag | toString | replace "." "-" | replace "+" "-" | lower) | default (printf "r%d" (.Release.Revision | int)) -}}
@@ -39,12 +41,10 @@ spec:
           image: {{ $mt.controller.image | quote }}
           command: ["bash", "/scripts/migrate.sh"]
           env:
-            - name: HAM_BASE_URL
-              value: {{ $mt.ham.baseUrl | quote }}
-            - name: HAM_PAGE_SIZE
-              value: {{ $mt.ham.pageSize | quote }}
-            - name: HAM_STATUS_INCLUDE
-              value: {{ $mt.ham.statusInclude | quote }}
+            # Tenant identifiers (comma/space/newline separated). Taken from
+            # multiTenantMigration.tenants, falling back to .Values.kafka.tenants.
+            - name: TENANTS
+              value: {{ $tenants | quote }}
             - name: NAMESPACE
               valueFrom:
                 fieldRef:

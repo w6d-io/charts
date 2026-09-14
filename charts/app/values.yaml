@@ -64,17 +64,19 @@ liquibase:
   enabled: false
 
 # Multi-tenant single-pod migration (opt-in; disabled so other apps are unaffected).
-# When enabled, a controller Job runs as an ArgoCD PreSync hook: it discovers tenants
-# from ham, then runs one Liquibase Job per tenant (from the `liquibase` library, Vault
-# creds) by batch, isolating per-tenant failures and gating on a failure threshold.
-# So the single Application does: PreSync (migrate all tenants) -> Sync (roll out the pod).
-# The `-db` liquibase image reuses `.Values.image` (same as the initContainer).
+# When enabled, a controller Job runs as an ArgoCD PreSync hook: it reads the tenant
+# list baked into the chart, then runs one Liquibase Job per tenant (from the
+# `liquibase` library, Vault creds) by batch, isolating per-tenant failures and gating
+# on a failure threshold. So the single Application does: PreSync (migrate all tenants)
+# -> Sync (roll out the pod). The `-db` liquibase image reuses `.Values.image`.
 multiTenantMigration:
   enabled: false
-  ham:
-    baseUrl: "http://apitm.strada-back:8083"   # in-cluster internal port, no auth
-    pageSize: 200
-    statusInclude: ""                          # optional comma-list of statutTenantCode
+  # Comma-separated list of tenant identifiers to migrate (e.g. "alpha,beta,gamma").
+  # Each identifier maps to a database "<tenant>.<database.dbSuffix>" and to Vault
+  # static-creds "<tenant>-<vault.roleSuffix>". Rendered into the migration ConfigMap
+  # as a file (one per line) that the controller reads -- no external call at sync time.
+  # When empty, falls back to .Values.kafka.tenants so both lists can share one source.
+  tenants: ""
   batchSize: 25                                # max concurrent child Jobs
   failThresholdPct: 10                         # controller exits non-zero above this
   jobTimeoutSeconds: 600                       # per child Job
