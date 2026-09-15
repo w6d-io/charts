@@ -1,0 +1,16 @@
+# Library charts have no rendered resources of their own; this file only documents
+# the interface expected by `liquibase.container`. Consumers pass everything through
+# the include dict (see templates/_container.tpl), so nothing here is rendered.
+#
+# liquibase.container dict interface:
+#   ctx        (required) root context ($) — used for .Values.image, .Values.liquibase.*
+#   creds      "secret" | "vault"   (default "secret")
+#   dbHost     JDBC host          (default .ctx.Values.database.host)
+#   dbPort     JDBC port          (default .ctx.Values.database.port | 5432)
+#   dbName     database name      (default .ctx.Values.database.name)
+#   # creds == "secret":
+#   secretName (default "<app>-db")   key "dlm-postgres-password"
+#   adminuser  (default .ctx.Values.database.adminuser | "postgres")
+#   # creds == "vault":
+#   userRef    vault-env ref, e.g. "vault:strada-db/static-creds/business-time-db#username"
+#   passRef    vault-env ref, e.g. "vault:strada-db/static-creds/business-time-db#password"

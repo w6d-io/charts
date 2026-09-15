@@ -1,0 +1,20 @@
+apiVersion: v2
+name: liquibase
+type: library
+description: >-
+  Library chart exposing the Liquibase migration container spec as a reusable
+  named template (`liquibase.container`). Consumed two ways:
+   - by `app` as a fail-closed initContainer (single DB, creds from a k8s secret) —
+     unchanged behaviour for existing single-tenant / per-tenant deployments;
+   - by `db-migrator` as a per-tenant migration Job (creds resolved from Vault at
+     runtime via vault-env), for the multi-tenant single-pod model (e.g. `time`).
+keywords:
+  - liquibase
+  - database
+  - migration
+home: https://www.w6d.io
+maintainers:
+  - name: Wildcard
+    email: support@w6d.io
+version: 0.1.0
+appVersion: "0.1.0"

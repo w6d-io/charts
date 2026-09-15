@@ -63,6 +63,45 @@ generateSecret:
 liquibase:
   enabled: false
 
+# Multi-tenant single-pod migration (opt-in; disabled so other apps are unaffected).
+# When enabled, a controller Job runs as an ArgoCD PreSync hook: it reads the tenant
+# list baked into the chart, then runs one Liquibase Job per tenant (from the
+# `liquibase` library, Vault creds) by batch, isolating per-tenant failures and gating
+# on a failure threshold. So the single Application does: PreSync (migrate all tenants)
+# -> Sync (roll out the pod). The `-db` liquibase image reuses `.Values.image`.
+multiTenantMigration:
+  enabled: false
+  # Comma-separated list of tenant identifiers to migrate (e.g. "alpha,beta,gamma").
+  # Each identifier maps to a database "<tenant>.<database.dbSuffix>" and to Vault
+  # static-creds "<tenant>-<vault.roleSuffix>". Rendered into the migration ConfigMap
+  # as a file (one per line) that the controller reads -- no external call at sync time.
+  # When empty, falls back to .Values.kafka.tenants so both lists can share one source.
+  tenants: ""
+  batchSize: 25                                # max concurrent child Jobs
+  failThresholdPct: 10                         # controller exits non-zero above this
+  jobTimeoutSeconds: 600                       # per child Job
+  controller:
+    image: "w6dio/kubectl:1.6.0-slim"
+    serviceAccountName: ""                     # default: <app>-migration
+    activeDeadlineSeconds: 3600
+    ttlSecondsAfterFinished: 600
+  child:
+    serviceAccountName: "time"                 # SA bound to the Vault role below
+    job:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      ttlSecondsAfterFinished: 600
+  database:
+    host: "vault:strada/data/common/postgres#url"  # plain or vault-env ref
+    port: 5432
+    dbSuffix: "time"                           # DB per tenant = "<tenant>.<dbSuffix>"
+  vault:
+    role: "time"
+    addr: "http://vault.vault:8200"
+    skipVerify: true
+    dbMount: "strada-db"
+    roleSuffix: "time-db"                       # DDL static-role = "<tenant>-<roleSuffix>"
+
 strategy: {}
 #  type: Recreate
 # Rollout sample

@@ -1,45 +1,10 @@
-{{- $image := (include "liquibase.images.image" ( dict "imageRoot" .Values.image ) ) }}
-- image: {{ $image }}
-  imagePullPolicy: {{ default "" .imagePullPolicy | quote }}
-  {{- with .Values.liquibase.args }}
-  args:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  name: liquibase
-  env:
-    - name: db_host
-      value: {{ .Values.database.host  | quote }}
-    - name: db_name
-      value: {{ .Values.database.name | quote }}
-    - name: db_username
-      value: {{ .Values.database.adminuser | default "postgres" | quote }}
-    - name: db_port
-      value: {{ .Values.database.port | default 5432 | quote }}
-    - name: db_password
-      valueFrom:
-        secretKeyRef:
-          key: dlm-postgres-password
-          name: {{ printf "%s-db" (include "app.names.name" .) | quote }}
-    - name: db_admin_username
-      value: {{ .Values.database.adminuser | quote }}
-    - name: db_version
-      value: {{ (coalesce .Values.dbversion .Values.version .Chart.AppVersion) | quote }}
-    - name: db_admin_password
-      valueFrom:
-        secretKeyRef:
-          key: dlm-postgres-password
-          name: {{ printf "%s-db" (include "app.names.name" .) | quote }}
-  command:
-    - bash
-    - -c
-    - |
-      set -e
-      cd /db
-      liquibase --url jdbc:postgresql://${db_host}:${db_port}/${db_name} \
-        --username "${db_username}" \
-        --password "${db_password}" \
-        update    
-  {{- with .Values.liquibase.resources }}
-  resources:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+{{/*
+  app initContainer migration — now delegated to the shared `liquibase` library chart.
+  Behaviour is unchanged: single DB, admin creds from the dlm-provisioned k8s secret.
+  (Image helpers + container spec live in charts/liquibase.)
+*/}}
+{{- include "liquibase.container" (dict
+      "ctx" .
+      "creds" "secret"
+      "secretName" (printf "%s-db" (include "app.names.name" .))
+      "adminuser" .Values.database.adminuser) -}}

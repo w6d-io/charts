@@ -2,8 +2,11 @@ dependencies:
 - name: helper
   repository: https://charts.w6d.io
   version: 0.3.0
+- name: liquibase
+  repository: file://../liquibase
+  version: 0.1.0
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
   version: 15.5.38
-digest: sha256:418d28cc84f633c0ad343dd2820ba766dd16f6ef65671f71807987c43098e0dd
-generated: "2026-09-08T15:23:30.264472+02:00"
+digest: sha256:4f97bd8c619dcfa31e22bd1bb37afb38a838b9adb93de6d4347420b3d130ec99
+generated: "2026-09-10T10:02:35.327398+02:00"

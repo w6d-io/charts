@@ -1,4 +1,8 @@
 {{/* vim: set filetype=mustache: */}}
+{{/*
+  Image helpers, moved verbatim from app/templates/liquibase/_liquibase.tpl so the
+  `-db` image ref logic has a single home. app keeps working via the library include.
+*/}}
 
 {{- define "liquibase.images.image" -}}
 {{- $registryName := .imageRoot.registry -}}

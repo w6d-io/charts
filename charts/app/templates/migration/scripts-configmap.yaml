@@ -1,0 +1,43 @@
+{{- if .Values.multiTenantMigration.enabled }}
+{{- $mt := .Values.multiTenantMigration }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-migration-scripts" (include "app.names.name" .) | quote }}
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  migrate.sh: |
+{{ .Files.Get "files/migrate.sh" | indent 4 }}
+  # Child migration Job, one rendered per tenant by the controller (envsubst ${TENANT}
+  # ${RUN_ID}). The container comes from the shared `liquibase` library (Vault mode), so
+  # app's initContainer and this Job share one definition.
+  job.tpl.yaml: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: "migrate-${TENANT}-${RUN_ID}"
+      namespace: {{ .Release.Namespace | quote }}
+      labels:
+        app.kubernetes.io/component: liquibase
+        tenant: "${TENANT}"
+    spec:
+      backoffLimit: {{ $mt.child.job.backoffLimit }}
+      activeDeadlineSeconds: {{ $mt.child.job.activeDeadlineSeconds }}
+      ttlSecondsAfterFinished: {{ $mt.child.job.ttlSecondsAfterFinished }}
+      template:
+        metadata:
+          annotations:
+            vault.security.banzaicloud.io/vault-addr: {{ $mt.vault.addr | quote }}
+            vault.security.banzaicloud.io/vault-role: {{ $mt.vault.role | quote }}
+            vault.security.banzaicloud.io/vault-skip-verify: {{ $mt.vault.skipVerify | quote }}
+          labels:
+            linkerd.io/inject: disabled
+        spec:
+          serviceAccountName: {{ $mt.child.serviceAccountName | quote }}
+          restartPolicy: Never
+          containers:
+{{ include "liquibase.container" (dict "ctx" . "creds" "vault" "dbHost" $mt.database.host "dbPort" $mt.database.port "dbName" (printf "${TENANT}.%s" $mt.database.dbSuffix) "userRef" (printf "vault:%s/static-creds/${TENANT}-%s#username" $mt.vault.dbMount $mt.vault.roleSuffix) "passRef" (printf "vault:%s/static-creds/${TENANT}-%s#password" $mt.vault.dbMount $mt.vault.roleSuffix)) | indent 12 }}
+{{- end }}

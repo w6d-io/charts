@@ -16,6 +16,12 @@ dependencies:
 - name: helper
   version: ">=0.3.0"
   repository: https://charts.w6d.io
+# Liquibase migration container spec, extracted into a shared library chart so it can
+# also be consumed by db-migrator (per-tenant Jobs). Prototype uses a local path; for
+# release, publish `liquibase` to charts.w6d.io and switch to that repository.
+- name: liquibase
+  version: ">=0.1.0"
+  repository: "file://../liquibase"
 # PostgreSQL - optional bundled database (opt-in; disabled by default so
 # existing consumers are unaffected). Enable with postgresql.enabled=true.
 - name: postgresql
@@ -23,4 +29,4 @@ dependencies:
   repository: https://charts.bitnami.com/bitnami
   condition: postgresql.enabled
 appVersion: v3.1.9
-version: 3.2.1
+version: 3.5.0
