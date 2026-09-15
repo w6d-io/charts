@@ -33,7 +33,7 @@ data:
             vault.security.banzaicloud.io/vault-addr: {{ $mt.vault.addr | quote }}
             vault.security.banzaicloud.io/vault-role: {{ $mt.vault.role | quote }}
             vault.security.banzaicloud.io/vault-skip-verify: {{ $mt.vault.skipVerify | quote }}
-          labels:
+            # linkerd reads this as an ANNOTATION; a sidecar would keep the Job from completing.
             linkerd.io/inject: disabled
         spec:
           serviceAccountName: {{ $mt.child.serviceAccountName | quote }}
