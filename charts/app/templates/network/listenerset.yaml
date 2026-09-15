@@ -1,0 +1,38 @@
+{{- if .Values.listenerset.enabled }}
+{{- $fullname := include "app.names.fullname" . -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "helper.labels.standard" . | nindent 4 }}
+    {{- with .Values.listenerset.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.listenerset.annotations }}
+  annotations:
+    {{ toYaml . }}
+  {{- end }}
+spec:
+  parentRef:
+    {{- toYaml .Values.listenerset.parentRef | nindent 4 }}
+  listeners:
+    {{- if .Values.listenerset.listeners }}
+    {{- toYaml .Values.listenerset.listeners | nindent 4 }}
+    {{- else }}
+    - name: {{ .Values.listenerset.listenerName }}
+      port: {{ .Values.listenerset.port }}
+      protocol: {{ .Values.listenerset.protocol }}
+      hostname: {{ tpl (.Values.listenerset.hostname) $ }}
+    {{- if .Values.listenerset.tls.enabled }}
+      tls:
+        mode: {{ .Values.listenerset.tls.mode }}
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: {{ .Values.listenerset.tls.secretName }}
+    {{- end }}
+      allowedRoutes:
+      {{- toYaml .Values.listenerset.allowedRoutes | nindent 8 }}
+    {{ end }}
+{{ end }}

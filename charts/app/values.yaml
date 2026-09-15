@@ -252,11 +252,60 @@ linkerd:
 
 httproute:
   enabled: false
+  labels: {}
+  annotations: {}
   host: ''
-  gateway: ''
   path: '/'
-  rewrite: false
-  rewritepath: '/'
+  # Explicit parentRefs; falls back to the ListenerSet above (if enabled) when unset.
+  parentRefs: []
+  # Explicit hostnames; falls back to the ListenerSet hostname (if enabled) when unset.
+  hostnames: []
+  rules:
+    - backendRefs:
+        - name: ''
+          port: ''
+      matches: []
+        # - path:
+        #     type: ''
+      #     value: ''
+      filters: []
+        # - type: URLRewrite
+        #   urlRewrite:
+        #     path:
+        #       type: ReplacePrefixMatch
+        #       replacePrefixMatch: /
+        # - type: RequestHeaderModifier
+        #   requestHeaderModifier:
+        #     add:
+        #       - name: X-Custom-Header
+      #         value: value
+
+listenerset:
+  enabled: false
+  labels: {}
+  annotations: {}
+  parentRef: {}
+    # gateway: ''
+  # namespace: ''
+  listenerName: ''
+  port: 443
+  protocol: HTTPS
+  hostname: ''
+  tls:
+    enabled: false
+    secretName: ''
+  allowedRoutes:
+    namespaces:
+      from: Same
+  listeners: []
+  #    - name: https
+  #      hostname: test.example.com
+  #      port: 443
+  #      protocol: HTTPS
+  #      tls:
+  #        enabled: true
+  #        mode: Terminate
+  #        secretName: test-tls
 
 backendpolicy:
   securityPolicy: 'gke-regional'
