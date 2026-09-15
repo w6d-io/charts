@@ -24,10 +24,11 @@ spec:
   ttlSecondsAfterFinished: {{ $mt.controller.ttlSecondsAfterFinished | default 600 }}
   template:
     metadata:
+      annotations:
+        # linkerd reads this as an ANNOTATION; a sidecar would keep this Job from completing.
+        linkerd.io/inject: disabled
       labels:
         app.kubernetes.io/component: migration-controller
-        # A sidecar would keep this short Job from completing.
-        linkerd.io/inject: disabled
     spec:
       serviceAccountName: {{ $sa | quote }}
       restartPolicy: Never
