@@ -423,6 +423,8 @@ roles:
       - "gateways/finalizers"
       - "httproutes"
       - "httproutes/finalizers"
+      - "listenersets"
+      - "listenersets/finalizers"
     verbs:
       - read
   - name: w6d.gateway.write
@@ -432,5 +434,7 @@ roles:
       - "gateways/finalizers"
       - "httproutes"
       - "httproutes/finalizers"
+      - "listenersets"
+      - "listenersets/finalizers"
     verbs:
       - write
