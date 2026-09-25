@@ -14,6 +14,7 @@ TENANTS="${TENANTS:-}"
 NAMESPACE="${NAMESPACE:?}"; CHILD_TPL="${CHILD_TPL:-/scripts/job.tpl.yaml}"
 RUN_ID="${RUN_ID:?}"; BATCH_SIZE="${BATCH_SIZE:-25}"
 FAIL_THRESHOLD_PCT="${FAIL_THRESHOLD_PCT:-10}"; JOB_TIMEOUT="${JOB_TIMEOUT:-600}"
+FAIL_FAST="${FAIL_FAST:-false}"
 
 RESULT_DIR="$(mktemp -d)/r"; mkdir -p "$RESULT_DIR"
 log() { echo "[db-migrator] $*" >&2; }
@@ -38,13 +39,13 @@ migrate_one() {
   # shellcheck disable=SC2016  # ${...} is the envsubst whitelist, not to be expanded here
   if ! TENANT="$t" envsubst '${TENANT} ${RUN_ID}' < "$CHILD_TPL" \
         | kubectl -n "$NAMESPACE" apply -f - >/dev/null 2>"$RESULT_DIR/$t.err"; then
-    echo "apply failed: $(tr '\n' ' ' <"$RESULT_DIR/$t.err")" >"$RESULT_DIR/$t.msg"; echo FAIL >"$RESULT_DIR/$t.status"; return
+    echo "apply failed: $(tr '\n' ' ' <"$RESULT_DIR/$t.err")" >"$RESULT_DIR/$t.msg"; echo FAIL >"$RESULT_DIR/$t.status"; log "FAIL ${t}: apply failed"; return
   fi
   if kubectl -n "$NAMESPACE" wait --for=condition=complete "job/$job" --timeout="${JOB_TIMEOUT}s" >/dev/null 2>&1; then
-    echo PASS >"$RESULT_DIR/$t.status"
+    echo PASS >"$RESULT_DIR/$t.status"; log "PASS ${t}"
   else
     kubectl -n "$NAMESPACE" logs "job/$job" --tail=40 >"$RESULT_DIR/$t.log" 2>/dev/null || true
-    echo "timeout or failed (${JOB_TIMEOUT}s)" >"$RESULT_DIR/$t.msg"; echo FAIL >"$RESULT_DIR/$t.status"
+    echo "timeout or failed (${JOB_TIMEOUT}s)" >"$RESULT_DIR/$t.msg"; echo FAIL >"$RESULT_DIR/$t.status"; log "FAIL ${t}: timeout or failed (${JOB_TIMEOUT}s)"
   fi
 }
 
@@ -52,13 +53,21 @@ ensure_tools
 mapfile -t TENANTS < <(discover_tenants)
 n="${#TENANTS[@]}"
 [ "$n" -eq 0 ] && { log "FATAL: tenant list is empty"; exit 4; }
-log "migrating ${n} tenant(s), batch=${BATCH_SIZE}, threshold=${FAIL_THRESHOLD_PCT}%"
+log "migrating ${n} tenant(s), batch=${BATCH_SIZE}, threshold=${FAIL_THRESHOLD_PCT}%, fail_fast=${FAIL_FAST}"
 
-i=0
+i=0; b=0
 while [ "$i" -lt "$n" ]; do
   for t in "${TENANTS[@]:i:BATCH_SIZE}"; do migrate_one "$t" & done
   wait
-  i=$((i+BATCH_SIZE))
+  i=$((i+BATCH_SIZE)); b=$((b+1))
+  done_ct=$(( i < n ? i : n ))
+  f=$(grep -lx FAIL "$RESULT_DIR"/*.status 2>/dev/null | wc -l | tr -d ' ')
+  p=$(grep -lx PASS "$RESULT_DIR"/*.status 2>/dev/null | wc -l | tr -d ' ')
+  log "batch ${b}: processed ${done_ct}/${n} (OK=${p} KO=${f})"
+  if [ "$FAIL_FAST" = "true" ] && [ "$f" -gt 0 ]; then
+    log "FAIL-FAST: ${f} failure(s) after batch ${b} -> aborting, block Sync"
+    exit 1
+  fi
 done
 
 passed=0 failed=0
