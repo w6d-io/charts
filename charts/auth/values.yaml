@@ -783,6 +783,7 @@ opal:
       url: ""  # Required when enabled — set per-release to the jinbe datasource URL
       image: "curlimages/curl:8.10.1"
       maxAttempts: 120  # 120 * 2s = 4 minutes total wait
+      bearerToken: ""  # jinbe's OPAL client token (vault: ref) — required once jinbe guards its OPAL routes
 
   client:
     port: 7000

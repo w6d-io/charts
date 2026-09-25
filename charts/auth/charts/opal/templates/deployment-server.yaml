@@ -61,6 +61,11 @@ spec:
           # an empty dataset, and silently leaving OPA without bindings.
           # Configured via .Values.server.waitForDataSource.url.
           image: {{ .Values.server.waitForDataSource.image | default "curlimages/curl:8.10.1" | quote }}
+          {{- with .Values.server.waitForDataSource.bearerToken }}
+          env:
+            - name: DATA_SOURCE_TOKEN
+              value: {{ . | quote }}
+          {{- end }}
           command:
             - /bin/sh
             - -c
@@ -73,7 +78,9 @@ spec:
               echo "waiting for data source: $URL"
               attempts=0
               max={{ .Values.server.waitForDataSource.maxAttempts | default 120 }}
-              until curl --silent --fail --max-time 5 "$URL" > /dev/null; do
+              set --
+              if [ -n "${DATA_SOURCE_TOKEN:-}" ]; then set -- -H "Authorization: Bearer $DATA_SOURCE_TOKEN"; fi
+              until curl --silent --fail --max-time 5 "$@" "$URL" > /dev/null; do
                 attempts=$((attempts+1))
                 if [ "$attempts" -ge "$max" ]; then
                   echo "data source still unreachable after $max attempts — giving up"
