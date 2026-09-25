@@ -2,6 +2,37 @@ apiVersion: v1
 entries:
   app:
   - apiVersion: v2
+    appVersion: v3.5.3
+    created: "2026-09-25T14:11:35.326926354Z"
+    dependencies:
+    - name: helper
+      repository: https://charts.w6d.io
+      version: '>=0.3.0'
+    - name: liquibase
+      repository: file://../liquibase
+      version: '>=0.1.0'
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 15.5.38
+    description: Chart Created by David ALEXANDRE <david.alexandre@w6d.io>
+    digest: 5b67dec61904eede7ef9f6f3df6eb01e507e17bceeb7aa5a4bbb34714e66d436
+    home: https://www.w6d.io
+    icon: https://gitlab.w6d.io/favicon.ico
+    keywords:
+    - app
+    maintainers:
+    - email: support@w6d.io
+      name: Wildcard
+    - email: david.alexandre@w6d.io
+      name: david972
+    name: app
+    sources:
+    - https://charts.w6d.io
+    urls:
+    - https://github.com/w6d-io/charts/releases/download/app-3.5.3/app-3.5.3.tgz
+    version: 3.5.3
+  - apiVersion: v2
     appVersion: v3.1.9
     created: "2026-09-15T11:56:40.831192594Z"
     dependencies:
@@ -9845,4 +9876,4 @@ entries:
     urls:
     - https://github.com/w6d-io/charts/releases/download/toucantoco-frontend-0.1.0/toucantoco-frontend-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-24T12:52:25.946527673Z"
+generated: "2026-09-25T14:11:35.327410255Z"
