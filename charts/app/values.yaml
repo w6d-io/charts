@@ -79,6 +79,7 @@ multiTenantMigration:
   tenants: ""
   batchSize: 25                                # max concurrent child Jobs
   failThresholdPct: 10                         # controller exits non-zero above this
+  failFast: false                              # true = abort at the first failed batch (block Sync immediately)
   jobTimeoutSeconds: 600                       # per child Job
   controller:
     image: "w6dio/kubectl:1.6.0-slim"

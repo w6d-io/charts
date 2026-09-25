@@ -60,6 +60,8 @@ spec:
               value: {{ $mt.failThresholdPct | quote }}
             - name: JOB_TIMEOUT
               value: {{ $mt.jobTimeoutSeconds | quote }}
+            - name: FAIL_FAST
+              value: {{ $mt.failFast | default false | quote }}
           volumeMounts:
             - name: scripts
               mountPath: /scripts
