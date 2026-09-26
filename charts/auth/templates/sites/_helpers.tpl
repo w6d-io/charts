@@ -208,16 +208,21 @@ the oathkeeper values under .rules are read, passed in explicitly.
 
 {{/*
 Oathkeeper access_rules.repositories (subchart tpl context), rendered inside ONE single-quoted
-list item of the toYaml'd config: the active rules file, and — only while the rules-sync file
-is active and rules.publicSites is on — a second `inline://` item holding the public Sites
-rule (closes the quote, starts a new item at the list's indent). Never both it and the
-platform Rule. The default render is a single file:// item, exactly as before.
+list item of the toYaml'd config; extra items close the quote and start a new item at the
+list's indent:
+  legacy  — access-rules.json (+ inline:// public Sites rule when rules.publicSites is on)
+  maester — access-rules.json (written by maester)
+  dual    — access-rules.json (rules-sync) AND maester.json (maester)
+The public Sites rule is inline only in legacy; in maester/dual it is a platform Rule, so it
+is never loaded twice. The default render is a single file:// item, exactly as before.
 */}}
 {{- define "auth.oathkeeper.repositories" -}}
 {{- $s := .Values.rules.source | default "legacy" -}}
-{{- $maesterActive := and (eq $s "dual") (eq (.Values.rules.active | default "legacy") "maester") -}}
-{{- printf "file:///etc/rules/%s" (ternary "maester.json" "access-rules.json" $maesterActive) -}}
-{{- if and (.Values.rules.publicSites | default dict).enabled (ne $s "maester") (not $maesterActive) -}}
+{{- print "file:///etc/rules/access-rules.json" -}}
+{{- if eq $s "dual" -}}
+{{- print "'\n  - 'file:///etc/rules/maester.json" -}}
+{{- end -}}
+{{- if and (.Values.rules.publicSites | default dict).enabled (eq $s "legacy") -}}
 {{- $r := include "auth.oathkeeper.publicSitesRule" (dict "ctx" . "ok" .Values) | fromJson -}}
 {{- $_ := set $r "id" "platform-public-sites" -}}
 {{- printf "'\n  - 'inline://%s" (toJson (list $r) | b64enc) -}}

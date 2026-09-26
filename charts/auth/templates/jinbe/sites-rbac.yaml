@@ -5,7 +5,7 @@
 {{/*
   jinbe writes Site intent only: no Ingress, Rule, Certificate, Service, ConfigMap or
   Secret, and no Site status (the operator owns it). Zones are cluster-scoped and
-  admin-written; jinbe only reads them to offer hosts.
+  created/deleted by admins through jinbe (never updated).
 */}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -53,24 +53,30 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.jinbe.fullname" .))) }}
   labels:
     {{- include "auth.jinbe.labels" . | nindent 4 }}
 rules:
+  # admins manage Zones from kuma through jinbe: create/delete, never update (domain is
+  # immutable; a changed zone is a new one)
   - apiGroups: [auth.w6d.io]
     resources: [zones]
-    verbs: [get, list, watch]
+    verbs: [get, list, watch, create, delete]
+  # host-collision pre-check before a site is saved: read-only, every namespace
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.jinbe.fullname" .))) }}
   labels:
     {{- include "auth.jinbe.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.jinbe.fullname" .))) }}
 subjects:
   - kind: ServiceAccount
     name: {{ include "auth.jinbe.serviceAccountName" . }}

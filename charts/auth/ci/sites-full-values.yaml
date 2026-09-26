@@ -18,10 +18,9 @@ jinbe:
 oathkeeper:
   rules:
     source: dual
-    active: legacy
     publicSites:
       enabled: true
-  # dual: the cut-over (active: maester) must be an Oathkeeper config hot reload
+  # the site-operator Gateway (if enabled) rolls Oathkeeper itself: no config checksum
   configmap:
     hashSumEnabled: false
   oathkeeper:

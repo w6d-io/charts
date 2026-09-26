@@ -1,12 +1,5 @@
 {{- $source := include "auth.oathkeeper.rulesSource" . }}
 {{- if .Values.oathkeeper.enabled }}
-{{- $active := .Values.oathkeeper.rules.active | default "legacy" }}
-{{- if not (has $active (list "legacy" "maester")) }}
-{{- fail (printf "oathkeeper.rules.active must be legacy or maester (got %q)" $active) }}
-{{- end }}
-{{- if and (eq $source "dual") (ne (toString ((.Values.oathkeeper.configmap | default dict).hashSumEnabled)) "false") }}
-{{- fail "oathkeeper.rules.source=dual needs oathkeeper.configmap.hashSumEnabled=false: the cut-over must be an Oathkeeper config reload, and the config checksum annotation would roll the pods instead" }}
-{{- end }}
 {{- if ne $source "legacy" }}
 {{/*
   maester sidecar (inside every Oathkeeper pod, under the Oathkeeper ServiceAccount):

@@ -132,6 +132,7 @@ kratos:
         # or WebAuthn — breaking SSO across tenant subdomains. Step-up
         # still happens on privileged self-service flows (settings) via
         # privileged_session_max_age below.
+        # KC-1: override per env to try `highest_available` (sandbox first).
         whoami:
           required_aal: aal1
       selfservice:
@@ -153,6 +154,11 @@ kratos:
           # code method stays on (Kratos default) for verification and passwordless code.
           link:
             enabled: true
+          # KC-3: passwordless code sign-in ("email me a code") lets anyone probe which
+          # emails have an account. It is OFF by default in Kratos (and here); envs that set
+          # `passwordless_enabled: true` turn it on — set false to close that enumeration.
+          # code:
+          #   passwordless_enabled: false
         flows:
           error:
             ui_url: https://auth.example.com/auth/error
@@ -278,7 +284,8 @@ kratos:
                         value: '{{ .Values.global.audit.webhook.secret }}'
           registration:
             lifespan: 10m
-            ui_url: https://auth.example.com/auth/registration
+            # KC-2: kratos-login-ui serves sign-up at /register (root, as every env sets it)
+            ui_url: https://auth.example.com/register
             # Audit webhook — emit an auth event to jinbe after each successful
             # registration. Reuses the anchored url/method/response/auth from the
             # settings flow above.
@@ -432,16 +439,14 @@ oathkeeper:
   #   maester — oathkeeper-maester in sidecar mode (native sidecar, API watch of Rule CRs in this
   #             namespace) writes /etc/rules/access-rules.json; rules-sync is not run.
   #   dual    — both run; maester writes /etc/rules/maester.json next to rules-sync's
-  #             access-rules.json (one writer per file), and `active` picks the one Oathkeeper
-  #             loads (never both: two rules matching one request = 500). Switching `active` only
-  #             changes access_rules.repositories in the Oathkeeper config, which Oathkeeper
-  #             hot-reloads once kubelet syncs the ConfigMap (60-90 s) — so dual REQUIRES
-  #             oathkeeper.configmap.hashSumEnabled=false, otherwise the config checksum would
-  #             roll the pods (the chart refuses to render dual without it).
+  #             access-rules.json (one writer per file) and Oathkeeper loads BOTH, so legacy
+  #             routes and Site rules are enforced side by side. A request matched by a rule
+  #             in each file is a 500 (no priority): Sites must not cover legacy routes (the
+  #             operator's overlap check / gatekit parity), and a route moves by being removed
+  #             from one side as it lands on the other.
   # A user-supplied oathkeeper.oathkeeper.config.access_rules.repositories overrides all of this.
   rules:
     source: legacy
-    active: legacy
     # Ship the maester Rule CRD (rules.oathkeeper.ory.sh) when source != legacy or
     # siteOperator.enabled. Set false where another release already owns it.
     installCRD: true
@@ -456,7 +461,8 @@ oathkeeper:
     # (gatekit: 0 overlaps vs jinbe's built-in rules), while app/api hosts have catch-all
     # jinbe rules. Oathkeeper forwards the Cookie header, so access-reason can read the session
     # inside jinbe. Legacy: an extra inline:// repository next to the rules-sync file;
-    # maester/dual: platform Rule `platform-public-sites`. noop is used because `anonymous` is
+    # maester/dual: platform Rule `platform-public-sites` (dual loads maester.json too, so
+    # never both). noop is used because `anonymous` is
     # not enabled globally (enable it first to switch). Off by default (new public route).
     publicSites:
       enabled: false

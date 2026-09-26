@@ -28,10 +28,11 @@ rules:
   - apiGroups: [auth.w6d.io]
     resources: [sites/status]
     verbs: [get, update, patch]
-  {{- if .Values.siteOperator.gateway.enabled }}
+  # the Gateway controller always watches Gateways (no Gateway = unmanaged config)
   - apiGroups: [auth.w6d.io]
     resources: [gateways]
     verbs: [get, list, watch]
+  {{- if .Values.siteOperator.gateway.enabled }}
   - apiGroups: [auth.w6d.io]
     resources: [gateways/status]
     verbs: [get, update, patch]
