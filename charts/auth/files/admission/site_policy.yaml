@@ -1,0 +1,57 @@
+# Sites: reserved hosts only for system sites, upstreams off the platform
+# internals, and the site writer (jinbe) can neither create, change nor delete a
+# system site. Hosts under a Zone: site-operator-hosts.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-sites
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [auth.w6d.io]
+      apiVersions: ["*"]
+      operations: [CREATE, UPDATE, DELETE]
+      resources: [sites]
+  variables:
+  - name: del
+    expression: request.operation == 'DELETE'
+  - name: reserved
+    expression: params.data.reservedHosts.split(',').map(s, s.trim()).filter(s, s != '')
+  - name: writer
+    expression: request.userInfo.username == params.data.siteWriterUser
+  - name: isSystem
+    expression: "!variables.del && has(object.spec.system) && object.spec.system"
+  - name: wasSystem
+    expression: "request.operation != 'CREATE' && has(oldObject.spec.system) && oldObject.spec.system"
+  - name: upstreams
+    expression: >-
+      variables.del ? [] : [object.spec.upstream] + object.spec.gates.filter(g, has(g.upstream)).map(g, g.upstream)
+  - name: urls
+    expression: >-
+      variables.upstreams.map(u, (has(u.scheme) ? u.scheme : 'http') + '://' + u.service + '.' + u.namespace +
+        '.svc.cluster.local:' + string(u.port))
+  validations:
+  - expression: "variables.del || variables.isSystem || object.spec.hosts.all(h, !(h in variables.reserved))"
+    message: reserved hosts belong to system sites
+    reason: Forbidden
+  - expression: >-
+      variables.urls.all(u, u.matches(params.data.allowedUpstream) && !u.matches(params.data.deniedUpstream))
+    message: upstream points at a platform-internal service
+    reason: Forbidden
+  - expression: "!variables.writer || (!variables.isSystem && !variables.wasSystem)"
+    message: system sites are managed by the platform chart, not by the site writer
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-sites
+spec:
+  policyName: site-operator-sites
+  validationActions: [Deny]
+  paramRef: {name: site-operator-policy, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}

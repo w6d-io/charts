@@ -1,0 +1,50 @@
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.admission.enabled }}
+{{- $adm := .Values.siteOperator.admission }}
+{{- $ns := include "auth.sites.namespace" . }}
+{{- $operator := include "auth.sites.user" (dict "ctx" . "sa" (include "auth.siteOperator.fullname" .)) }}
+{{- $annotations := concat (keys .Values.siteOperator.ingressAnnotations) $adm.allowedIngressAnnotations | uniq | sortAlpha }}
+# Parameters shared by every site ValidatingAdmissionPolicy; the same values feed the
+# operator flags (reserved hosts, upstream regexes, gateway Service).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth.siteOperator.policyConfigMap" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+data:
+  operatorUser: {{ $operator | quote }}
+  siteWriterUser: {{ include "auth.sites.user" (dict "ctx" . "sa" (include "auth.jinbe.serviceAccountName" .)) | quote }}
+  reservedHosts: {{ include "auth.sites.reservedHosts" . | quote }}
+  gatewayService: {{ printf "%s-oathkeeper-proxy" .Release.Name | quote }}
+  gatewayServicePort: http
+  allowedIngressAnnotations: {{ join "," $annotations | quote }}
+  allowedDefaultBackend: {{ $adm.allowedDefaultBackend | quote }}
+  allowedIngressAnnotationPrefixes: {{ join "," $adm.allowedIngressAnnotationPrefixes | quote }}
+  allowedUpstream: {{ .Values.siteOperator.allowedUpstream | quote }}
+  deniedUpstream: {{ .Values.siteOperator.deniedUpstream | quote }}
+  ruleWriters: {{ prepend $adm.ruleWriters $operator | join "," | quote }}
+  ruleDeleters: {{ join "," $adm.ruleDeleters | quote }}
+  # maester runs as a sidecar under the Oathkeeper pod's ServiceAccount
+  maesterUsers: {{ include "auth.sites.user" (dict "ctx" . "sa" (include "auth.oathkeeper.serviceAccountName" .)) | quote }}
+  # empty: maester sidecar mode (Rules must not name a ConfigMap)
+  rulesConfigMap: ""
+{{- range $file := list "site_policy.yaml" "hosts_policy.yaml" "ingress_policy.yaml" "rule_policy.yaml" }}
+{{- range $doc := splitList "\n---\n" ($.Files.Get (printf "files/admission/%s" $file)) }}
+{{- $obj := fromYaml $doc }}
+{{- if $obj.kind }}
+{{- $name := include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.metadata.name) }}
+{{- $_ := set $obj "metadata" (dict "name" $name "labels" (include "auth.labels" $ | fromYaml)) }}
+{{- if eq $obj.kind "ValidatingAdmissionPolicyBinding" }}
+{{- $_ := set $obj.spec "policyName" (include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.spec.policyName)) }}
+{{- $param := ternary (include "auth.siteOperator.zonesConfigMap" $) (include "auth.siteOperator.policyConfigMap" $) (eq $obj.spec.paramRef.name "site-operator-zones") }}
+{{- $_ := set $obj.spec "paramRef" (dict "name" $param "namespace" $ns "parameterNotFoundAction" "Deny") }}
+{{- $_ := set $obj.spec "matchResources" (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" $ns))) }}
+{{- end }}
+---
+{{ toYaml $obj }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

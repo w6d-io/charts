@@ -69,11 +69,16 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+            # Prometheus, on its own port (not fronted by Oathkeeper)
+            - name: metrics
+              containerPort: {{ .Values.jinbe.metrics.port }}
+              protocol: TCP
           env:
             {{- include "auth.jinbe.env" . | nindent 12 }}
             {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
             {{- include "auth.backup.env" . | nindent 12 }}
             {{- include "auth.jinbe.envRuntimeOnly" . | nindent 12 }}
+            {{- include "auth.jinbe.sitesEnv" . | nindent 12 }}
           # Probe timeouts are deliberately generous. /api/health does light
           # dependency checks and, under load (the gateway also polls jinbe for
           # its access rules), can exceed the 1s default — which was SIGTERMing

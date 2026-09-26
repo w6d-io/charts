@@ -1,0 +1,79 @@
+# Every Ingress in the gateway namespace goes to the oathkeeper proxy and carries
+# only allow-listed annotations, whoever writes it. Ingresses the operator writes
+# must also match its templates (name site-*/zone-*, label, own TLS secret), and
+# the operator may delete only its own. Host rules: site-operator-hosts.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-ingresses
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [networking.k8s.io]
+      apiVersions: [v1]
+      operations: [CREATE, UPDATE, DELETE]
+      resources: [ingresses]
+  variables:
+  - name: del
+    expression: request.operation == 'DELETE'
+  - name: operator
+    expression: request.userInfo.username == params.data.operatorUser
+  - name: obj
+    expression: "variables.del ? oldObject : object"
+  - name: labels
+    expression: "has(variables.obj.metadata.labels) ? variables.obj.metadata.labels : {}"
+  - name: managed
+    expression: >-
+      'app.kubernetes.io/managed-by' in variables.labels && variables.labels['app.kubernetes.io/managed-by'] == 'site-operator'
+  - name: annKeys
+    expression: params.data.allowedIngressAnnotations.split(',').map(s, s.trim()).filter(s, s != '')
+  - name: annPrefixes
+    expression: params.data.allowedIngressAnnotationPrefixes.split(',').map(s, s.trim()).filter(s, s != '')
+  - name: hosts
+    expression: "variables.del || !has(object.spec.rules) ? [] : object.spec.rules.map(r, has(r.host) ? r.host : '')"
+  validations:
+  - expression: "variables.del || !has(object.spec.defaultBackend)"
+    message: defaultBackend is not allowed in the gateway namespace
+    reason: Forbidden
+  - expression: >-
+      variables.del || !has(object.spec.rules) || object.spec.rules.all(r, !has(r.http) || r.http.paths.all(p,
+        has(p.backend.service) && p.backend.service.name == params.data.gatewayService &&
+        has(p.backend.service.port.name) && p.backend.service.port.name == params.data.gatewayServicePort))
+    messageExpression: "'every Ingress backend must be ' + params.data.gatewayService + ':' + params.data.gatewayServicePort"
+    reason: Forbidden
+  - expression: >-
+      variables.del || !has(object.metadata.annotations) || object.metadata.annotations.all(k,
+        k in variables.annKeys || variables.annPrefixes.exists(p, k.startsWith(p)))
+    message: annotation not in the allow-list
+    reason: Forbidden
+  - expression: >-
+      variables.del || !has(object.metadata.annotations) ||
+      !('nginx.ingress.kubernetes.io/default-backend' in object.metadata.annotations) ||
+      object.metadata.annotations['nginx.ingress.kubernetes.io/default-backend'] == params.data.allowedDefaultBackend
+    messageExpression: "'default-backend may only be ' + params.data.allowedDefaultBackend"
+    reason: Forbidden
+  - expression: >-
+      !(variables.operator || variables.managed) || (variables.managed &&
+        (variables.obj.metadata.name.startsWith('site-') || variables.obj.metadata.name.startsWith('zone-')))
+    message: operator Ingresses are named site-<name> or zone-<name> and labelled app.kubernetes.io/managed-by=site-operator
+    reason: Forbidden
+  - expression: >-
+      variables.del || !(variables.operator || variables.managed) || !has(object.spec.tls) ||
+      object.spec.tls.all(t, t.hosts.all(h, h in variables.hosts) &&
+        (object.metadata.name.startsWith('zone-') || t.secretName == object.metadata.name + '-tls'))
+    message: a site Ingress uses only its own TLS secret, for its own hosts
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-ingresses
+spec:
+  policyName: site-operator-ingresses
+  validationActions: [Deny]
+  paramRef: {name: site-operator-policy, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}

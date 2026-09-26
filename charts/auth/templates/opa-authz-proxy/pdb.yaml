@@ -1,0 +1,14 @@
+{{- if and .Values.opaAuthzProxy.enabled .Values.opaAuthzProxy.pdb.enabled (gt (int .Values.opaAuthzProxy.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "auth.opaAuthzProxy.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opa-authz-proxy
+spec:
+  minAvailable: {{ .Values.opaAuthzProxy.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "auth.opaAuthzProxy.selectorLabels" . | nindent 6 }}
+{{- end }}

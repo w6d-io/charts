@@ -1,0 +1,121 @@
+{{- if .Values.siteOperator.enabled }}
+{{/*
+  From site-operator config/rbac. The operator works inside the gateway namespace; reads
+  no Secrets; writes only its own zones ConfigMap (by name); cannot change a Site's spec
+  (status only). The only cluster-wide grant is reading Zones.
+*/}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+rules:
+  - apiGroups: [auth.w6d.io]
+    resources: [sites]
+    verbs: [get, list, watch]
+  - apiGroups: [auth.w6d.io]
+    resources: [sites/status]
+    verbs: [get, update, patch]
+  - apiGroups: [oathkeeper.ory.sh]
+    resources: [rules]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch, create, update, patch, delete]
+  {{- if .Values.siteOperator.enableCertificates }}
+  - apiGroups: [cert-manager.io]
+    resources: [certificates]
+    verbs: [get, list, watch, create, update, patch, delete]
+  {{- end }}
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "auth.siteOperator.zonesConfigMap" . }}]
+    verbs: [get, update, patch]
+  - apiGroups: ["", events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+  # RulesLoaded: find the Oathkeeper pods, then read GET :4456/rules on each (no watch)
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "auth.siteOperator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.siteOperator.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+rules:
+  - apiGroups: [auth.w6d.io]
+    resources: [zones]
+    verbs: [get, list, watch]
+  - apiGroups: [auth.w6d.io]
+    resources: [zones/status]
+    verbs: [get, update, patch]
+  - apiGroups: ["", events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.siteOperator.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# Mirror of the Zone domains, written by the operator (get/update by name only) and read
+# by the hosts admission policy. Created empty here because RBAC cannot restrict create
+# by name. Helm must not reset what the operator wrote: data is left out on purpose.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth.siteOperator.zonesConfigMap" . }}
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+  annotations:
+    helm.sh/resource-policy: keep
+{{- end }}

@@ -1,0 +1,64 @@
+# Every host is under an admin-defined Zone. The Zone domains are mirrored by the
+# operator into ConfigMap site-operator-zones (key "domains"); empty = nothing allowed.
+# - Site hosts: exactly one DNS label under a Zone domain.
+# - Ingresses the operator writes: zone-* is the wildcard *.<domain> of a Zone,
+#   site-* (vanity) hosts are one label under a Zone domain.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-hosts
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [auth.w6d.io]
+      apiVersions: ["*"]
+      operations: [CREATE, UPDATE]
+      resources: [sites]
+    - apiGroups: [networking.k8s.io]
+      apiVersions: [v1]
+      operations: [CREATE, UPDATE]
+      resources: [ingresses]
+  variables:
+  - name: domains
+    expression: "(has(params.data) && 'domains' in params.data ? params.data.domains : '').split(',').map(s, s.trim()).filter(s, s != '')"
+  - name: isSite
+    expression: request.resource.resource == 'sites'
+  - name: labels
+    expression: "has(object.metadata.labels) ? object.metadata.labels : {}"
+  - name: managed
+    expression: >-
+      'app.kubernetes.io/managed-by' in variables.labels && variables.labels['app.kubernetes.io/managed-by'] == 'site-operator'
+  - name: hosts
+    expression: >-
+      variables.isSite ? object.spec.hosts :
+      (has(object.spec.rules) ? object.spec.rules.map(r, has(r.host) ? r.host : '') : [])
+  - name: underZone
+    expression: >-
+      variables.hosts.all(h, variables.domains.exists(d, h.endsWith('.' + d) &&
+        h.substring(0, h.size() - d.size() - 1).matches('^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$')))
+  validations:
+  - expression: "!variables.isSite || variables.underZone"
+    message: every site host must be one DNS label under a Zone domain
+    reason: Forbidden
+  - expression: >-
+      variables.isSite || !variables.managed || !object.metadata.name.startsWith('zone-') ||
+      variables.hosts.all(h, h.startsWith('*.') && h.substring(2) in variables.domains)
+    message: a zone Ingress serves only the wildcard of a Zone domain
+    reason: Forbidden
+  - expression: "variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || variables.underZone"
+    message: a site Ingress host must be one DNS label under a Zone domain
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-hosts
+spec:
+  policyName: site-operator-hosts
+  validationActions: [Deny]
+  paramRef: {name: site-operator-zones, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}

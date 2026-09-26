@@ -1,0 +1,40 @@
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.gatewayNetworkPolicy.enabled .Values.oathkeeper.enabled }}
+{{- $serve := (((.Values.oathkeeper.oathkeeper | default dict).config | default dict).serve | default dict) }}
+{{/*
+  Oathkeeper pods: the proxy port stays open to everyone (ingress-nginx, in-cluster callers);
+  the API port (GET /rules, /decisions) only to the site-operator (RulesLoaded) and extra
+  peers; metrics only to Prometheus. Kubelet probes are not subject to NetworkPolicy.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-oathkeeper
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oathkeeper
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oathkeeper
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - { protocol: TCP, port: {{ ($serve.proxy | default dict).port | default 4455 }} }
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "auth.siteOperator.selectorLabels" . | nindent 14 }}
+        {{- with .Values.siteOperator.gatewayNetworkPolicy.extraApiIngress }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: {{ ($serve.api | default dict).port | default 4456 }} }
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.observability.serviceMonitors.prometheusNamespace }}
+      ports:
+        - { protocol: TCP, port: {{ ($serve.prometheus | default dict).port | default 9000 }} }
+        - { protocol: TCP, port: 8080 }  # maester sidecar metrics
+{{- end }}

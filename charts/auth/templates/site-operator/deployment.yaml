@@ -1,0 +1,109 @@
+{{- if .Values.siteOperator.enabled }}
+{{- $okConfig := ((.Values.oathkeeper.oathkeeper | default dict).config | default dict) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+spec:
+  replicas: {{ .Values.siteOperator.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.siteOperator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.siteOperator.selectorLabels" . | nindent 8 }}
+      {{- with .Values.siteOperator.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "auth.siteOperator.fullname" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: manager
+          image: "{{ .Values.siteOperator.image.repository }}:{{ required "siteOperator.image.tag is required" .Values.siteOperator.image.tag }}"
+          imagePullPolicy: {{ .Values.siteOperator.image.pullPolicy }}
+          args:
+            - --leader-elect={{ gt (int .Values.siteOperator.replicaCount) 1 }}
+            - --gateway-namespace={{ include "auth.sites.namespace" . }}
+            - --gateway-service={{ .Release.Name }}-oathkeeper-proxy
+            - --gateway-service-port=http
+            - --reserved-hosts={{ include "auth.sites.reservedHosts" . }}
+            - --ingress-classes={{ join "," .Values.siteOperator.ingressClasses }}
+            - --ingress-annotations={{ include "auth.siteOperator.ingressAnnotations" . }}
+            - --issuers={{ join "," .Values.siteOperator.issuers }}
+            - --enable-certificates={{ .Values.siteOperator.enableCertificates }}
+            - --allowed-upstream={{ .Values.siteOperator.allowedUpstream }}
+            - --denied-upstream={{ .Values.siteOperator.deniedUpstream }}
+            # the operator refuses any handler Oathkeeper has not enabled globally
+            - --enabled-authenticators={{ include "auth.oathkeeper.enabledKeys" ($okConfig.authenticators | default dict) }}
+            - --enabled-authorizers={{ include "auth.oathkeeper.enabledKeys" ($okConfig.authorizers | default dict) }}
+            - --enabled-mutators={{ include "auth.oathkeeper.enabledKeys" ($okConfig.mutators | default dict) }}
+            - --enabled-errors={{ include "auth.oathkeeper.enabledKeys" (($okConfig.errors | default dict).handlers | default dict) }}
+            - --rules-configmap=
+            - --zones-configmap={{ include "auth.siteOperator.zonesConfigMap" . }}
+            - --gatekit-url={{ required "sites.gatekitUrl (or gatekit.enabled) is required by the site-operator" (include "auth.gatekit.url" .) }}
+            {{- with .Values.siteOperator.pausedRedirectUrl }}
+            - --paused-redirect-url={{ . }}
+            {{- end }}
+            {{- if .Values.siteOperator.rulesLoaded.enabled }}
+            # RulesLoaded: GET :4456/rules on every Oathkeeper pod of this release
+            - --gateway-pod-selector=app.kubernetes.io/name=oathkeeper,app.kubernetes.io/instance={{ .Release.Name }}
+            - --gateway-api-port={{ ((((.Values.oathkeeper.oathkeeper | default dict).config | default dict).serve | default dict).api | default dict).port | default 4456 }}
+            {{- end }}
+            {{- range .Values.siteOperator.extraArgs }}
+            - {{ . }}
+            {{- end }}
+          ports:
+            - { name: metrics, containerPort: 8080 }
+            - { name: probes, containerPort: 8081 }
+          livenessProbe:
+            httpGet: { path: /healthz, port: probes }
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: probes }
+          {{- with .Values.siteOperator.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      {{- with .Values.siteOperator.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.siteOperator.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.siteOperator.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}-metrics
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+spec:
+  type: ClusterIP
+  ports:
+    - { name: metrics, port: 8080, targetPort: metrics, protocol: TCP }
+  selector:
+    {{- include "auth.siteOperator.selectorLabels" . | nindent 4 }}
+{{- end }}

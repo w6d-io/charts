@@ -1,0 +1,223 @@
+{{/*
+Sites (gatekit, site-operator, jinbe side) helpers.
+*/}}
+
+{{/*
+Sites, maester Rules, operator Ingresses and the gateway all live in the release namespace
+(maester watches only it).
+*/}}
+{{- define "auth.sites.namespace" -}}
+{{- .Release.Namespace -}}
+{{- end }}
+
+{{- define "auth.gatekit.fullname" -}}
+{{- printf "%s-gatekit" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "auth.gatekit.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "auth.name" . }}-gatekit
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: gatekit
+{{- end }}
+
+{{/*
+gatekit base URL: explicit sites.gatekitUrl, else the in-chart Service when gatekit is on.
+*/}}
+{{- define "auth.gatekit.url" -}}
+{{- if .Values.sites.gatekitUrl -}}
+{{- .Values.sites.gatekitUrl -}}
+{{- else if .Values.gatekit.enabled -}}
+{{- printf "http://%s:%d" (include "auth.gatekit.fullname" .) (int .Values.gatekit.service.port) -}}
+{{- end -}}
+{{- end }}
+
+{{- define "auth.siteOperator.fullname" -}}
+{{- printf "%s-site-operator" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "auth.siteOperator.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "auth.name" . }}-site-operator
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: site-operator
+{{- end }}
+
+{{- define "auth.siteOperator.zonesConfigMap" -}}
+{{- printf "%s-zones" (include "auth.siteOperator.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "auth.siteOperator.policyConfigMap" -}}
+{{- printf "%s-policy" (include "auth.siteOperator.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Cluster-scoped object names (VAPs, ClusterRoles) carry the namespace so the sandbox and
+the real stack can share a cluster.
+*/}}
+{{- define "auth.sites.clusterName" -}}
+{{- printf "%s-%s" .ctx.Release.Namespace .name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "auth.sites.user" -}}
+{{- printf "system:serviceaccount:%s:%s" .ctx.Release.Namespace .sa -}}
+{{- end }}
+
+{{/*
+The Oathkeeper pod's ServiceAccount (the maester sidecar runs under it).
+*/}}
+{{- define "auth.oathkeeper.serviceAccountName" -}}
+{{- $sa := (.Values.oathkeeper.deployment | default dict).serviceAccount | default dict -}}
+{{- $sa.name | default (printf "%s-oathkeeper" .Release.Name) -}}
+{{- end }}
+
+{{/*
+Validated oathkeeper.rules.source.
+*/}}
+{{- define "auth.oathkeeper.rulesSource" -}}
+{{- $s := (.Values.oathkeeper.rules | default dict).source | default "legacy" -}}
+{{- if not (has $s (list "legacy" "maester" "dual")) -}}
+{{- fail (printf "oathkeeper.rules.source must be legacy, maester or dual (got %q)" $s) -}}
+{{- end -}}
+{{- $s -}}
+{{- end }}
+
+{{/*
+Platform hosts no tenant site may take: sites.reservedHosts + every Oathkeeper proxy host.
+*/}}
+{{- define "auth.sites.reservedHosts" -}}
+{{- $hosts := list -}}
+{{- range .Values.sites.reservedHosts }}{{ $hosts = append $hosts . }}{{ end -}}
+{{- range ((((.Values.oathkeeper.ingress | default dict).proxy | default dict).hosts) | default list) }}{{ $hosts = append $hosts .host }}{{ end -}}
+{{- $hosts | uniq | sortAlpha | join "," -}}
+{{- end }}
+
+{{/*
+Ingress annotations stamped by the operator, as k=v,k=v (sorted, deterministic).
+*/}}
+{{- define "auth.siteOperator.ingressAnnotations" -}}
+{{- $out := list -}}
+{{- range $k := (keys .Values.siteOperator.ingressAnnotations | sortAlpha) }}{{ $out = append $out (printf "%s=%s" $k (index $.Values.siteOperator.ingressAnnotations $k)) }}{{ end -}}
+{{- join "," $out -}}
+{{- end }}
+
+{{/*
+Jinbe env for Sites and observability (runtime only).
+*/}}
+{{- define "auth.jinbe.sitesEnv" -}}
+- name: METRICS_PORT
+  value: {{ .Values.jinbe.metrics.port | toString | quote }}
+{{- if .Values.jinbe.metrics.token }}
+- name: METRICS_TOKEN
+  value: {{ .Values.jinbe.metrics.token | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.OPA_TOKEN }}
+- name: OPA_TOKEN
+  value: {{ .Values.jinbe.env.OPA_TOKEN | quote }}
+{{- end }}
+{{- if .Values.jinbe.env.AUDIT_HMAC_KEY }}
+- name: AUDIT_HMAC_KEY
+  value: {{ .Values.jinbe.env.AUDIT_HMAC_KEY | quote }}
+{{- end }}
+{{- if .Values.jinbe.otel.enabled }}
+- name: NODE_OPTIONS
+  value: "--import ./dist/telemetry/register.js"
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ .Values.jinbe.otel.endpoint | quote }}
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: {{ .Values.jinbe.otel.protocol | default "grpc" | quote }}
+- name: OTEL_SERVICE_NAME
+  value: {{ .Values.jinbe.otel.serviceName | default "jinbe" | quote }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: {{ printf "service.version=%s%s" (.Values.jinbe.image.tag | default .Chart.AppVersion) (ternary (printf ",%s" .Values.jinbe.otel.resourceAttributes) "" (ne (.Values.jinbe.otel.resourceAttributes | default "") "")) | quote }}
+{{- end }}
+{{- if .Values.sites.enabled }}
+- name: SITES_KUBE
+  value: "in-cluster"
+- name: SITES_NAMESPACE
+  value: {{ include "auth.sites.namespace" . | quote }}
+{{- with include "auth.gatekit.url" . }}
+- name: GATEKIT_URL
+  value: {{ . | quote }}
+{{- end }}
+{{- with .Values.sites.zones }}
+{{- $zones := list }}
+{{- range . }}
+{{- /* every Zone TLS mode serves a wildcard certificate (jinbe platform.ts) */}}
+{{- $z := dict "suffix" .domain "wildcardTls" true }}
+{{- if .cookieDomain }}{{ $_ := set $z "cookieDomain" .cookieDomain }}{{ end }}
+{{- $zones = append $zones $z }}
+{{- end }}
+- name: SITES_ZONES
+  value: {{ toJson $zones | quote }}
+{{- end }}
+{{- with include "auth.sites.reservedHosts" . }}
+- name: SITES_RESERVED_HOSTS
+  value: {{ . | quote }}
+{{- end }}
+{{- with .Values.sites.cookieDomain }}
+- name: SITES_COOKIE_DOMAIN
+  value: {{ . | quote }}
+{{- end }}
+{{- with .Values.sites.platformNamespaces }}
+- name: SITES_PLATFORM_NAMESPACES
+  value: {{ join "," . | quote }}
+{{- end }}
+- name: SITES_ACCESS_URL
+  value: {{ .Values.sites.accessUrl | default (printf "https://%s/access" (include "auth.authDomain" .)) | quote }}
+- name: SITES_FOUR_EYES
+  value: {{ .Values.sites.fourEyes | default "off" | quote }}
+- name: SITES_SYNC_INTERVAL_MS
+  value: {{ .Values.sites.syncIntervalMs | int64 | toString | quote }}
+- name: SITES_RULES_LOADED_TIMEOUT_MS
+  value: {{ .Values.sites.rulesLoadedTimeoutMs | int64 | toString | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+A vendored CRD from files/crds, kept on uninstall: deleting the CRD would delete every
+Site/Rule and take the gateway rules with it.
+*/}}
+{{- define "auth.sites.crd" -}}
+{{- $crd := .ctx.Files.Get (printf "files/crds/%s" .file) | fromYaml -}}
+{{- $ann := $crd.metadata.annotations | default dict -}}
+{{- $_ := set $ann "helm.sh/resource-policy" "keep" -}}
+{{- $_ := set $crd.metadata "annotations" $ann -}}
+{{- $_ := set $crd.metadata "labels" (include "auth.labels" .ctx | fromYaml) -}}
+{{ toYaml $crd }}
+{{- end }}
+
+{{/*
+The public Sites rule (maester Rule spec shape, plus `id` for the file format). Works in
+both the parent and the oathkeeper subchart context: only .Release and .Values.global plus
+the oathkeeper values under .rules are read, passed in explicitly.
+  dict "ctx" <root> "ok" <oathkeeper values>
+*/}}
+{{- define "auth.oathkeeper.publicSitesRule" -}}
+{{- $g := .ctx.Values.global | default dict -}}
+{{- $p := .ok.rules.publicSites -}}
+{{- $auth := $g.authDomain | default (printf "auth.%s" $g.domain) -}}
+{{- $up := $p.upstream | default (printf "http://%s-jinbe.%s.svc.cluster.local:8080" .ctx.Release.Name .ctx.Release.Namespace) -}}
+{{- toJson (dict
+    "match" (dict "url" (printf "<https?>://%s/api/public/sites/<.*>" $auth) "methods" (list "GET"))
+    "upstream" (dict "url" $up "preserve_host" false)
+    "authenticators" (list (dict "handler" ($p.authenticator | default "noop")))
+    "authorizer" (dict "handler" "allow")
+    "mutators" (list (dict "handler" "noop"))) -}}
+{{- end }}
+
+{{/*
+Oathkeeper access_rules.repositories (subchart tpl context), rendered inside ONE single-quoted
+list item of the toYaml'd config: the active rules file, and — only while the rules-sync file
+is active and rules.publicSites is on — a second `inline://` item holding the public Sites
+rule (closes the quote, starts a new item at the list's indent). Never both it and the
+platform Rule. The default render is a single file:// item, exactly as before.
+*/}}
+{{- define "auth.oathkeeper.repositories" -}}
+{{- $s := .Values.rules.source | default "legacy" -}}
+{{- $maesterActive := and (eq $s "dual") (eq (.Values.rules.active | default "legacy") "maester") -}}
+{{- printf "file:///etc/rules/%s" (ternary "maester.json" "access-rules.json" $maesterActive) -}}
+{{- if and (.Values.rules.publicSites | default dict).enabled (ne $s "maester") (not $maesterActive) -}}
+{{- $r := include "auth.oathkeeper.publicSitesRule" (dict "ctx" . "ok" .Values) | fromJson -}}
+{{- $_ := set $r "id" "platform-public-sites" -}}
+{{- printf "'\n  - 'inline://%s" (toJson (list $r) | b64enc) -}}
+{{- end -}}
+{{- end }}

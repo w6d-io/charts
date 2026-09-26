@@ -1,0 +1,66 @@
+{{- if and .Values.jinbe.enabled .Values.sites.enabled }}
+{{- if not .Values.jinbe.serviceAccount.create }}
+{{- fail "sites.enabled needs jinbe.serviceAccount.create=true (jinbe writes Site CRs under its own ServiceAccount)" }}
+{{- end }}
+{{/*
+  jinbe writes Site intent only: no Ingress, Rule, Certificate, Service, ConfigMap or
+  Secret, and no Site status (the operator owns it). Zones are cluster-scoped and
+  admin-written; jinbe only reads them to offer hosts.
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}-site-writer
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [auth.w6d.io]
+    resources: [sites]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [auth.w6d.io]
+    resources: [sites/status]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}-site-writer
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "auth.jinbe.fullname" . }}-site-writer
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.jinbe.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [auth.w6d.io]
+    resources: [zones]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.jinbe.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,19 @@
+{{- if and .Values.jinbe.enabled .Values.observability.serviceMonitors.enabled }}
+{{/* Scrape-only Service: the metrics port is never on the Service Oathkeeper routes to. */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "auth.jinbe.fullname" . }}-metrics
+  labels:
+    {{- include "auth.jinbe.labels" . | nindent 4 }}
+    app.kubernetes.io/part-of: metrics
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.jinbe.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "auth.jinbe.selectorLabels" . | nindent 4 }}
+{{- end }}

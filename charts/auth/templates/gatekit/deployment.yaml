@@ -1,0 +1,110 @@
+{{- if .Values.gatekit.enabled }}
+{{/*
+  gatekit is stateless and makes no outbound connection (its HTTP transport refuses every
+  dial), so it needs no ServiceAccount token and no egress.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.gatekit.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gatekit
+spec:
+  replicas: {{ .Values.gatekit.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "auth.gatekit.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "auth.gatekit.selectorLabels" . | nindent 8 }}
+      {{- with .Values.gatekit.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: gatekit
+          image: "{{ .Values.gatekit.image.repository }}:{{ required "gatekit.image.tag is required" .Values.gatekit.image.tag }}"
+          imagePullPolicy: {{ .Values.gatekit.image.pullPolicy }}
+          env:
+            - name: GATEKIT_LISTEN
+              value: ":{{ .Values.gatekit.service.port }}"
+            - name: GATEKIT_METRICS_LISTEN
+              value: ":{{ .Values.gatekit.metricsPort }}"
+            - name: GATEKIT_MAX_BODY_BYTES
+              value: {{ .Values.gatekit.maxBodyBytes | int64 | toString | quote }}
+            - name: GATEKIT_REQUEST_TIMEOUT
+              value: {{ .Values.gatekit.requestTimeout | quote }}
+          ports:
+            - { name: http, containerPort: {{ .Values.gatekit.service.port }}, protocol: TCP }
+            - { name: metrics, containerPort: {{ .Values.gatekit.metricsPort }}, protocol: TCP }
+          # /readyz fails until the matcher self-test has passed
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          {{- with .Values.gatekit.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      {{- with .Values.gatekit.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gatekit.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gatekit.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "auth.gatekit.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gatekit
+spec:
+  type: ClusterIP
+  ports:
+    - { name: http, port: {{ .Values.gatekit.service.port }}, targetPort: http, protocol: TCP }
+    - { name: metrics, port: {{ .Values.gatekit.metricsPort }}, targetPort: metrics, protocol: TCP }
+  selector:
+    {{- include "auth.gatekit.selectorLabels" . | nindent 4 }}
+{{- if and .Values.gatekit.pdb.enabled (gt (int .Values.gatekit.replicaCount) 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "auth.gatekit.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gatekit
+spec:
+  minAvailable: {{ .Values.gatekit.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "auth.gatekit.selectorLabels" . | nindent 6 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,50 @@
+{{- $source := include "auth.oathkeeper.rulesSource" . }}
+{{- if .Values.oathkeeper.enabled }}
+{{- $active := .Values.oathkeeper.rules.active | default "legacy" }}
+{{- if not (has $active (list "legacy" "maester")) }}
+{{- fail (printf "oathkeeper.rules.active must be legacy or maester (got %q)" $active) }}
+{{- end }}
+{{- if and (eq $source "dual") (ne (toString ((.Values.oathkeeper.configmap | default dict).hashSumEnabled)) "false") }}
+{{- fail "oathkeeper.rules.source=dual needs oathkeeper.configmap.hashSumEnabled=false: the cut-over must be an Oathkeeper config reload, and the config checksum annotation would roll the pods instead" }}
+{{- end }}
+{{- if ne $source "legacy" }}
+{{/*
+  maester sidecar (inside every Oathkeeper pod, under the Oathkeeper ServiceAccount):
+  watches Rules in this namespace and writes /etc/rules/maester.json. maester also writes
+  each Rule's status and finalizer through a plain update (the CRD has no status
+  subresource) — the site-operator-rules admission policy lets it change nothing else.
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-oathkeeper-maester
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oathkeeper-maester
+rules:
+  - apiGroups: [oathkeeper.ory.sh]
+    resources: [rules]
+    verbs: [get, list, watch, update, patch]
+  - apiGroups: [oathkeeper.ory.sh]
+    resources: [rules/status]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-oathkeeper-maester
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oathkeeper-maester
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-oathkeeper-maester
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.oathkeeper.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

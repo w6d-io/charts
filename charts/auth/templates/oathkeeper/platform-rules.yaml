@@ -1,0 +1,35 @@
+{{- $source := include "auth.oathkeeper.rulesSource" . }}
+{{- if and .Values.oathkeeper.enabled (ne $source "legacy") }}
+{{/*
+  Platform Rule CRs (GitOps-authored; the site-operator-rules policy lets Argo write them).
+  Oathkeeper with 0 rules is NotReady, so `ready` always ships: an anonymous GET on a
+  reserved path of the auth host, answered by the error page. Upstreams follow the
+  admission pattern <scheme>://<svc>.<ns>.svc.cluster.local:<port>.
+*/}}
+{{- $rules := dict "ready" (dict
+    "match" (dict "url" (printf "<https?>://%s/.oathkeeper/ready" (include "auth.authDomain" .)) "methods" (list "GET"))
+    "upstream" (dict "url" (printf "http://%s-error-page.%s.svc.cluster.local:%d" .Release.Name .Release.Namespace (int .Values.errorPage.service.port)))
+    "authenticators" (list (dict "handler" "noop"))
+    "authorizer" (dict "handler" "allow")
+    "mutators" (list (dict "handler" "noop"))) }}
+{{- if .Values.oathkeeper.rules.publicSites.enabled }}
+{{- $_ := set $rules "public-sites" (include "auth.oathkeeper.publicSitesRule" (dict "ctx" . "ok" .Values.oathkeeper) | fromJson) }}
+{{- end }}
+{{- $rules = merge (deepCopy (.Values.oathkeeper.rules.platformRules | default dict)) $rules }}
+{{- range $name := keys $rules | sortAlpha }}
+---
+apiVersion: oathkeeper.ory.sh/v1alpha1
+kind: Rule
+metadata:
+  name: platform-{{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: platform-rule
+  annotations:
+    # the Rule CRD may ship in this release: let Argo CD skip the dry run on first sync
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  {{- toYaml (index $rules $name) | nindent 2 }}
+{{- end }}
+{{- end }}

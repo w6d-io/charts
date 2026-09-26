@@ -1,0 +1,70 @@
+# Everything the Sites / observability work adds, switched on (render + lint only: the
+# gatekit/site-operator images are not published and chart-testing would try to install
+# this file). Mirrors dev-aws-1: zone dev.example.com, maester dual-run for the cut-over.
+global:
+  domain: dev.example.com
+
+jinbe:
+  env:
+    ENCRYPTION_KEY: vault:secret/data/jinbe#ENCRYPTION_KEY
+    OPA_TOKEN: vault:secret/data/jinbe#OPA_TOKEN
+    AUDIT_HMAC_KEY: vault:secret/data/jinbe#AUDIT_HMAC_KEY
+  metrics:
+    token: vault:secret/data/jinbe#METRICS_TOKEN
+  otel:
+    enabled: true
+    resourceAttributes: deployment.environment=auth-dev
+
+oathkeeper:
+  rules:
+    source: dual
+    active: legacy
+    publicSites:
+      enabled: true
+  # dual: the cut-over (active: maester) must be an Oathkeeper config hot reload
+  configmap:
+    hashSumEnabled: false
+  oathkeeper:
+    config:
+      tracing:
+        provider: otel
+
+kratos:
+  kratos:
+    config:
+      tracing:
+        provider: otel
+
+sites:
+  enabled: true
+  zones:
+    - name: dev
+      domain: dev.example.com
+      ingressClass: nginx
+      tls: {mode: default}
+      cookieDomain: .dev.example.com
+    - name: sandbox
+      domain: authdev.dev.example.com
+      tls: {mode: issuer, issuer: letsencrypt-prod}
+  reservedHosts:
+    - kuma.dev.example.com
+    - jinbe.dev.example.com
+  cookieDomain: .dev.example.com
+
+gatekit:
+  enabled: true
+  image:
+    tag: "0.1.0"
+
+siteOperator:
+  enabled: true
+  image:
+    tag: "0.1.0"
+
+observability:
+  serviceMonitors:
+    enabled: true
+    jinbe:
+      bearerTokenSecret:
+        name: jinbe-metrics-token
+        key: token

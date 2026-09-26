@@ -67,4 +67,14 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.jinbe.service.port }}
+    {{- if .Values.observability.serviceMonitors.enabled }}
+    # Prometheus scrapes the metrics port (pod port, not a Service port).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.observability.serviceMonitors.prometheusNamespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.jinbe.metrics.port }}
+    {{- end }}
 {{- end }}

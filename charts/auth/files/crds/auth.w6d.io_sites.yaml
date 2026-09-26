@@ -1,0 +1,379 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: sites.auth.w6d.io
+spec:
+  group: auth.w6d.io
+  names:
+    kind: Site
+    listKind: SiteList
+    plural: sites
+    singular: site
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].reason
+      name: Reason
+      type: string
+    - jsonPath: .spec.hosts
+      name: Hosts
+      type: string
+    - jsonPath: .spec.paused
+      name: Paused
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Site is a website or API plugged behind the platform gateway.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SiteSpec is the rendered gateway/exposure part of a site's
+              intent (written by jinbe).
+            properties:
+              exposure:
+                description: |-
+                  Exposure describes the public entry point. A host under a Zone is served by
+                  the Zone's wildcard Ingress, so by default a Site renders rules only.
+                properties:
+                  ingressClass:
+                    description: IngressClass must be one the operator allows; empty
+                      uses the operator default.
+                    type: string
+                  issuer:
+                    description: Issuer is the cert-manager ClusterIssuer for per-site
+                      certificates; empty uses the operator default.
+                    type: string
+                  mode:
+                    default: zone
+                    description: ExposureMode says how a Site's hosts reach the gateway.
+                    enum:
+                    - zone
+                    - vanity
+                    type: string
+                  tls:
+                    default: wildcard
+                    description: 'TLS for the vanity Ingress: wildcard (no tls block,
+                      zone/default certificate) or per-site (own Certificate).'
+                    enum:
+                    - wildcard
+                    - per-site
+                    type: string
+                type: object
+              gates:
+                items:
+                  description: |-
+                    Gate is one Oathkeeper rule: how callers prove who they are, how access is
+                    checked, what the upstream receives and how failures are answered.
+                  properties:
+                    authenticators:
+                      items:
+                        description: Handler is one Oathkeeper pipeline handler with
+                          its per-rule config.
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          handler:
+                            pattern: ^[a-z][a-z0-9_]{0,63}$
+                            type: string
+                        required:
+                        - handler
+                        type: object
+                      minItems: 1
+                      type: array
+                    authorizer:
+                      description: Handler is one Oathkeeper pipeline handler with
+                        its per-rule config.
+                      properties:
+                        config:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        handler:
+                          pattern: ^[a-z][a-z0-9_]{0,63}$
+                          type: string
+                      required:
+                      - handler
+                      type: object
+                    errors:
+                      items:
+                        description: Handler is one Oathkeeper pipeline handler with
+                          its per-rule config.
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          handler:
+                            pattern: ^[a-z][a-z0-9_]{0,63}$
+                            type: string
+                        required:
+                        - handler
+                        type: object
+                      type: array
+                    match:
+                      description: Match is the Oathkeeper rule match block (regexp
+                        strategy).
+                      properties:
+                        methods:
+                          items:
+                            enum:
+                            - GET
+                            - HEAD
+                            - POST
+                            - PUT
+                            - PATCH
+                            - DELETE
+                            - OPTIONS
+                            - CONNECT
+                            - TRACE
+                            type: string
+                          minItems: 1
+                          type: array
+                        url:
+                          description: |-
+                            URL is the Oathkeeper match pattern; regex parts go inside <...>.
+                            It must start with a scheme and one of the Site hosts followed by "/".
+                          maxLength: 4096
+                          minLength: 1
+                          type: string
+                      required:
+                      - methods
+                      - url
+                      type: object
+                    mutators:
+                      items:
+                        description: Handler is one Oathkeeper pipeline handler with
+                          its per-rule config.
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          handler:
+                            pattern: ^[a-z][a-z0-9_]{0,63}$
+                            type: string
+                        required:
+                        - handler
+                        type: object
+                      type: array
+                    name:
+                      description: Name is unique inside the Site and becomes part
+                        of the Rule name.
+                      pattern: ^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$
+                      type: string
+                    upstream:
+                      description: Upstream overrides the Site upstream for this gate.
+                      properties:
+                        namespace:
+                          pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+                          type: string
+                        port:
+                          format: int32
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                        preserveHost:
+                          type: boolean
+                        scheme:
+                          default: http
+                          enum:
+                          - http
+                          - https
+                          type: string
+                        service:
+                          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+                          type: string
+                        stripPath:
+                          maxLength: 256
+                          pattern: ^/[^\s]*$
+                          type: string
+                      required:
+                      - namespace
+                      - port
+                      - service
+                      type: object
+                      x-kubernetes-validations:
+                      - message: upstream namespace is a platform namespace
+                        rule: '!(self.namespace in [''kube-system'',''kube-public'',''kube-node-lease'',''cert-manager'',''ingress-nginx'',''argocd'',''vault'',''gatekeeper-system''])'
+                  required:
+                  - authenticators
+                  - authorizer
+                  - match
+                  - name
+                  type: object
+                maxItems: 32
+                minItems: 1
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              hosts:
+                description: Hosts are each exactly one DNS label under a Zone domain.
+                items:
+                  pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$
+                  type: string
+                maxItems: 16
+                minItems: 1
+                type: array
+              paused:
+                description: Paused removes every child object; the status is kept.
+                type: boolean
+              system:
+                description: System marks a platform-owned site rendered by the chart
+                  (read-only in kuma).
+                type: boolean
+              upstream:
+                description: |-
+                  Upstream is the in-cluster Service matching requests are forwarded to. It is
+                  structured (never a free URL) so no Site can point at an arbitrary address.
+                properties:
+                  namespace:
+                    pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+                    type: string
+                  port:
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
+                  preserveHost:
+                    type: boolean
+                  scheme:
+                    default: http
+                    enum:
+                    - http
+                    - https
+                    type: string
+                  service:
+                    pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+                    type: string
+                  stripPath:
+                    maxLength: 256
+                    pattern: ^/[^\s]*$
+                    type: string
+                required:
+                - namespace
+                - port
+                - service
+                type: object
+                x-kubernetes-validations:
+                - message: upstream namespace is a platform namespace
+                  rule: '!(self.namespace in [''kube-system'',''kube-public'',''kube-node-lease'',''cert-manager'',''ingress-nginx'',''argocd'',''vault'',''gatekeeper-system''])'
+            required:
+            - gates
+            - hosts
+            - upstream
+            type: object
+          status:
+            description: SiteStatus is written by the operator only.
+            properties:
+              children:
+                items:
+                  description: Child is one object the operator rendered for the Site.
+                  properties:
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    specHash:
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  - specHash
+                  type: object
+                type: array
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        type: object
+        x-kubernetes-validations:
+        - message: site names are at most 40 characters (child names embed them)
+          rule: self.metadata.name.size() <= 40
+    served: true
+    storage: true
+    subresources:
+      status: {}

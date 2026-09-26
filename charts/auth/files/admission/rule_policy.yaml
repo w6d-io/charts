@@ -1,0 +1,66 @@
+# maester Rules in the gateway namespace: only the operator and Argo write them
+# (plus cluster admins; GC/namespace controllers delete; maester only updates
+# status and finalizers). Upstreams stay off the platform internals and no Rule
+# can redirect maester into another ConfigMap.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-rules
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [oathkeeper.ory.sh]
+      apiVersions: ["*"]
+      operations: [CREATE, UPDATE, DELETE]
+      resources: [rules]
+  variables:
+  - name: del
+    expression: request.operation == 'DELETE'
+  - name: user
+    expression: request.userInfo.username
+  - name: list
+    expression: "[params.data.ruleWriters, params.data.ruleDeleters, params.data.maesterUsers].map(l, l.split(',').map(s, s.trim()).filter(s, s != ''))"
+  - name: admin
+    expression: "has(request.userInfo.groups) && 'system:masters' in request.userInfo.groups"
+  - name: maester
+    expression: "variables.user in variables.list[2] && request.operation == 'UPDATE' && object.spec == oldObject.spec"
+  - name: operator
+    expression: variables.user == params.data.operatorUser
+  - name: labels
+    expression: "variables.del || !has(object.metadata.labels) ? {} : object.metadata.labels"
+  validations:
+  - expression: >-
+      variables.admin || variables.user in variables.list[0] || variables.maester ||
+      (variables.del && variables.user in variables.list[1])
+    messageExpression: "'user ' + variables.user + ' may not write maester Rules'"
+    reason: Forbidden
+  - expression: >-
+      variables.del || !variables.operator || (
+        'app.kubernetes.io/managed-by' in variables.labels && variables.labels['app.kubernetes.io/managed-by'] == 'site-operator' &&
+        has(object.metadata.ownerReferences) && object.metadata.ownerReferences.exists(o, o.kind == 'Site' && o.apiVersion.startsWith('auth.w6d.io/')))
+    message: operator Rules carry the managed-by label and an owner reference to their Site
+    reason: Forbidden
+  - expression: >-
+      variables.del || !has(object.spec.upstream) || (object.spec.upstream.url.matches(params.data.allowedUpstream) &&
+        !object.spec.upstream.url.matches(params.data.deniedUpstream))
+    message: rule upstream points at a platform-internal or non-cluster address
+    reason: Forbidden
+  - expression: >-
+      variables.del || (params.data.rulesConfigMap == '' ? !has(object.spec.configMapName) :
+      (!has(object.spec.configMapName) || object.spec.configMapName == params.data.rulesConfigMap))
+    message: rules may only target the configured maester ConfigMap
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-rules
+spec:
+  policyName: site-operator-rules
+  validationActions: [Deny]
+  paramRef: {name: site-operator-policy, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}

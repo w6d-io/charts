@@ -294,6 +294,16 @@ kratos:
       log:
         level: info
         format: json
+        leak_sensitive_values: false
+      # Native OpenTelemetry (OBS-2.2). Off until `provider: otel` is set; OTLP/HTTP host:port.
+      tracing:
+        service_name: kratos
+        providers:
+          otlp:
+            server_url: otel-collector.otel:4318
+            insecure: true
+            sampling:
+              sampling_ratio: 1.0
       ciphers:
         algorithm: xchacha20-poly1305
       hashers:
@@ -412,11 +422,67 @@ oathkeeper:
     initRetries: 30
     image: "curlimages/curl:8.11.1"
 
+  # Where Oathkeeper reads its access rules from (Sites cut-over, docs/SERVICE_PLUG.md):
+  #   legacy  — rules-sync file only (/etc/rules/access-rules.json). Default; unchanged behaviour.
+  #   maester — oathkeeper-maester in sidecar mode (native sidecar, API watch of Rule CRs in this
+  #             namespace) writes /etc/rules/access-rules.json; rules-sync is not run.
+  #   dual    — both run; maester writes /etc/rules/maester.json next to rules-sync's
+  #             access-rules.json (one writer per file), and `active` picks the one Oathkeeper
+  #             loads (never both: two rules matching one request = 500). Switching `active` only
+  #             changes access_rules.repositories in the Oathkeeper config, which Oathkeeper
+  #             hot-reloads once kubelet syncs the ConfigMap (60-90 s) — so dual REQUIRES
+  #             oathkeeper.configmap.hashSumEnabled=false, otherwise the config checksum would
+  #             roll the pods (the chart refuses to render dual without it).
+  # A user-supplied oathkeeper.oathkeeper.config.access_rules.repositories overrides all of this.
+  rules:
+    source: legacy
+    active: legacy
+    # Ship the maester Rule CRD (rules.oathkeeper.ory.sh) when source != legacy or
+    # siteOperator.enabled. Set false where another release already owns it.
+    installCRD: true
+    # Platform Rule CRs shipped with source maester|dual. Oathkeeper with 0 rules is NotReady,
+    # so at least `ready` (GET <authDomain>/.oathkeeper/ready → error-page, anonymous) always
+    # ships. Extra entries are maester Rule specs keyed by name, e.g.
+    #   kuma: {match: {url: "<https?>://kuma.example.com/<.*>", methods: [GET]}, upstream: {url: ...},
+    #          authenticators: [{handler: cookie_session}], authorizer: {handler: remote_json}}
+    platformRules: {}
+    # Anonymous GET <authDomain>/api/public/sites/<.*> → jinbe (by-host branding, :name/logo,
+    # :name/access-reason). On the AUTH host on purpose: no built-in rule covers /api/ there
+    # (gatekit: 0 overlaps vs jinbe's built-in rules), while app/api hosts have catch-all
+    # jinbe rules. Oathkeeper forwards the Cookie header, so access-reason can read the session
+    # inside jinbe. Legacy: an extra inline:// repository next to the rules-sync file;
+    # maester/dual: platform Rule `platform-public-sites`. noop is used because `anonymous` is
+    # not enabled globally (enable it first to switch). Off by default (new public route).
+    publicSites:
+      enabled: false
+      authenticator: noop
+      # empty: http://<release>-jinbe.<namespace>.svc.cluster.local:8080
+      upstream: ""
+
+  # oathkeeper-maester sidecar (rules.source maester|dual). Runs as a native sidecar
+  # (initContainer, restartPolicy Always) so it starts before Oathkeeper and keeps running.
+  # Its handler allow-lists are derived from the enabled handlers below, so a Rule naming a
+  # disabled handler is marked invalid and never reaches the file.
+  # Upstream v0.1.14 writes the file non-atomically (0-rule 404 blips on every change) and
+  # can keep a deleted Rule on one of N pods: use the patched build
+  # (site-operator hack/maester-sidecar.patch, e.g. v0.1.14-w6d.1) until it is upstreamed.
+  # Oathkeeper with 0 rules is NotReady: rules.source=maester needs at least one platform Rule.
+  # PLACEHOLDER IMAGE — must be built: upstream v0.1.14 writes the rules file non-atomically
+  # (0-rule 404 blips on every change) and can keep a deleted Rule live on one of N pods.
+  # Build v0.1.14 + ~/.ghq/github.com/auth/site-operator/hack/maester-sidecar.patch and push it
+  # under this name (or override per env) until the fix is upstreamed.
+  maesterSidecar:
+    image: "ghcr.io/w6d-io/oathkeeper-maester:v0.1.14-w6d.1"
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits:   { memory: 128Mi }
+
   deployment:
     # Blocking first fetch: guarantees /etc/rules/access-rules.json exists (seeds "[]"
     # fail-closed after initRetries). tpl-rendered in the subchart context.
     extraInitContainers: |
-      {{- if .Values.rulesSync.enabled }}
+      {{- $source := .Values.rules.source | default "legacy" }}
+      {{- if and .Values.rulesSync.enabled (ne $source "maester") }}
       - name: rules-sync-init
         image: {{ .Values.rulesSync.image | quote }}
         imagePullPolicy: IfNotPresent
@@ -452,10 +518,69 @@ oathkeeper:
           capabilities: { drop: ["ALL"] }
           seccompProfile: { type: RuntimeDefault }
       {{- end }}
+      {{- if or (eq $source "maester") (eq $source "dual") }}
+      {{- $rulesFile := ternary "maester.json" "access-rules.json" (eq $source "dual") }}
+      {{- if eq $source "dual" }}
+      # dual: maester.json is maester's own file; seed it empty (fail-closed) so Oathkeeper can
+      # load it before the first reconcile; 666 because maester runs as another UID. (maester
+      # mode uses access-rules.json, created 666 by the subchart's init container.)
+      - name: maester-seed
+        image: {{ .Values.rulesSync.image | quote }}
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            [ -s /etc/rules/maester.json ] || printf '[]' > /etc/rules/maester.json
+            chmod 666 /etc/rules/maester.json
+        volumeMounts:
+          - name: {{ include "oathkeeper.name" . }}-rules-volume
+            mountPath: /etc/rules
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+      {{- end }}
+      - name: maester
+        image: {{ .Values.maesterSidecar.image | quote }}
+        imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        command: ["/manager"]
+        args:
+          - --metrics-addr=0.0.0.0:8080
+          - sidecar
+          - --rulesFilePath=/etc/rules/{{ $rulesFile }}
+        env:
+          # watch Rules in this namespace only (Role, not ClusterRole)
+          - name: NAMESPACE
+            value: {{ .Release.Namespace | quote }}
+          - name: authenticatorsAvailable
+            value: {{ include "auth.oathkeeper.enabledKeys" (.Values.oathkeeper.config.authenticators | default dict) | quote }}
+          - name: authorizersAvailable
+            value: {{ include "auth.oathkeeper.enabledKeys" (.Values.oathkeeper.config.authorizers | default dict) | quote }}
+          - name: mutatorsAvailable
+            value: {{ include "auth.oathkeeper.enabledKeys" (.Values.oathkeeper.config.mutators | default dict) | quote }}
+          - name: errorsAvailable
+            value: {{ include "auth.oathkeeper.enabledKeys" ((.Values.oathkeeper.config.errors | default dict).handlers | default dict) | quote }}
+        ports:
+          - { name: maester-metrics, containerPort: 8080 }
+        volumeMounts:
+          - name: {{ include "oathkeeper.name" . }}-rules-volume
+            mountPath: /etc/rules
+        resources:
+          {{- toYaml .Values.maesterSidecar.resources | nindent 10 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+      {{- end }}
     # Sidecar: poll jinbe every intervalSeconds; atomically mv only on sha256 change
     # (no fsnotify churn / needless reloads). Logs on change.
     extraContainers: |
-      {{- if .Values.rulesSync.enabled }}
+      {{- if and .Values.rulesSync.enabled (ne (.Values.rules.source | default "legacy") "maester") }}
       - name: rules-sync
         image: {{ .Values.rulesSync.image | quote }}
         imagePullPolicy: IfNotPresent
@@ -521,8 +646,27 @@ oathkeeper:
         # below) polls jinbe and atomically rewrites this file on change, so Oathkeeper
         # reloads rules with NO pod restart. (An HTTP repo is fetched ONCE at boot,
         # which is why serving rules over HTTP required an Oathkeeper restart.)
+        # The file follows oathkeeper.rules.source/active (see above); legacy renders
+        # file:///etc/rules/access-rules.json exactly as before.
         repositories:
-          - file:///etc/rules/access-rules.json
+          # (with rules.publicSites the helper also emits a second inline:// item)
+          - '{{ include "auth.oathkeeper.repositories" . }}'
+      # Never log cookies, session tokens or Authorization (CONTROL S12/S15). trace/debug
+      # dump full request headers; keep info outside a debugging session.
+      log:
+        level: info
+        format: json
+        leak_sensitive_values: false
+      # Native OpenTelemetry (OBS-2.2). Off until `provider: otel` is set; the collector
+      # endpoint is OTLP/HTTP host:port. Spans continue nginx's traceparent (parent-based).
+      tracing:
+        service_name: oathkeeper
+        providers:
+          otlp:
+            server_url: otel-collector.otel:4318
+            insecure: true
+            sampling:
+              sampling_ratio: 1.0
       authenticators:
         cookie_session:
           enabled: true
@@ -590,7 +734,9 @@ oathkeeper:
                   "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
                   "email": "{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}",
                   "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
-                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
+                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}",
+                  "aal": "{{ "{{" }} if .Extra {{ "}}" }}{{ "{{" }} print .Extra.authenticator_assurance_level {{ "}}" }}{{ "{{" }} end {{ "}}" }}",
+                  "client": {{ "{{" }} if .Extra {{ "}}" }}{{ "{{" }} if .Extra.client_id {{ "}}" }}true{{ "{{" }} else {{ "}}" }}false{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}false{{ "{{" }} end {{ "}}" }}
                 }
               }
             forward_response_headers_to_upstream:
@@ -871,6 +1017,29 @@ jinbe:
     #   (vault:secret/data/auth#KRATOS_WEBHOOK_SECRET); it MUST resolve to the
     #   same value as the api_key set on the Kratos after-hooks above. Provide
     #   the secret via Vault (never a literal) and rotate both sides together.
+    # OPA_TOKEN: bearer for OPA (the opal-client's OPAL_POLICY_STORE_AUTH_TOKEN), used by the
+    #   admin access check. Vault ref, e.g. vault:secret/data/jinbe#OPA_TOKEN. Unset: the access
+    #   check answers 503.
+    # AUDIT_HMAC_KEY: >= 32 chars, keys the HMACs that stand in for IPs / session ids in audit/v1.
+    #   Vault ref, e.g. vault:secret/data/jinbe#AUDIT_HMAC_KEY. Unset: those fields are left out.
+
+  # Prometheus metrics on their own port (never the app port Oathkeeper fronts). The container
+  # port is always declared; a separate <release>-jinbe-metrics Service is rendered only for
+  # the ServiceMonitor (observability.serviceMonitors.enabled). `token` (>= 16 chars, may be a
+  # Vault ref) makes jinbe require it as a bearer; the ServiceMonitor then needs
+  # observability.serviceMonitors.jinbe.bearerTokenSecret.
+  metrics:
+    port: 9464
+    token: ""
+
+  # OpenTelemetry traces (OBS-2.1): preloads jinbe's OTel SDK (http, fastify, pg, ioredis, undici).
+  otel:
+    enabled: false
+    endpoint: "http://otel-collector.otel:4317"
+    protocol: grpc          # grpc | http/protobuf (then use the collector's :4318)
+    serviceName: jinbe
+    # extra OTEL_RESOURCE_ATTRIBUTES, e.g. deployment.environment=auth-dev
+    resourceAttributes: ""
 
   # K8S config for m2m authentication
   k8s:
@@ -1027,7 +1196,13 @@ redisNetworkPolicy:
 # =============================================================================
 opaAuthzProxy:
   enabled: true
-  replicaCount: 1
+  # Every gateway decision goes through the proxy: one pod down = 500 for everyone after
+  # 4 s (site-operator research R5). Two replicas + a PDB keep a rollout or a node drain
+  # from taking the gateway down.
+  replicaCount: 2
+  pdb:
+    enabled: true   # rendered only when replicaCount > 1
+    minAvailable: 1
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
@@ -1079,6 +1254,10 @@ kratosLoginUi:
     primaryColor: "3B82F6"
     darkMode: true
     backgroundColor: "111827"
+
+  # Cluster-internal jinbe URL for per-site branding (server-side only). Empty:
+  # http://<release>-jinbe:<port> when sites.enabled, otherwise not set.
+  jinbePublicUrl: ""
 
   kratos:
     browserUrl: "https://auth.example.com"
@@ -1251,3 +1430,157 @@ backup:
     bucket: ""                  # Required when enabled=true
     prefix: "auth-backup"
     region: "eu-west-3"
+
+# =============================================================================
+# Sites — plug a site from kuma (docs/SERVICE_PLUG.md). All OFF by default.
+# =============================================================================
+# jinbe keeps the Site intent and writes only `sites.auth.w6d.io` in its namespace;
+# gatekit checks every pattern/overlap with the real Oathkeeper matcher; the
+# site-operator turns Sites into maester Rule CRs (+ vanity Ingress/Certificate) and
+# admission policies pin what those objects may contain.
+sites:
+  # jinbe side: SITES_KUBE=in-cluster, SITES_NAMESPACE, GATEKIT_URL, SITES_ZONES…, plus the
+  # jinbe ServiceAccount RBAC (Role on sites, ClusterRole get/list/watch on zones).
+  enabled: false
+  # gatekit base URL for jinbe and the operator. Empty: http://<release>-gatekit:<port>
+  # when gatekit.enabled.
+  gatekitUrl: ""
+  # Admin-defined wildcard zones. Rendered as cluster-scoped Zone CRs (siteOperator.enabled)
+  # and as jinbe's SITES_ZONES. A site host must be exactly one DNS label under a zone.
+  #   - name: dev
+  #     domain: dev.example.com
+  #     ingressClass: nginx            # optional, operator default otherwise
+  #     tls: {mode: default}           # default | secret (secretName) | issuer (issuer)
+  #     cookieDomain: .example.com   # optional, jinbe only (SSO coverage hint)
+  zones: []
+  # Hosts only system sites may use, on top of every oathkeeper.ingress.proxy host.
+  reservedHosts: []
+  # Kratos session cookie domain, for jinbe's SSO-coverage warning (SITES_COOKIE_DOMAIN).
+  cookieDomain: ""
+  # Namespaces no site upstream may point into (jinbe SITES_PLATFORM_NAMESPACES). Empty: jinbe default.
+  platformNamespaces: []
+  # Branded "no access / step up" page of kratos-login-ui (per-site 2FA, PX-1). Empty:
+  # https://<authDomain>/access. Exposed to jinbe as SITES_ACCESS_URL for the per-rule
+  # error handlers it renders into Site gates (Oathkeeper has a single global redirect
+  # target, so the reason-based redirect can only be per rule).
+  accessUrl: ""
+  # Which applies need a second super_admin: off | high-risk | all (SITES_FOUR_EYES).
+  fourEyes: "off"
+  # Re-create missing/drifted Site CRs from the intent every … ms (0 = off).
+  syncIntervalMs: 60000
+  # How long an apply waits for RulesLoaded before rolling back.
+  rulesLoadedTimeoutMs: 120000
+
+# gatekit — stateless rule checker (compile · overlap · match · render). No egress.
+gatekit:
+  enabled: false
+  replicaCount: 2
+  image:
+    repository: ghcr.io/w6d-io/gatekit
+    tag: ""          # REQUIRED when enabled (no published release yet)
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+  metricsPort: 9090
+  maxBodyBytes: 1048576
+  requestTimeout: 10s
+  pdb:
+    enabled: true    # rendered only when replicaCount > 1
+    minAvailable: 1
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# site-operator — reconciles Site/Zone CRs into maester Rules, Ingresses, Certificates.
+siteOperator:
+  enabled: false
+  replicaCount: 2    # leader election; the second pod is a warm standby
+  image:
+    repository: ghcr.io/w6d-io/site-operator
+    tag: ""          # REQUIRED when enabled (no published release yet)
+    pullPolicy: IfNotPresent
+  # Ship the Site and Zone CRDs (auth.w6d.io). Set false where another release owns them.
+  installCRDs: true
+  ingressClasses: [nginx]                 # first is the default
+  # stamped on every Ingress the operator writes (must stay in the admission allow-list)
+  ingressAnnotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/custom-http-errors: "599"
+  issuers: [letsencrypt-prod]             # allowed ClusterIssuers, first is the default
+  enableCertificates: true                # needs the cert-manager CRDs
+  pausedRedirectUrl: ""
+  # RulesLoaded condition: the operator reads GET /rules on every Oathkeeper pod of this
+  # release (pods get/list RBAC; TCP 4456 from the operator). Needs an operator build with
+  # --gateway-pod-selector/--gateway-api-port (site-operator OP-3); turn off for older images.
+  rulesLoaded:
+    enabled: true
+  # NetworkPolicy on the Oathkeeper pods (rendered with siteOperator.enabled): proxy port open
+  # to all, API port (GET /rules) only from the site-operator, metrics from Prometheus.
+  # Not enforced on dev/prod today (aws-node network policy off).
+  gatewayNetworkPolicy:
+    enabled: true
+    extraApiIngress: []
+  extraArgs: []
+  # Same regexes feed the operator flags and the admission params (kept in step).
+  allowedUpstream: '^https?://[a-z]([a-z0-9-]*[a-z0-9])?\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.svc\.cluster\.local:[0-9]{1,5}$'
+  deniedUpstream: '^https?://(([a-z0-9-]+-)?(kratos-admin|opa|opal-client|opal-server|redis|redis-master|postgres|postgresql|kubernetes)\.|[^/]*:(4434|8181|7002|6379|5432)$)'
+  # ValidatingAdmissionPolicies (Sites, hosts under a Zone, Ingresses, maester Rules) for
+  # the release namespace. Cluster-scoped objects, named after the namespace.
+  admission:
+    enabled: true
+    # extra Rule writers besides the operator (GitOps-authored platform Rules)
+    ruleWriters:
+      - system:serviceaccount:argocd:argocd-application-controller
+    ruleDeleters:
+      - system:serviceaccount:kube-system:generic-garbage-collector
+      - system:serviceaccount:kube-system:namespace-controller
+    # Ingress annotations accepted in the gateway namespace, on top of the operator's own
+    # (ingressAnnotations) and every key the chart's Ingresses use.
+    allowedIngressAnnotations:
+      - auth.w6d.io/spec-hash
+      - cert-manager.io/cluster-issuer
+      - kubectl.kubernetes.io/last-applied-configuration
+      - nginx.ingress.kubernetes.io/enable-cors
+      - nginx.ingress.kubernetes.io/cors-allow-origin
+      - nginx.ingress.kubernetes.io/cors-allow-credentials
+      - nginx.ingress.kubernetes.io/cors-allow-methods
+      - nginx.ingress.kubernetes.io/cors-allow-headers
+      - nginx.ingress.kubernetes.io/cors-expose-headers
+      - nginx.ingress.kubernetes.io/cors-max-age
+      - nginx.ingress.kubernetes.io/custom-http-errors
+      - nginx.ingress.kubernetes.io/proxy-read-timeout
+      - nginx.ingress.kubernetes.io/proxy-send-timeout
+      - nginx.ingress.kubernetes.io/proxy-body-size
+      - nginx.ingress.kubernetes.io/default-backend
+    allowedIngressAnnotationPrefixes: ["meta.helm.sh/", "argocd.argoproj.io/"]
+    allowedDefaultBackend: error-page
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# =============================================================================
+# Observability — Prometheus Operator objects (kube-prometheus-stack)
+# =============================================================================
+observability:
+  serviceMonitors:
+    # ServiceMonitors for oathkeeper, kratos (admin), jinbe (metrics port), gatekit and
+    # site-operator — each only when its component is enabled.
+    enabled: false
+    labels:
+      release: monitoring
+    interval: 30s
+    scrapeTimeout: 10s
+    # Namespace Prometheus scrapes from (jinbe NetworkPolicy opens the metrics port to it).
+    prometheusNamespace: monitoring
+    jinbe:
+      # Secret holding jinbe.metrics.token, when set: {name: ..., key: ...}
+      bearerTokenSecret: {}
