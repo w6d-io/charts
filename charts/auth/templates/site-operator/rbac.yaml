@@ -28,6 +28,14 @@ rules:
   - apiGroups: [auth.w6d.io]
     resources: [sites/status]
     verbs: [get, update, patch]
+  {{- if .Values.siteOperator.gateway.enabled }}
+  - apiGroups: [auth.w6d.io]
+    resources: [gateways]
+    verbs: [get, list, watch]
+  - apiGroups: [auth.w6d.io]
+    resources: [gateways/status]
+    verbs: [get, update, patch]
+  {{- end }}
   - apiGroups: [oathkeeper.ory.sh]
     resources: [rules]
     verbs: [get, list, watch, create, update, patch, delete]
@@ -43,6 +51,23 @@ rules:
     resources: [configmaps]
     resourceNames: [{{ include "auth.siteOperator.zonesConfigMap" . }}]
     verbs: [get, update, patch]
+  {{- if .Values.siteOperator.gateway.enabled }}
+  # Gateway: read the base config; create/delete the versioned config ConfigMaps (RBAC
+  # cannot scope create/delete by name: site-operator-gateway-config limits both to
+  # <prefix>-<hash8>, created immutable); roll the Oathkeeper Deployment (the rollout
+  # policy allows only the config-hash annotation and the config volume's ConfigMap).
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create, delete]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "auth.oathkeeper.baseConfigMapName" . }}]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [{{ .Release.Name }}-oathkeeper]
+    verbs: [get, patch]
+  {{- end }}
   - apiGroups: ["", events.k8s.io]
     resources: [events]
     verbs: [create, patch]

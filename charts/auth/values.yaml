@@ -149,6 +149,10 @@ kratos:
             enabled: false
             config:
               providers: []
+          # Clickable link for recovery and the "send me a sign-in link" flow (SUP-4). The
+          # code method stays on (Kratos default) for verification and passwordless code.
+          link:
+            enabled: true
         flows:
           error:
             ui_url: https://auth.example.com/auth/error
@@ -245,6 +249,7 @@ kratos:
                           value: '{{ .Values.global.audit.webhook.secret }}'
           recovery:
             enabled: true
+            use: link
           verification:
             enabled: true
           logout:
@@ -461,8 +466,6 @@ oathkeeper:
 
   # oathkeeper-maester sidecar (rules.source maester|dual). Runs as a native sidecar
   # (initContainer, restartPolicy Always) so it starts before Oathkeeper and keeps running.
-  # Its handler allow-lists are derived from the enabled handlers below, so a Rule naming a
-  # disabled handler is marked invalid and never reaches the file.
   # Upstream v0.1.14 writes the file non-atomically (0-rule 404 blips on every change) and
   # can keep a deleted Rule on one of N pods: use the patched build
   # (site-operator hack/maester-sidecar.patch, e.g. v0.1.14-w6d.1) until it is upstreamed.
@@ -555,14 +558,8 @@ oathkeeper:
           # watch Rules in this namespace only (Role, not ClusterRole)
           - name: NAMESPACE
             value: {{ .Release.Namespace | quote }}
-          - name: authenticatorsAvailable
-            value: {{ include "auth.oathkeeper.enabledKeys" (.Values.oathkeeper.config.authenticators | default dict) | quote }}
-          - name: authorizersAvailable
-            value: {{ include "auth.oathkeeper.enabledKeys" (.Values.oathkeeper.config.authorizers | default dict) | quote }}
-          - name: mutatorsAvailable
-            value: {{ include "auth.oathkeeper.enabledKeys" (.Values.oathkeeper.config.mutators | default dict) | quote }}
-          - name: errorsAvailable
-            value: {{ include "auth.oathkeeper.enabledKeys" ((.Values.oathkeeper.config.errors | default dict).handlers | default dict) | quote }}
+          # no *Available allow-lists: maester's defaults allow every handler; the
+          # site-operator (and the Gateway CR) gate handlers, so ones enabled live work here too
         ports:
           - { name: maester-metrics, containerPort: 8080 }
         volumeMounts:
@@ -1505,6 +1502,27 @@ siteOperator:
     pullPolicy: IfNotPresent
   # Ship the Site and Zone CRDs (auth.w6d.io). Set false where another release owns them.
   installCRDs: true
+  # Gateway settings CRD (gateways.auth.w6d.io) + operator RBAC on it. files/crds holds a
+  # SNAPSHOT of site-operator's in-progress CRD (wave4/op3, uncommitted 2026-09-26): re-copy
+  # once it lands. jinbe's Gateway RBAC comes with sites.enabled regardless.
+  # When on, the operator owns Oathkeeper's handler sections (authenticators, authorizers,
+  # mutators, errors) through the Gateway CR `default`:
+  #   - the chart renders the full Oathkeeper config into <release>-oathkeeper-config-base
+  #     (serve, log, access_rules, tracing…; handler sections there are replaced);
+  #   - the subchart's <release>-oathkeeper-config stays the SEED: mounted before any Gateway,
+  #     first rollback target, never touched by the operator;
+  #   - the operator creates immutable <release>-oathkeeper-config-<hash8> ConfigMaps (keeps 3;
+  #     not in the chart — Argo: IgnoreExtraneous / exclude label auth.w6d.io/gateway-config)
+  #     and rolls auth-oathkeeper by changing the config volume's configMap.name and the
+  #     pod-template annotation auth.w6d.io/gateway-config-hash (never templated here) →
+  #     Argo needs ignoreDifferences on both (jqPathExpression selecting the volume
+  #     oathkeeper-config-volume by name) + RespectIgnoreDifferences=true.
+  # Requires oathkeeper.configmap.hashSumEnabled=false (no checksum tied to the seed). Handler
+  # secrets stay in oathkeeper.deployment.extraEnv from a Secret (e.g.
+  # AUTHENTICATORS_OAUTH2_INTROSPECTION_CONFIG_PRE_AUTHORIZATION_CLIENT_SECRET); the Gateway
+  # refuses secret-looking keys.
+  gateway:
+    enabled: false
   ingressClasses: [nginx]                 # first is the default
   # stamped on every Ingress the operator writes (must stay in the admission allow-list)
   ingressAnnotations:

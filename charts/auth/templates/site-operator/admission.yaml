@@ -30,7 +30,17 @@ data:
   maesterUsers: {{ include "auth.sites.user" (dict "ctx" . "sa" (include "auth.oathkeeper.serviceAccountName" .)) | quote }}
   # empty: maester sidecar mode (Rules must not name a ConfigMap)
   rulesConfigMap: ""
-{{- range $file := list "site_policy.yaml" "hosts_policy.yaml" "ingress_policy.yaml" "rule_policy.yaml" }}
+  {{- if .Values.siteOperator.gateway.enabled }}
+  # Gateway: versioned configs <prefix>-<hash8> (operator-only, immutable), the volume whose
+  # configMap the operator may switch, the chart's seed config, the only Deployment it rolls
+  gatewayConfigPrefix: {{ include "auth.oathkeeper.configMapName" . | quote }}
+  gatewayConfigVolume: oathkeeper-config-volume
+  gatewayConfigSeed: {{ include "auth.oathkeeper.configMapName" . | quote }}
+  gatewayDeployment: {{ printf "%s-oathkeeper" .Release.Name | quote }}
+  {{- end }}
+{{- $files := list "site_policy.yaml" "hosts_policy.yaml" "ingress_policy.yaml" "rule_policy.yaml" }}
+{{- if .Values.siteOperator.gateway.enabled }}{{ $files = append $files "gateway_policy.yaml" }}{{ end }}
+{{- range $file := $files }}
 {{- range $doc := splitList "\n---\n" ($.Files.Get (printf "files/admission/%s" $file)) }}
 {{- $obj := fromYaml $doc }}
 {{- if $obj.kind }}

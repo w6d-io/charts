@@ -61,6 +61,16 @@ spec:
             - --gateway-pod-selector=app.kubernetes.io/name=oathkeeper,app.kubernetes.io/instance={{ .Release.Name }}
             - --gateway-api-port={{ ((((.Values.oathkeeper.oathkeeper | default dict).config | default dict).serve | default dict).api | default dict).port | default 4456 }}
             {{- end }}
+            {{- if .Values.siteOperator.gateway.enabled }}
+            - --gateway-deployment={{ .Release.Name }}-oathkeeper
+            - --gateway-config-prefix={{ include "auth.oathkeeper.configMapName" . }}
+            - --gateway-config-volume=oathkeeper-config-volume
+            - --gateway-base-configmap={{ include "auth.oathkeeper.baseConfigMapName" . }}
+            - --gateway-config-key=config.yaml
+            {{- else if .Values.siteOperator.rulesLoaded.enabled }}
+            # op3+ binary: empty = no Gateway controller (its default would target auth-oathkeeper)
+            - --gateway-deployment=
+            {{- end }}
             {{- range .Values.siteOperator.extraArgs }}
             - {{ . }}
             {{- end }}

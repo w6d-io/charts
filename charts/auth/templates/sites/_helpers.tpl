@@ -163,6 +163,8 @@ Jinbe env for Sites and observability (runtime only).
 {{- end }}
 - name: SITES_ACCESS_URL
   value: {{ .Values.sites.accessUrl | default (printf "https://%s/access" (include "auth.authDomain" .)) | quote }}
+- name: GATEWAY_OATHKEEPER_CONFIGMAP
+  value: {{ include "auth.jinbe.gatewayConfigMap" . | quote }}
 - name: SITES_FOUR_EYES
   value: {{ .Values.sites.fourEyes | default "off" | quote }}
 - name: SITES_SYNC_INTERVAL_MS
@@ -219,5 +221,29 @@ platform Rule. The default render is a single file:// item, exactly as before.
 {{- $r := include "auth.oathkeeper.publicSitesRule" (dict "ctx" . "ok" .Values) | fromJson -}}
 {{- $_ := set $r "id" "platform-public-sites" -}}
 {{- printf "'\n  - 'inline://%s" (toJson (list $r) | b64enc) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Name of the Oathkeeper config ConfigMap the subchart renders.
+*/}}
+{{- define "auth.oathkeeper.configMapName" -}}
+{{- $ov := (((.Values.oathkeeper.oathkeeper | default dict).configFileOverride | default dict).nameOverride) -}}
+{{- $ov | default (printf "%s-oathkeeper-config" .Release.Name) -}}
+{{- end }}
+
+{{- define "auth.oathkeeper.baseConfigMapName" -}}
+{{- printf "%s-base" (include "auth.oathkeeper.configMapName" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
+Oathkeeper config jinbe's read-only gateway view reads: the chart-owned base when the
+site-operator owns the rendered (and later versioned) config, else the subchart's own.
+*/}}
+{{- define "auth.jinbe.gatewayConfigMap" -}}
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.gateway.enabled -}}
+{{- include "auth.oathkeeper.baseConfigMapName" . -}}
+{{- else -}}
+{{- include "auth.oathkeeper.configMapName" . -}}
 {{- end -}}
 {{- end }}

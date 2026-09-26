@@ -3,4 +3,8 @@
 {{ include "auth.sites.crd" (dict "ctx" . "file" "auth.w6d.io_sites.yaml") }}
 ---
 {{ include "auth.sites.crd" (dict "ctx" . "file" "auth.w6d.io_zones.yaml") }}
+{{- if .Values.siteOperator.gateway.enabled }}
+---
+{{ include "auth.sites.crd" (dict "ctx" . "file" "auth.w6d.io_gateways.yaml") }}
+{{- end }}
 {{- end }}
