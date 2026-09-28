@@ -2,7 +2,7 @@
 {{/*
   From site-operator config/rbac. The operator works inside the gateway namespace; reads
   no Secrets; writes only its own zones ConfigMap (by name); cannot change a Site's spec
-  (status only). The only cluster-wide grant is reading Zones.
+  (status only). Cluster-wide: reading Zones and Ingresses (host collision check).
 */}}
 apiVersion: v1
 kind: ServiceAccount
@@ -111,6 +111,12 @@ rules:
   - apiGroups: [auth.w6d.io]
     resources: [zones/status]
     verbs: [get, update, patch]
+  # HostTaken: never create a site Ingress for a host another Ingress in the cluster serves
+  # (read-only; Ingress writes stay in the gateway namespace). Without it the operator
+  # crash-loops on 403.
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch]
   - apiGroups: ["", events.k8s.io]
     resources: [events]
     verbs: [create, patch]

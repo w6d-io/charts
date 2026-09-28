@@ -275,8 +275,12 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
   value: "0.0.0.0"
 - name: OPA_URL
   value: {{ .Values.jinbe.env.OPA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+{{- /* jinbe pushes data-change notices to OPAL: only where there is one (else a failure
+log per burst) */}}
+{{- if or .Values.opal.enabled .Values.jinbe.env.OPAL_SERVER_URL }}
 - name: OPAL_SERVER_URL
   value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
+{{- end }}
 - name: OPA_DATA_URL
   value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
 - name: OPA_AUTHZ_REMOTE

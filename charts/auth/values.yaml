@@ -698,6 +698,10 @@ oathkeeper:
             subject_from: "identity.id"
             token_from:
               header: X-Session-Token
+            # v25.4.0 does not pass the token to whoami unless told to: without this every
+            # bearer call gets a 401 (the sandbox live config carries it)
+            forward_http_headers:
+              - X-Session-Token
         # OAuth2 access tokens (Authorization: Bearer) — third-party apps and
         # M2M API keys issued by Hydra, validated via token introspection.
         # Requires hydra.enabled=true; the "introspection" sign-in method in
@@ -1023,6 +1027,8 @@ jinbe:
     # OPA_TOKEN: bearer for OPA (the opal-client's OPAL_POLICY_STORE_AUTH_TOKEN), used by the
     #   admin access check. Vault ref, e.g. vault:secret/data/jinbe#OPA_TOKEN. Unset: the access
     #   check answers 503.
+    # PROMETHEUS_URL: optional, e.g. http://prometheus-operated.monitoring:9090 — the kuma
+    #   Home certificate panel reads cert-manager expiry metrics through jinbe. Unset: hidden.
     # AUDIT_HMAC_KEY: >= 32 chars, keys the HMACs that stand in for IPs / session ids in audit/v1.
     #   Vault ref, e.g. vault:secret/data/jinbe#AUDIT_HMAC_KEY. Unset: those fields are left out.
 
@@ -1575,6 +1581,7 @@ siteOperator:
     # (ingressAnnotations) and every key the chart's Ingresses use.
     allowedIngressAnnotations:
       - auth.w6d.io/spec-hash
+      - auth.w6d.io/host
       - cert-manager.io/cluster-issuer
       - kubectl.kubernetes.io/last-applied-configuration
       - nginx.ingress.kubernetes.io/enable-cors

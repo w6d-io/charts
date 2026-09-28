@@ -18,6 +18,9 @@ spec:
     - jsonPath: .spec.domain
       name: Domain
       type: string
+    - jsonPath: .spec.ingress
+      name: Ingress
+      type: string
     - jsonPath: .spec.tls.mode
       name: TLS
       type: string
@@ -62,6 +65,15 @@ spec:
                 x-kubernetes-validations:
                 - message: domain is immutable; create another Zone
                   rule: self == oldSelf
+              ingress:
+                default: wildcard
+                description: |-
+                  Ingress is wildcard (default: one *.<domain> Ingress) or per-site (one
+                  exact-host Ingress per Site, for a domain other Ingresses already use).
+                enum:
+                - wildcard
+                - per-site
+                type: string
               ingressClass:
                 description: IngressClass must be one the operator allows; empty uses
                   the operator default.

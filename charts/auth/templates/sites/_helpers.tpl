@@ -113,6 +113,10 @@ Jinbe env for Sites and observability (runtime only).
 - name: OPA_TOKEN
   value: {{ .Values.jinbe.env.OPA_TOKEN | quote }}
 {{- end }}
+{{- with .Values.jinbe.env.PROMETHEUS_URL }}
+- name: PROMETHEUS_URL
+  value: {{ . | quote }}
+{{- end }}
 {{- if .Values.jinbe.env.AUDIT_HMAC_KEY }}
 - name: AUDIT_HMAC_KEY
   value: {{ .Values.jinbe.env.AUDIT_HMAC_KEY | quote }}

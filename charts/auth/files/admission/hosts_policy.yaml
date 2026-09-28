@@ -1,8 +1,13 @@
 # Every host is under an admin-defined Zone. The Zone domains are mirrored by the
 # operator into ConfigMap site-operator-zones (key "domains"); empty = nothing allowed.
 # - Site hosts: exactly one DNS label under a Zone domain.
-# - Ingresses the operator writes: zone-* is the wildcard *.<domain> of a Zone,
-#   site-* (vanity) hosts are one label under a Zone domain.
+# - Ingresses the operator writes: zone-* is the wildcard *.<domain> of a Zone;
+#   site-* (vanity, or per-site Zone) serves exact hosts one label under a Zone
+#   domain, belongs to the Site it is named after, and uses only its own TLS
+#   Secret (site-<name>-tls) or a Zone's (mirrored under key "secrets");
+#   host-<hash8> (per-site Zone, shared by the Sites on one host) serves exactly
+#   the one host of its auth.w6d.io/host annotation, is owned only by Sites (none
+#   the controller) and uses only a Zone's TLS Secret.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -23,6 +28,8 @@ spec:
   variables:
   - name: domains
     expression: "(has(params.data) && 'domains' in params.data ? params.data.domains : '').split(',').map(s, s.trim()).filter(s, s != '')"
+  - name: secrets
+    expression: "(has(params.data) && 'secrets' in params.data ? params.data.secrets : '').split(',').map(s, s.trim()).filter(s, s != '')"
   - name: isSite
     expression: request.resource.resource == 'sites'
   - name: labels
@@ -49,6 +56,28 @@ spec:
     reason: Forbidden
   - expression: "variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || variables.underZone"
     message: a site Ingress host must be one DNS label under a Zone domain
+    reason: Forbidden
+  - expression: >-
+      variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || (
+        has(object.metadata.ownerReferences) && object.metadata.ownerReferences.exists(o,
+          o.kind == 'Site' && o.apiVersion.startsWith('auth.w6d.io/') && has(o.controller) && o.controller &&
+          'site-' + o.name == object.metadata.name))
+    message: a site Ingress is named site-<site> and controlled by that Site
+    reason: Forbidden
+  - expression: >-
+      variables.isSite || !variables.managed || !object.metadata.name.startsWith('host-') || (
+        object.metadata.name.matches('^host-[0-9a-f]{8}$') && variables.underZone && size(variables.hosts) == 1 &&
+        has(object.metadata.annotations) && 'auth.w6d.io/host' in object.metadata.annotations &&
+        object.metadata.annotations['auth.w6d.io/host'] == variables.hosts[0] &&
+        has(object.metadata.ownerReferences) && object.metadata.ownerReferences.all(o,
+          o.kind == 'Site' && o.apiVersion.startsWith('auth.w6d.io/') && !(has(o.controller) && o.controller)) &&
+        (!has(object.spec.tls) || object.spec.tls.all(t, t.secretName in variables.secrets)))
+    message: a host Ingress serves exactly one host under a Zone (its auth.w6d.io/host), is owned only by Sites and uses a Zone TLS Secret
+    reason: Forbidden
+  - expression: >-
+      variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || !has(object.spec.tls) ||
+      object.spec.tls.all(t, t.secretName == object.metadata.name + '-tls' || t.secretName in variables.secrets)
+    message: a site Ingress uses its own TLS Secret or its Zone's
     reason: Forbidden
 ---
 apiVersion: admissionregistration.k8s.io/v1

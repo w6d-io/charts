@@ -1,6 +1,6 @@
 # Every Ingress in the gateway namespace goes to the oathkeeper proxy and carries
 # only allow-listed annotations, whoever writes it. Ingresses the operator writes
-# must also match its templates (name site-*/zone-*, label, own TLS secret), and
+# must also match its templates (name site-*/zone-*/host-*, label, TLS hosts), and
 # the operator may delete only its own. Host rules: site-operator-hosts.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
@@ -56,14 +56,14 @@ spec:
     reason: Forbidden
   - expression: >-
       !(variables.operator || variables.managed) || (variables.managed &&
-        (variables.obj.metadata.name.startsWith('site-') || variables.obj.metadata.name.startsWith('zone-')))
-    message: operator Ingresses are named site-<name> or zone-<name> and labelled app.kubernetes.io/managed-by=site-operator
+        (variables.obj.metadata.name.startsWith('site-') || variables.obj.metadata.name.startsWith('zone-') ||
+         variables.obj.metadata.name.startsWith('host-')))
+    message: operator Ingresses are named site-<name>, zone-<name> or host-<hash> and labelled app.kubernetes.io/managed-by=site-operator
     reason: Forbidden
   - expression: >-
       variables.del || !(variables.operator || variables.managed) || !has(object.spec.tls) ||
-      object.spec.tls.all(t, t.hosts.all(h, h in variables.hosts) &&
-        (object.metadata.name.startsWith('zone-') || t.secretName == object.metadata.name + '-tls'))
-    message: a site Ingress uses only its own TLS secret, for its own hosts
+      object.spec.tls.all(t, t.hosts.all(h, h in variables.hosts))
+    message: "an operator Ingress lists TLS only for its own hosts (secret names: site-operator-hosts)"
     reason: Forbidden
 ---
 apiVersion: admissionregistration.k8s.io/v1
