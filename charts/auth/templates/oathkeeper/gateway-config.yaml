@@ -3,10 +3,12 @@
 {{- fail "siteOperator.gateway.enabled needs oathkeeper.configmap.hashSumEnabled=false: the site-operator rolls Oathkeeper itself; a checksum tied to the seed config would fight it" }}
 {{- end }}
 {{/*
-  The chart-owned base Oathkeeper config, rendered exactly as the subchart renders its own
-  (merged subchart values, same tpl pass). The subchart's <release>-oathkeeper-config stays
-  the seed; the operator writes immutable <release>-oathkeeper-config-<hash8> copies from
-  base + Gateway CR and points the Deployment at them.
+  The chart-owned base Oathkeeper config: the subchart's own "oathkeeper.configmap" helper on
+  the subchart's merged values, so it is byte-for-byte the seed <release>-oathkeeper-config
+  (one tpl pass only when helmTemplatedConfigEnabled, none otherwise — a second pass would
+  evaluate Oathkeeper's own .Extra templates). hack/check-gateway-base.sh asserts it.
+  The operator writes immutable <release>-oathkeeper-config-<hash8> copies from base +
+  Gateway CR and points the Deployment at them.
 */}}
 {{- $ok := .Subcharts.oathkeeper }}
 apiVersion: v1
@@ -18,5 +20,5 @@ metadata:
     app.kubernetes.io/component: oathkeeper
 data:
   config.yaml: |
-    {{- tpl (toYaml $ok.Values.oathkeeper.config) $ok | nindent 4 }}
+    {{- include "oathkeeper.configmap" $ok | nindent 4 }}
 {{- end }}

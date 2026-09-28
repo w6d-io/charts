@@ -1,0 +1,67 @@
+# Gateway on with the Oathkeeper config written the way the env values write it: raw
+# Oathkeeper Go templates (payload, header mutator) and helmTemplatedConfigEnabled=false.
+# hack/check-gateway-base.sh renders this and asserts the base config == the seed config.
+# Render/lint only (gatekit/site-operator images are not published).
+global:
+  domain: dev.example.com
+
+jinbe:
+  env:
+    ENCRYPTION_KEY: vault:secret/data/jinbe#ENCRYPTION_KEY
+
+oathkeeper:
+  configmap:
+    hashSumEnabled: false
+  oathkeeper:
+    helmTemplatedConfigEnabled: false
+    config:
+      access_rules:
+        repositories:
+          - file:///etc/rules/access-rules.json
+      authenticators:
+        cookie_session:
+          config:
+            check_session_url: http://auth-kratos-public/sessions/whoami
+      authorizers:
+        remote_json:
+          config:
+            remote: http://auth-opa-authz-proxy:8080/v1/data/rbac/allow
+            payload: |
+              {
+                "input": {
+                  "sub": "{{ print .Subject }}",
+                  "email": "{{ index .Extra.identity.traits "email" }}",
+                  "groups": {{ $ma := index .Extra.identity "metadata_admin" }}{{ if $ma }}{{ toJson (index $ma "groups") }}{{ else }}[]{{ end }},
+                  "object": "{{ .MatchContext.URL.Path }}",
+                  "action": "{{ .MatchContext.Method }}"
+                }
+              }
+      mutators:
+        header:
+          config:
+            headers:
+              x-user-id: '{{ print .Subject }}'
+              x-user-email: '{{ if .Extra.identity }}{{ index .Extra.identity.traits "email" }}{{ end }}'
+      errors:
+        handlers:
+          redirect:
+            config:
+              to: https://auth.dev.example.com/login
+
+sites:
+  enabled: true
+  zones:
+    - name: dev
+      domain: dev.example.com
+
+gatekit:
+  enabled: true
+  image:
+    tag: "0.1.0"
+
+siteOperator:
+  enabled: true
+  image:
+    tag: "0.1.0"
+  gateway:
+    enabled: true
