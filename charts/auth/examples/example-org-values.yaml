@@ -43,7 +43,7 @@ kratos:
         allowed_return_urls:
           - https://*.example.org
           - http://*.example.org
-        default_browser_return_url: https://kuma.example.org
+        default_browser_return_url: https://auth.example.org/welcome
         flows:
           error:
             ui_url: https://auth.example.org/error

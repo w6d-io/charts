@@ -142,7 +142,11 @@ kratos:
         allowed_return_urls:
           - https://*.example.com
           - http://*.example.com
-        default_browser_return_url: https://app.example.com
+        # Where Kratos sends a browser that has no return_to — including signed-in users it
+        # answers directly (e.g. /self-service/registration/browser with a session), bypassing
+        # login-ui. login-ui's /welcome then lands them on the requested page, their site or
+        # the site picker. Keep it on the auth host, never an app host.
+        default_browser_return_url: https://auth.example.com/welcome
         methods:
           password:
             enabled: true
@@ -260,7 +264,8 @@ kratos:
             enabled: true
           logout:
             after:
-              default_browser_return_url: https://auth.example.com/auth/login
+              # login-ui serves sign-in at /login (root, as every env sets it)
+              default_browser_return_url: https://auth.example.com/login
           login:
             ui_url: https://auth.example.com/auth/login
             lifespan: 10m
