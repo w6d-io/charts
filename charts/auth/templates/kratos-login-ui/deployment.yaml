@@ -65,6 +65,9 @@ spec:
             - name: JINBE_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.jinbePublicUrl | default (printf "http://%s:%v" (include "auth.jinbe.fullname" .) .Values.jinbe.service.port) | quote }}
             {{- end }}
+            # admin console (kuma), linked from /welcome
+            - name: NEXT_PUBLIC_CONSOLE_URL
+              value: {{ .Values.kratosLoginUi.consoleUrl | default (printf "https://%s" (include "auth.appDomain" .)) | quote }}
             - name: NEXT_PUBLIC_DEFAULT_RETURN_URL
               value: {{ .Values.kratosLoginUi.redirects.defaultReturnUrl | quote }}
             - name: NEXT_PUBLIC_ALLOWED_RETURN_URLS

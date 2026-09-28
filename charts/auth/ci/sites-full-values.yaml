@@ -34,6 +34,13 @@ kratos:
       tracing:
         provider: otel
 
+kratosLoginUi:
+  consoleUrl: https://kuma.dev.example.com
+  redirects:
+    defaultReturnUrl: https://kuma.dev.example.com
+    # `*` = one label: the sandbox zone (x.authdev.dev.example.com) is two labels deep
+    allowedReturnUrls: https://*.dev.example.com,https://*.authdev.dev.example.com
+
 sites:
   enabled: true
   zones:

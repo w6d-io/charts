@@ -97,8 +97,10 @@ oathkeeper:
 kratosLoginUi:
   kratos:
     browserUrl: https://auth.example.org
+  consoleUrl: https://kuma.example.org
   redirects:
     defaultReturnUrl: https://kuma.example.org
+    # `*` = exactly one label: covers auth/kuma/jinbe/dummy.example.org
     allowedReturnUrls: https://*.example.org
   branding:
     appName: Example Org

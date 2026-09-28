@@ -1262,12 +1262,20 @@ kratosLoginUi:
   # http://<release>-jinbe:<port> when sites.enabled, otherwise not set.
   jinbePublicUrl: ""
 
+  # Admin console (kuma), linked from /welcome. Empty: https://<appDomain> (where the chart
+  # serves kuma); set it when kuma has its own host (e.g. https://kuma.example.org).
+  consoleUrl: ""
+
   kratos:
     browserUrl: "https://auth.example.com"
     publicUrl: ""  # Auto: http://<release>-kratos-public:80
 
   redirects:
     defaultReturnUrl: "https://app.example.com"
+    # Comma-separated. In the login UI a `*` matches exactly ONE DNS label:
+    # https://*.example.com covers app.example.com but not a.b.example.com — list deeper
+    # zones explicitly (https://*.b.example.com). Kratos' own allowed_return_urls (above) is
+    # a separate list and is not affected.
     allowedReturnUrls: "https://*.example.com"
 
   texts:
