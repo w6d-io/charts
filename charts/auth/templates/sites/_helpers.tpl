@@ -191,6 +191,10 @@ Jinbe env for Sites and observability (runtime only).
 {{- end }}
 {{- end }}
 {{- end }}
+{{- with .Values.jinbe.protectedTraits }}
+- name: PROTECTED_TRAITS
+  value: {{ join "," . | quote }}
+{{- end }}
 {{- $cap := .Values.jinbe.captcha | default dict }}
 {{- if or $cap.provider $cap.siteKey }}
 - name: CAPTCHA_PROVIDER

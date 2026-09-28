@@ -1,0 +1,26 @@
+# Overlay: turn OFF the Kratos settings profile guard (protected traits). Profile saves keep
+# only their audit hook. Use it while jinbe is older than 5297b87 (it answers flow:settings
+# with 400, which would block every profile save). Apply on top of the env values:
+#   helm ... -f values.yaml -f examples/kratos-guard-settings-off-values.yaml
+kratos:
+  kratos:
+    config:
+      selfservice:
+        flows:
+          settings:
+            after:
+              profile:
+                hooks:
+                - hook: web_hook
+                  config:
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                    method: POST
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwcm9maWxlIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
+                    response:
+                      ignore: true
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
