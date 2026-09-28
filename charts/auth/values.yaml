@@ -1050,6 +1050,17 @@ jinbe:
     # extra OTEL_RESOURCE_ATTRIBUTES, e.g. deployment.environment=auth-dev
     resourceAttributes: ""
 
+  # Observability backends jinbe queries server-side for kuma (audit tab from Loki, ops logs,
+  # trace links, Grafana deep links). Every key unset by default = feature off.
+  observability:
+    lokiUrl: ""                   # LOKI_URL, e.g. http://loki-gateway.loki
+    lokiNamespace: ""             # LOKI_NAMESPACE: namespace label to scope ops-log queries
+    lokiAuditSelector: ""         # LOKI_AUDIT_SELECTOR: json (jinbe default) | label
+    tempoUrl: ""                  # TEMPO_URL, e.g. http://tempo.tempo:3200
+    grafanaUrl: ""                # GRAFANA_URL (browser links)
+    grafanaLokiDatasourceUid: ""  # GRAFANA_LOKI_DATASOURCE_UID (jinbe default: loki)
+    grafanaTempoDatasourceUid: "" # GRAFANA_TEMPO_DATASOURCE_UID (jinbe default: tempo)
+
   # K8S config for m2m authentication
   k8s:
     enabled: false
@@ -1493,6 +1504,19 @@ sites:
   syncIntervalMs: 60000
   # How long an apply waits for RulesLoaded before rolling back.
   rulesLoadedTimeoutMs: 120000
+  # Exact `namespace/service` exceptions to the platform-namespace upstream ban
+  # (SITES_UPSTREAM_ALLOW), e.g. [auth-dev/echo]. Keep it short: each entry is a service
+  # any site may expose.
+  upstreamAllow: []
+  # Environment name shown in kuma (SITES_ENV). Empty: jinbe uses NODE_ENV.
+  env: ""
+  # SITES_PRODUCTION: "true" on a production environment (stricter guards in kuma).
+  # Empty: jinbe default (false).
+  production: ""
+  # SITES_MIXED_GATEWAY: "true" ONLY while the gateway loads the legacy rules AND the site
+  # (maester) rules side by side (oathkeeper.rules.source=dual), so jinbe checks site routes
+  # against legacy ones. jinbe refuses to start with it and SITES_PRODUCTION=true. Empty: false.
+  mixedGateway: ""
 
 # gatekit — stateless rule checker (compile · overlap · match · render). No egress.
 gatekit:

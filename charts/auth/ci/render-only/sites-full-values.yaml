@@ -1,4 +1,4 @@
-# Everything the Sites / observability work adds, switched on (render + lint only: the
+# Everything the Sites / observability work adds, switched on (ci/render-only: render + lint only; the
 # gatekit/site-operator images are not published and chart-testing would try to install
 # this file). Mirrors dev-aws-1: zone dev.example.com, maester dual-run for the cut-over.
 global:

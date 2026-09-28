@@ -175,6 +175,28 @@ Jinbe env for Sites and observability (runtime only).
   value: {{ .Values.sites.syncIntervalMs | int64 | toString | quote }}
 - name: SITES_RULES_LOADED_TIMEOUT_MS
   value: {{ .Values.sites.rulesLoadedTimeoutMs | int64 | toString | quote }}
+{{- with .Values.sites.upstreamAllow }}
+- name: SITES_UPSTREAM_ALLOW
+  value: {{ join "," . | quote }}
+{{- end }}
+{{- with .Values.sites.env }}
+- name: SITES_ENV
+  value: {{ . | quote }}
+{{- end }}
+{{- range $name, $v := dict "SITES_PRODUCTION" .Values.sites.production "SITES_MIXED_GATEWAY" .Values.sites.mixedGateway }}
+{{- $s := toString $v }}
+{{- if not (has $s (list "" "<nil>")) }}
+- name: {{ $name }}
+  value: {{ $s | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $o := .Values.jinbe.observability | default dict }}
+{{- range $name, $v := dict "LOKI_URL" $o.lokiUrl "LOKI_NAMESPACE" $o.lokiNamespace "LOKI_AUDIT_SELECTOR" $o.lokiAuditSelector "TEMPO_URL" $o.tempoUrl "GRAFANA_URL" $o.grafanaUrl "GRAFANA_LOKI_DATASOURCE_UID" $o.grafanaLokiDatasourceUid "GRAFANA_TEMPO_DATASOURCE_UID" $o.grafanaTempoDatasourceUid }}
+{{- with $v }}
+- name: {{ $name }}
+  value: {{ . | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 

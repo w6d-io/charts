@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # With siteOperator.gateway.enabled, the chart-owned base Oathkeeper config
 # (<release>-oathkeeper-config-base) must be byte-for-byte the subchart's seed config
-# (<release>-oathkeeper-config). Renders every ci/*gateway*-values.yaml and compares.
+# (<release>-oathkeeper-config). Renders every ci/**/*gateway*-values.yaml and compares.
 set -euo pipefail
 chart=$(cd "$(dirname "$0")/../charts/auth" && pwd)
 fail=0
-for values in "$chart"/ci/*gateway*-values.yaml; do
+for values in "$chart"/ci/*gateway*-values.yaml "$chart"/ci/render-only/*gateway*-values.yaml; do
+  [ -e "$values" ] || continue
   out=$(helm template auth "$chart" -n auth -f "$values")
   seed=$(yq 'select(.kind == "ConfigMap" and .metadata.name == "auth-oathkeeper-config") | .data["config.yaml"]' <<<"$out")
   base=$(yq 'select(.kind == "ConfigMap" and .metadata.name == "auth-oathkeeper-config-base") | .data["config.yaml"]' <<<"$out")

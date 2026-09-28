@@ -1,6 +1,7 @@
 # Gateway on with the Oathkeeper config written the way the env values write it: raw
 # Oathkeeper Go templates (payload, header mutator) and helmTemplatedConfigEnabled=false.
 # hack/check-gateway-base.sh renders this and asserts the base config == the seed config.
+# In ci/render-only/: ct install skips it (images not published); CI lints it separately.
 # Render/lint only (gatekit/site-operator images are not published).
 global:
   domain: dev.example.com

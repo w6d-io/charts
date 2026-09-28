@@ -57,6 +57,17 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
 
+      # ci/render-only/*-values.yaml need images that are not published yet, so ct (which only
+      # reads ci/*-values.yaml) never installs them; lint them here and check the gateway base.
+      - name: Lint render-only values and check the gateway base config
+        run: |
+          helm dependency build charts/auth
+          for f in charts/auth/ci/render-only/*-values.yaml; do
+            echo "== $f"; helm lint charts/auth -f "$f"
+            helm template auth charts/auth -n auth -f "$f" > /dev/null
+          done
+          bash hack/check-gateway-base.sh
+
       - name: Create docker config.json
         shell: bash
         env:
