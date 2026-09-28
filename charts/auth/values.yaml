@@ -285,8 +285,42 @@ kratos:
           recovery:
             enabled: true
             use: link
+            # Audit webhook — emit an auth event to jinbe after each successful recovery
+            # (a recovery sign-in, e.g. kuma's "Send sign-in link": its session skips login.after). Same url/method/response/auth as the other audit hooks; method = the
+            # flow's active method (link/code).
+            after:
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                    method: *auditWebhookMethod
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlY292ZXJ5IiwKICBtZXRob2Q6IGlmICJmbG93IiBpbiBjdHggJiYgY3R4LmZsb3cgIT0gbnVsbCAmJiAiYWN0aXZlIiBpbiBjdHguZmxvdyB0aGVuIGN0eC5mbG93LmFjdGl2ZSBlbHNlIG51bGwsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                    response: *auditWebhookResponse
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
           verification:
             enabled: true
+            # Audit webhook — emit an auth event to jinbe after each successful verification
+            # (an address verified). Same url/method/response/auth as the other audit hooks; method = the
+            # flow's active method (link/code).
+            after:
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                    method: *auditWebhookMethod
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInZlcmlmaWNhdGlvbiIsCiAgbWV0aG9kOiBpZiAiZmxvdyIgaW4gY3R4ICYmIGN0eC5mbG93ICE9IG51bGwgJiYgImFjdGl2ZSIgaW4gY3R4LmZsb3cgdGhlbiBjdHguZmxvdy5hY3RpdmUgZWxzZSBudWxsLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
+                    response: *auditWebhookResponse
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
           logout:
             after:
               # login-ui serves sign-in at /login (root, as every env sets it)
