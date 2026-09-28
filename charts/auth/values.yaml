@@ -1264,9 +1264,15 @@ kratosLoginUi:
     darkMode: true
     backgroundColor: "111827"
 
-  # Cluster-internal jinbe URL for per-site branding (server-side only). Empty:
-  # http://<release>-jinbe:<port> when sites.enabled, otherwise not set.
+  # Cluster-internal jinbe URL (server-side only). The login UI calls jinbe on every sign-in:
+  # the /two-step second-factor gate, the /welcome site list, /access reasons, branding.
+  # Empty: http://<release>-jinbe:<port> whenever jinbe.enabled; set it for an external jinbe.
   jinbePublicUrl: ""
+
+  # NEXT_PUBLIC_SECOND_FACTOR_GATE. Unset (default) = on: after sign-in, users who must have a
+  # second factor (per jinbe) and have none are sent to /two-step to enrol. "false" turns the
+  # gate off (e.g. while rolling out 2FA).
+  secondFactorGate: ""
 
   # Admin console (kuma), linked from /welcome. Empty: https://<appDomain> (where the chart
   # serves kuma); set it when kuma has its own host (e.g. https://kuma.example.org).

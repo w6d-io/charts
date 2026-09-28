@@ -60,10 +60,16 @@ spec:
               value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
             - name: KRATOS_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.kratos.publicUrl | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
-            {{- if or .Values.kratosLoginUi.jinbePublicUrl .Values.sites.enabled }}
-            # server-side only: per-site branding + access reason
+            {{- if or .Values.kratosLoginUi.jinbePublicUrl .Values.jinbe.enabled }}
+            # server-side only: second-factor gate, /welcome sites, /access reasons, branding
             - name: JINBE_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.jinbePublicUrl | default (printf "http://%s:%v" (include "auth.jinbe.fullname" .) .Values.jinbe.service.port) | quote }}
+            {{- end }}
+            {{- $gate := toString .Values.kratosLoginUi.secondFactorGate }}
+            {{- if not (has $gate (list "" "<nil>")) }}
+            # "false" turns the /two-step second-factor gate off (unset = on)
+            - name: NEXT_PUBLIC_SECOND_FACTOR_GATE
+              value: {{ $gate | quote }}
             {{- end }}
             # admin console (kuma), linked from /welcome
             - name: NEXT_PUBLIC_CONSOLE_URL
