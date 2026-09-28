@@ -486,7 +486,30 @@ oathkeeper:
       requests: { cpu: 10m, memory: 32Mi }
       limits:   { memory: 128Mi }
 
+  # Graceful rollout: every Gateway change (and every config change) rolls Oathkeeper; a
+  # single-replica swap dropped requests with 502 on the sandbox. Two replicas, surge-only
+  # rolling update, a PDB, and a preStop pause so ingress-nginx stops sending to a pod before
+  # it gets SIGTERM. Oathkeeper then waits at most 5 s (ory/graceful default, not
+  # configurable) for open requests; longer streams (kuma SSE) are cut and reconnect.
+  # terminationGracePeriodSeconds must stay above preStop + 5 s.
+  replicaCount: 2
+  pdb:
+    enabled: true
+    spec:
+      maxUnavailable: 1
+
   deployment:
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+    # native sleep action (k8s >= 1.30): the image needs no shell
+    lifecycle:
+      preStop:
+        sleep:
+          seconds: 10
+    terminationGracePeriodSeconds: 30
     # Blocking first fetch: guarantees /etc/rules/access-rules.json exists (seeds "[]"
     # fail-closed after initRetries). tpl-rendered in the subchart context.
     extraInitContainers: |
@@ -643,6 +666,11 @@ oathkeeper:
         proxy:
           cors:
             enabled: false
+          # The default write timeout (120s) cuts every response stream at 2 min, kuma's SSE
+          # included. 0s = no write deadline (as live on the sandbox); read/idle keep their
+          # defaults (5s / 120s).
+          timeout:
+            write: 0s
       access_rules:
         matching_strategy: regexp
         # File mode + fsnotify hot-reload. The rules-sync sidecar (oathkeeper.rulesSync
