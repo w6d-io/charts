@@ -52,6 +52,14 @@ kratos:
     extraEnv:
       - name: DSN
         value: "postgresql://kratos:kratos@{{ .Release.Name }}-postgresql:5432/kratos?sslmode=disable"
+    # Secret rendered by this chart (templates/kratos/webhook-env-secret.yaml) and loaded with envFrom
+    # into Kratos and its automigrate init container. It carries one Kratos config override per
+    # web_hook whose auth value is a Vault reference, e.g.
+    #   SELFSERVICE_FLOWS_LOGIN_AFTER_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE=vault:secret/data/auth#KRATOS_WEBHOOK_SECRET
+    # because vault-env substitutes env vars, not the kratos.yaml ConfigMap. References only, never a
+    # secret value. Generated from the final kratos.config hooks, so env overlays need no change.
+    # Empty disables it (then a Vault reference in a hook is sent verbatim and jinbe answers 401).
+    environmentSecretsName: auth-kratos-webhook-env
 
   ingress:
     public:
