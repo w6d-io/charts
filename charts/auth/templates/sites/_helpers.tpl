@@ -191,6 +191,26 @@ Jinbe env for Sites and observability (runtime only).
 {{- end }}
 {{- end }}
 {{- end }}
+{{- $cap := .Values.jinbe.captcha | default dict }}
+{{- if or $cap.provider $cap.siteKey }}
+- name: CAPTCHA_PROVIDER
+  value: {{ $cap.provider | default "turnstile" | quote }}
+{{- with $cap.siteKey }}
+- name: CAPTCHA_SITE_KEY
+  value: {{ . | quote }}
+{{- end }}
+- name: CAPTCHA_SECRET_KEY
+  value: {{ $cap.secretKey | default (printf "vault:%s#CAPTCHA_SECRET_KEY" (required "jinbe.captcha.secretKey or jinbe.vaultPath is required when the captcha is configured" .Values.jinbe.vaultPath)) | quote }}
+- name: CAPTCHA_EXPECTED_HOSTNAMES
+  value: {{ $cap.expectedHostnames | default (include "auth.authDomain" .) | quote }}
+{{- range $name, $v := dict "CAPTCHA_VERIFY_TIMEOUT_MS" $cap.verifyTimeoutMs "CAPTCHA_RECAPTCHA_MIN_SCORE" $cap.recaptchaMinScore "CAPTCHA_ALLOW_TEST_KEYS" $cap.allowTestKeys }}
+{{- $s := toString $v }}
+{{- if not (has $s (list "" "<nil>")) }}
+- name: {{ $name }}
+  value: {{ $s | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- $o := .Values.jinbe.observability | default dict }}
 {{- range $name, $v := dict "LOKI_URL" $o.lokiUrl "LOKI_NAMESPACE" $o.lokiNamespace "LOKI_AUDIT_SELECTOR" $o.lokiAuditSelector "TEMPO_URL" $o.tempoUrl "GRAFANA_URL" $o.grafanaUrl "GRAFANA_LOKI_DATASOURCE_UID" $o.grafanaLokiDatasourceUid "GRAFANA_TEMPO_DATASOURCE_UID" $o.grafanaTempoDatasourceUid }}
 {{- with $v }}

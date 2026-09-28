@@ -186,7 +186,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: &auditWebhookMethod POST
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwYXNzd29yZCIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                       response: &auditWebhookResponse
@@ -201,7 +201,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwcm9maWxlIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
@@ -215,7 +215,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ0b3RwIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
@@ -229,7 +229,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ3ZWJhdXRobiIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                       response: *auditWebhookResponse
@@ -243,7 +243,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJsb29rdXBfc2VjcmV0IiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
@@ -272,7 +272,7 @@ kratos:
               hooks:
                 - hook: web_hook
                   config:
-                    url: '{{ .Values.global.audit.webhook.url }}'
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
                     method: *auditWebhookMethod
                     body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogImxvZ2luIiwKICBtZXRob2Q6IG51bGwsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                     response: *auditWebhookResponse
@@ -289,11 +289,56 @@ kratos:
             # Audit webhook — emit an auth event to jinbe after each successful
             # registration. Reuses the anchored url/method/response/auth from the
             # settings flow above.
+            #
+            # Sign-in protection (auth-guard): password and code sign-ups first pass jinbe's
+            # guard (POST /api/webhooks/kratos/guard, response.parse → jinbe may refuse with
+            # field messages: bot check, sign-up mode, allowed/disposable domains), then the
+            # audit hook. A per-method list REPLACES the global `hooks` for that method, so
+            # each carries its own audit copy; other methods (oidc, webauthn, passkey) keep
+            # the global list. `code` is listed because dev/sandbox register by email code;
+            # it is harmless where code sign-up is off. Envs that set their own
+            # after.<method>.hooks (e.g. `code: [session]`) must repeat guard + audit there,
+            # session LAST. To run without the guard, override both lists with the audit hook
+            # only (examples/kratos-guard-registration-off-values.yaml).
             after:
+              password:
+                hooks:
+                  - &kratosGuardRegistration
+                    hook: web_hook
+                    config:
+                      url: 'http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos/guard'
+                      method: POST
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgbG9jYWwgdHAgPSBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAndHJhbnNpZW50X3BheWxvYWQnKSAmJiBjdHguZmxvdy50cmFuc2llbnRfcGF5bG9hZCAhPSBudWxsIHRoZW4gY3R4LmZsb3cudHJhbnNpZW50X3BheWxvYWQgZWxzZSB7fSwKICBsb2NhbCBjb29raWVzID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdyZXF1ZXN0X2Nvb2tpZXMnKSAmJiBjdHgucmVxdWVzdF9jb29raWVzICE9IG51bGwgdGhlbiBjdHgucmVxdWVzdF9jb29raWVzIGVsc2Uge30sCiAgbG9jYWwgaGVhZGVycyA9IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAncmVxdWVzdF9oZWFkZXJzJykgJiYgY3R4LnJlcXVlc3RfaGVhZGVycyAhPSBudWxsIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVycyBlbHNlIHt9LAogIGZsb3c6ICdyZWdpc3RyYXRpb24nLAogIGZsb3dfdHlwZTogY3R4LmZsb3cudHlwZSwKICBtZXRob2Q6IGlmIHN0ZC5vYmplY3RIYXMoY3R4LmZsb3csICdhY3RpdmUnKSB0aGVuIGN0eC5mbG93LmFjdGl2ZSBlbHNlIG51bGwsCiAgZW1haWw6IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAnaWRlbnRpdHknKSAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiBzdGQub2JqZWN0SGFzKGN0eC5pZGVudGl0eS50cmFpdHMsICdlbWFpbCcpIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgY2FwdGNoYV90b2tlbjogaWYgc3RkLm9iamVjdEhhcyh0cCwgJ2NhcHRjaGFfdG9rZW4nKSB0aGVuIHRwLmNhcHRjaGFfdG9rZW4gZWxzZSBpZiBzdGQub2JqZWN0SGFzKGNvb2tpZXMsICdzdGxfa2NhcCcpIHRoZW4gY29va2llcy5zdGxfa2NhcCBlbHNlIG51bGwsCiAgaXA6IGlmIHN0ZC5vYmplY3RIYXMoaGVhZGVycywgJ1RydWUtQ2xpZW50LUlwJykgdGhlbiBoZWFkZXJzWydUcnVlLUNsaWVudC1JcCddWzBdIGVsc2UgaWYgc3RkLm9iamVjdEhhcyhoZWFkZXJzLCAnWC1Gb3J3YXJkZWQtRm9yJykgdGhlbiBoZWFkZXJzWydYLUZvcndhcmRlZC1Gb3InXVswXSBlbHNlIG51bGwsCn0K'
+                      response:
+                        parse: true
+                      auth: &kratosWebhookAuth
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
+                  - &kratosRegistrationAudit
+                    hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc3dvcmQiLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
+              code:
+                hooks:
+                  - *kratosGuardRegistration
+                  - hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAiY29kZSIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
               hooks:
                 - hook: web_hook
                   config:
-                    url: '{{ .Values.global.audit.webhook.url }}'
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
                     method: *auditWebhookMethod
                     body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc3dvcmQiLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
                     response: *auditWebhookResponse
@@ -303,6 +348,30 @@ kratos:
                         name: X-Kratos-Webhook-Secret
                         in: header
                         value: '{{ .Values.global.audit.webhook.secret }}'
+      # Request headers Kratos forwards to web hooks. Setting it REPLACES Kratos' default list,
+      # so this is that default + X-Forwarded-For (the guard's and the audit hook's client ip;
+      # without it the audit ip was always null).
+      clients:
+        web_hook:
+          header_allowlist:
+            - Accept
+            - Accept-Encoding
+            - Accept-Language
+            - Content-Length
+            - Content-Type
+            - Origin
+            - Priority
+            - Referer
+            - Sec-Ch-Ua
+            - Sec-Ch-Ua-Mobile
+            - Sec-Ch-Ua-Platform
+            - Sec-Fetch-Dest
+            - Sec-Fetch-Mode
+            - Sec-Fetch-Site
+            - Sec-Fetch-User
+            - True-Client-Ip
+            - User-Agent
+            - X-Forwarded-For
       log:
         level: info
         format: json
@@ -1089,6 +1158,25 @@ jinbe:
     grafanaLokiDatasourceUid: ""  # GRAFANA_LOKI_DATASOURCE_UID (jinbe default: loki)
     grafanaTempoDatasourceUid: "" # GRAFANA_TEMPO_DATASOURCE_UID (jinbe default: tempo)
 
+  # Vault KV path jinbe's Vault role reads (e.g. infra/data/jinbe-dev), used to build default
+  # secret references such as captcha.secretKey. Empty: those secrets must be set explicitly.
+  vaultPath: ""
+
+  # Sign-in protection bot check (auth-guard). Which flows ask for it is a console setting;
+  # this is WHO checks the answer. Rendered once `provider` or `siteKey` is set; unset = not
+  # configured (a flow that asks for the check then follows the captcha fail mode).
+  captcha:
+    provider: ""            # CAPTCHA_PROVIDER: turnstile | hcaptcha | recaptcha
+    siteKey: ""             # CAPTCHA_SITE_KEY (public)
+    # CAPTCHA_SECRET_KEY: a Vault reference, never a literal. Empty:
+    # vault:<jinbe.vaultPath>#CAPTCHA_SECRET_KEY (jinbe's own path, not the auth one).
+    secretKey: ""
+    # CAPTCHA_EXPECTED_HOSTNAMES (comma-separated). Empty: the auth domain (login-ui's host).
+    expectedHostnames: ""
+    verifyTimeoutMs: ""     # CAPTCHA_VERIFY_TIMEOUT_MS (jinbe default 3000)
+    recaptchaMinScore: ""   # CAPTCHA_RECAPTCHA_MIN_SCORE (reCAPTCHA v3, jinbe default 0.5)
+    allowTestKeys: ""       # CAPTCHA_ALLOW_TEST_KEYS: "true" lets provider test keys through
+
   # K8S config for m2m authentication
   k8s:
     enabled: false
@@ -1492,6 +1580,23 @@ backup:
     bucket: ""                  # Required when enabled=true
     prefix: "auth-backup"
     region: "eu-west-3"
+
+# =============================================================================
+# Sign-in protection (auth-guard) — gateway side
+# =============================================================================
+# The Kratos guard hooks live in kratos.kratos.config (registration: on; login: opt-in via
+# examples/kratos-guard-login-values.yaml — it makes jinbe a hard dependency of sign-in).
+kratosGuard:
+  # A second Ingress for <authDomain>/self-service with an ingress-nginx per-client rate
+  # limit (more specific than the Oathkeeper Ingress's `/`, same backend: the Oathkeeper
+  # proxy). Needs ingress-nginx to see the real client IP (use-forwarded-headers /
+  # proxy-protocol behind a load balancer), or every client shares one bucket.
+  selfServiceRateLimit:
+    enabled: false
+    rpm: 30                  # nginx.ingress.kubernetes.io/limit-rpm, per client IP
+    burstMultiplier: 5       # nginx.ingress.kubernetes.io/limit-burst-multiplier
+    className: ""            # empty: oathkeeper.ingress.proxy.className
+    tls: []                  # empty: the Oathkeeper proxy Ingress TLS entries covering the host
 
 # =============================================================================
 # Sites — plug a site from kuma (docs/SERVICE_PLUG.md). All OFF by default.

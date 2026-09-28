@@ -1,0 +1,44 @@
+{{- if and .Values.oathkeeper.enabled .Values.kratosGuard.selfServiceRateLimit.enabled }}
+{{- $rl := .Values.kratosGuard.selfServiceRateLimit }}
+{{- $proxy := .Values.oathkeeper.ingress.proxy }}
+{{- $host := include "auth.authDomain" . }}
+{{- $tls := $rl.tls }}
+{{- if not $tls }}{{- range $proxy.tls }}{{- if has $host (.hosts | default list) }}{{- $tls = append $tls (dict "hosts" (list $host) "secretName" .secretName) }}{{- end }}{{- end }}{{- end }}
+{{/*
+  Sign-in protection: <authDomain>/self-service (Kratos flows) behind an ingress-nginx
+  per-client rate limit. Same backend and annotations as the Oathkeeper proxy Ingress
+  (CORS, error pages), plus the limit; ingress-nginx merges it with that Ingress's `/`.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-selfservice-ratelimit
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kratos
+  annotations:
+    {{- with $proxy.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/limit-rpm: {{ $rl.rpm | quote }}
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: {{ $rl.burstMultiplier | quote }}
+spec:
+  {{- with ($rl.className | default $proxy.className) }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with $tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /self-service
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-oathkeeper-proxy
+                port:
+                  name: http
+{{- end }}

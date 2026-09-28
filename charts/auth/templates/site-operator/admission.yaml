@@ -2,7 +2,11 @@
 {{- $adm := .Values.siteOperator.admission }}
 {{- $ns := include "auth.sites.namespace" . }}
 {{- $operator := include "auth.sites.user" (dict "ctx" . "sa" (include "auth.siteOperator.fullname" .)) }}
-{{- $annotations := concat (keys .Values.siteOperator.ingressAnnotations) $adm.allowedIngressAnnotations | uniq | sortAlpha }}
+{{- $annotations := concat (keys .Values.siteOperator.ingressAnnotations) $adm.allowedIngressAnnotations }}
+{{- if .Values.kratosGuard.selfServiceRateLimit.enabled }}
+{{- $annotations = concat $annotations (list "nginx.ingress.kubernetes.io/limit-rpm" "nginx.ingress.kubernetes.io/limit-burst-multiplier") }}
+{{- end }}
+{{- $annotations = $annotations | uniq | sortAlpha }}
 # Parameters shared by every site ValidatingAdmissionPolicy; the same values feed the
 # operator flags (reserved hosts, upstream regexes, gateway Service).
 apiVersion: v1
