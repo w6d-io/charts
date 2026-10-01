@@ -176,6 +176,14 @@ kratos:
             allowed_origins:
               - https://auth.example.com
               - https://app.example.com
+      # Account enumeration: Kratos stops telling "no such account" apart where it can (the
+      # identifier-first step renders every method; no fast code send that would reveal the account).
+      # Kratos v26.2 still answers a code sign-in for an unknown address with "account does not exist":
+      # jinbe's sign-in gate (jinbe.signInGate) makes every such submit cost a solved bot check and
+      # counts it against the per-IP code limit.
+      security:
+        account_enumeration:
+          mitigate: true
       session:
         # Session extender: jinbe's whoami calls PATCH /admin/sessions/{id}/extend
         # (best-effort). earliest_possible_extend MUST be < lifespan so active users
@@ -356,6 +364,9 @@ kratos:
                         value: '{{ .Values.global.audit.webhook.secret }}'
           verification:
             enabled: true
+            # link, not code: jinbe mails verification links outside any flow the user holds
+            # (resend verification, admin email change); a mailed code would be unusable.
+            use: link
             # Audit webhook — emit an auth event to jinbe after each successful verification
             # (an address verified). Same url/method/response/auth as the other audit hooks; method = the
             # flow's active method (link/code).
