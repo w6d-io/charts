@@ -664,11 +664,27 @@ oathkeeper:
     initRetries: 30
     image: "curlimages/curl:8.11.1"
 
-  # Send the Hydra admin token on token introspection (needed once hydra.adminAuth is on). Reads
-  # Secret secretName (default <release>-admin-tokens) / secretKey — rendered by adminAuthSecret or
-  # created by hand (Oathkeeper's pod has no Vault annotations; see adminAuthSecret).
+  # Platform hosts on a Gateway API Gateway (templates/oathkeeper/route.yaml), the twin of
+  # ingress.proxy: hosts default to ingress.proxy.hosts[].host; cors is an HTTPRoute CORS filter
+  # (allowOrigins, allowMethods, allowHeaders, exposeHeaders, allowCredentials, maxAge).
+  edge:
+    httpRoute:
+      enabled: false
+      parentRefs: []
+      hosts: []
+      cors: {}
+      requestTimeout: ""    # e.g. 300s (long polls, SSE)
+
+  # Send the Hydra admin token on token introspection (needed once hydra.adminAuth is on).
+  #  - tokenRef: a vault: reference resolved by vault-env in the Oathkeeper pod (no Secret). Needs
+  #    deployment.podMetadata.annotations with the Bank-Vaults role annotations, a ServiceAccount
+  #    bound to that role (deployment.serviceAccount / oathkeeper.serviceAccount) and
+  #    deployment.automountServiceAccountToken: true.
+  #  - else Secret secretName (default <release>-admin-tokens) / secretKey, rendered by
+  #    adminAuthSecret (environments where the secrets webhook can resolve it).
   adminAuth:
     enabled: false
+    tokenRef: ""          # e.g. vault:infra/data/<env>#HYDRA_ADMIN_TOKEN
     secretName: ""
     secretKey: HYDRA_ADMIN_TOKEN
 
@@ -1143,10 +1159,8 @@ oathkeeper:
 # Roll out in this order: jinbe with the tokens (harmless before any sidecar) -> oathkeeper.adminAuth
 # -> kratos.adminAuth -> hydra.adminAuth.
 # The Secret route needs the Bank-Vaults webhook's own identity to be accepted by vaultRole; where it is
-# not (auth-dev), set kratos/hydra.adminAuth.token to the vault: reference (vault-env in those
-# Vault-annotated pods) and create the Secret Oathkeeper reads yourself, piped from Vault:
-#   vault kv get -field=HYDRA_ADMIN_TOKEN infra/<env> | tr -d '\n' | kubectl create secret generic \
-#     <release>-admin-tokens --from-file=HYDRA_ADMIN_TOKEN=/dev/stdin
+# not (auth-dev), leave this empty and use vault: references in the pods themselves:
+# kratos/hydra.adminAuth.token and oathkeeper.adminAuth.tokenRef.
 adminAuthSecret:
   name: ""                # default <release>-admin-tokens
   vaultRole: ""

@@ -119,11 +119,18 @@ otherwise the Secret `auth.adminAuth.secretName` / adminAuth.secretKey (default:
 {{/*
 Oathkeeper's oauth2_introspection calls Hydra's admin API: with oathkeeper.adminAuth.enabled it sends
 the Hydra admin token, through Oathkeeper's config-by-env override of introspection_request_headers
-(checked on oryd/oathkeeper:v25.4.0: merged over the file, introspection_url kept). $(HYDRA_ADMIN_TOKEN)
-is expanded by the kubelet from the env var above it. Disabled, the override is `{}` (the default).
+(checked on oryd/oathkeeper:v25.4.0: merged over the file, introspection_url kept).
+- adminAuth.tokenRef (a vault: reference): written inline as ${vault:…}, which vault-env resolves in
+  the Vault-annotated Oathkeeper pod — no Secret holds the token.
+- otherwise $(HYDRA_ADMIN_TOKEN), expanded by the kubelet from the Secret-backed env var above it.
+Disabled, the override is `{}` (the default).
 */}}
 {{- define "auth.adminAuth.introspectionHeaders" -}}
-{{- if (.Values.adminAuth | default dict).enabled -}}
+{{- $cfg := .Values.adminAuth | default dict -}}
+{{- if and $cfg.enabled $cfg.tokenRef -}}
+{{- if not (hasPrefix "vault:" $cfg.tokenRef) }}{{ fail "oathkeeper.adminAuth.tokenRef must be a vault: reference" }}{{ end -}}
+{{- printf "{\"Authorization\":\"Bearer ${%s}\"}" $cfg.tokenRef -}}
+{{- else if $cfg.enabled -}}
 {"Authorization":"Bearer $(HYDRA_ADMIN_TOKEN)"}
 {{- else -}}
 {}

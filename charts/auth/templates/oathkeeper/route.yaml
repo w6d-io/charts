@@ -1,0 +1,42 @@
+{{- if .Values.oathkeeper.enabled }}
+{{- with .Values.oathkeeper.edge.httpRoute }}
+{{- if .enabled }}
+{{/*
+  The platform hosts (auth, console, api…) on a Gateway API Gateway: everything to the Oathkeeper
+  proxy, which decides per rule. The Gateway API twin of oathkeeper.ingress.proxy (turn that off).
+*/}}
+{{- $hosts := .hosts }}
+{{- if not $hosts }}
+{{- range (($.Values.oathkeeper.ingress | default dict).proxy | default dict).hosts }}{{ $hosts = append $hosts .host }}{{ end }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ printf "%s-platform" (include "auth.fullname" $) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: platform-route
+spec:
+  parentRefs:
+    {{- required "oathkeeper.edge.httpRoute.parentRefs is required when enabled" .parentRefs | toYaml | nindent 4 }}
+  hostnames:
+    {{- required "oathkeeper.edge.httpRoute.hosts (or oathkeeper.ingress.proxy.hosts) is required" $hosts | toYaml | nindent 4 }}
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      {{- with .cors }}
+      filters:
+        - type: CORS
+          cors:
+            {{- toYaml . | nindent 12 }}
+      {{- end }}
+      backendRefs:
+        - name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
+          port: 4455
+      {{- with .requestTimeout }}
+      timeouts:
+        request: {{ . }}
+      {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
