@@ -1347,6 +1347,12 @@ opal:
       image: "curlimages/curl:8.10.1"
       maxAttempts: 120  # 120 * 2s = 4 minutes total wait
       bearerToken: ""  # jinbe's OPAL client token (vault: ref) — required once jinbe guards its OPAL routes
+      # curl writes nothing: read-only root, unlike the server container (default: server.containerSecurityContext)
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
 
   client:
     port: 7000

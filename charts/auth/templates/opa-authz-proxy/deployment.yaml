@@ -22,8 +22,10 @@ spec:
       {{- end }}
       # The proxy never calls the Kubernetes API.
       automountServiceAccountToken: false
+      # nobody: runAsNonRoot cannot verify a non-numeric image USER
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65534
         seccompProfile:
           type: RuntimeDefault
       containers:

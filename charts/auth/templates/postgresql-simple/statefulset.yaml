@@ -45,6 +45,7 @@ spec:
                 -addext subjectAltName=DNS:{{ .Release.Name }}-postgresql,DNS:{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc,DNS:{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local \
                 -keyout /tls/tls.key -out /tls/tls.crt 2>/dev/null
               chmod 600 /tls/tls.key
+              echo "pg-tls: self-signed certificate generated"
           env:
             - name: HOME
               value: /tmp
@@ -56,9 +57,9 @@ spec:
             requests: { cpu: 10m, memory: 16Mi }
             limits: { cpu: 200m, memory: 64Mi }
           volumeMounts:
-            - name: tls
+            - name: pg-tls
               mountPath: /tls
-            - name: tmp
+            - name: pg-tmp
               mountPath: /tmp
       {{- end }}
       containers:
@@ -114,17 +115,17 @@ spec:
             - name: data
               mountPath: /var/lib/postgresql/data
             # writable paths under the read-only root filesystem
-            - name: run
+            - name: pg-run
               mountPath: /var/run/postgresql
-            - name: tmp
+            - name: pg-tmp
               mountPath: /tmp
             {{- if .Values.postgresqlSimple.tls.enabled }}
-            - name: tls
+            - name: pg-tls
               mountPath: /tls
               readOnly: true
             {{- end }}
             {{- if .Values.postgresqlSimple.hba }}
-            - name: hba
+            - name: pg-hba
               mountPath: /etc/postgresql-hba
               readOnly: true
             {{- end }}
@@ -141,18 +142,18 @@ spec:
           resources:
             {{- toYaml .Values.postgresqlSimple.resources | nindent 12 }}
       volumes:
-        - name: run
+        - name: pg-run
           emptyDir: {}
-        - name: tmp
+        - name: pg-tmp
           emptyDir: {}
         {{- if .Values.postgresqlSimple.tls.enabled }}
-        - name: tls
+        - name: pg-tls
           emptyDir:
             medium: Memory
             sizeLimit: 1Mi
         {{- end }}
         {{- if .Values.postgresqlSimple.hba }}
-        - name: hba
+        - name: pg-hba
           configMap:
             name: {{ .Release.Name }}-postgresql-hba
         {{- end }}

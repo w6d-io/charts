@@ -208,7 +208,12 @@ Jinbe env for Sites and observability (runtime only).
   value: {{ . | quote }}
 {{- end }}
 - name: CAPTCHA_SECRET_KEY
-  value: {{ $cap.secretKey | default (printf "vault:%s#CAPTCHA_SECRET_KEY" (required "jinbe.captcha.secretKey or jinbe.vaultPath is required when the captcha is configured" .Values.jinbe.vaultPath)) | quote }}
+  {{- /* not `default`: its argument (the required) is evaluated even when secretKey is set */}}
+  {{- if $cap.secretKey }}
+  value: {{ $cap.secretKey | quote }}
+  {{- else }}
+  value: {{ printf "vault:%s#CAPTCHA_SECRET_KEY" (required "jinbe.captcha.secretKey or jinbe.vaultPath is required when the captcha is configured" .Values.jinbe.vaultPath) | quote }}
+  {{- end }}
 - name: CAPTCHA_EXPECTED_HOSTNAMES
   value: {{ $cap.expectedHostnames | default (include "auth.authDomain" .) | quote }}
 {{- range $name, $v := dict "CAPTCHA_VERIFY_TIMEOUT_MS" $cap.verifyTimeoutMs "CAPTCHA_RECAPTCHA_MIN_SCORE" $cap.recaptchaMinScore "CAPTCHA_ALLOW_TEST_KEYS" $cap.allowTestKeys }}
