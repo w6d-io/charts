@@ -1,0 +1,66 @@
+{{- if .Values.mcp.enabled }}
+{{/*
+  The MCP host reaches auth-mcp through Oathkeeper like every other host: jinbe's bootstrap writes
+  the rule `mcp` (noop/allow on /mcp and /.well-known/oauth-protected-resource[/mcp] only), and
+  auth-mcp checks the token itself. Only the edge attachment is here.
+
+  No error-page rewriting on this host: auth-mcp's 401 carries WWW-Authenticate: Bearer
+  resource_metadata=…, which is how an MCP client finds the authorization server. An nginx
+  custom-http-errors 401 would replace it.
+*/}}
+{{- with .Values.mcp.httpRoute }}
+{{- if .enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "auth.mcp.fullname" $ }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: mcp
+spec:
+  parentRefs:
+    {{- required "mcp.httpRoute.parentRefs is required when mcp.httpRoute.enabled" .parentRefs | toYaml | nindent 4 }}
+  hostnames:
+    - {{ include "auth.mcp.host" $ | quote }}
+  rules:
+    - backendRefs:
+        - name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
+          port: 4455
+---
+{{- end }}
+{{- end }}
+{{- with .Values.mcp.ingress }}
+{{- if .enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "auth.mcp.fullname" $ }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: mcp
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ include "auth.mcp.host" $ | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
+                port:
+                  number: 4455
+{{- end }}
+{{- end }}
+{{- end }}

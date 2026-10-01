@@ -1,0 +1,41 @@
+{{- if and .Values.mcp.enabled .Values.mcp.networkPolicy.enabled }}
+{{/*
+  In: Oathkeeper only (the edge). Out: jinbe and DNS only; auth-mcp has nothing else to call.
+  Kubelet probes come from the node and are not subject to pod NetworkPolicy.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "auth.mcp.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "auth.mcp.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: oathkeeper
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - { protocol: TCP, port: {{ .Values.mcp.service.port }} }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "auth.jinbe.selectorLabels" . | nindent 14 }}
+      ports:
+        - { protocol: TCP, port: 3000 }
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+{{- end }}

@@ -2054,6 +2054,62 @@ gatekit:
   tolerations: []
   affinity: {}
 
+# mcp — auth-mcp, the admin MCP server: people use the console from an AI client, as themselves
+# (a Hydra token narrowed to their permissions and one org). It holds no credential: its projected
+# ServiceAccount token (audience jinbe.k8s.audience) goes to jinbe beside the user's token, and jinbe
+# + OPA decide every call. Enabling it also sets on jinbe (every jinbe container):
+#   K8S_SA_AUTH_ENABLED=true (+ <namespace>:<serviceAccount> appended to jinbe.k8s.subjects when set),
+#   DELEGATED_TOKENS_ENABLED=true (the ceiling; MCP stays off until an administrator turns it on in
+#   Settings -> AI assistants), DELEGATED_TOKEN_AUDIENCE and MCP_PUBLIC_URL = https://<host><path>,
+#   DELEGATED_ACTOR_SUBJECTS=<namespace>:<serviceAccount>, MCP_UPSTREAM_URL = the Service below.
+# jinbe's bootstrap then writes the Oathkeeper rule `mcp` (pass-through on <path> and
+# /.well-known/oauth-protected-resource[<path>]); attach the host to the edge with httpRoute or ingress.
+mcp:
+  enabled: false
+  host: ""            # default mcp.<global.domain>; DNS + certificate must cover it
+  path: /mcp
+  # Advertised in the protected-resource metadata. Default: hydra.hydra.config.urls.self.issuer.
+  authorizationServer: ""
+  replicaCount: 2
+  image:
+    repository: ghcr.io/w6d-io/auth-mcp
+    tag: ""           # REQUIRED when enabled (no published release yet)
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    name: auth-mcp    # jinbe's DELEGATED_ACTOR_SUBJECTS names it
+  service:
+    port: 3100
+  readOnly: true      # write tools hidden and refused (MCP_READ_ONLY)
+  allowedOrigins: []  # browser Origins allowed to call /mcp; native clients send none
+  logLevel: info
+  extraEnv: {}        # NAME: value (e.g. RATE_READS_PER_MIN, KILL_SWITCH_FILE)
+  # jinbe verifies the actor token with TokenReview: bind jinbe's ServiceAccount to
+  # system:auth-delegator. false where another release already does.
+  tokenReviewBinding: true
+  networkPolicy:
+    enabled: true
+  # Gateway API attachment (to the Oathkeeper proxy Service), e.g.
+  #   parentRefs: [{kind: ListenerSet, name: zone-example, sectionName: https}]
+  httpRoute:
+    enabled: false
+    parentRefs: []
+  # nginx attachment. Keep custom-http-errors off this host (see templates/mcp/route.yaml).
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    tls: []
+  pdb:
+    enabled: true     # rendered only when replicaCount > 1
+    minAvailable: 1
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits:   { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # site-operator — reconciles Site/Zone CRs into maester Rules, Ingresses, Certificates.
 siteOperator:
   enabled: false

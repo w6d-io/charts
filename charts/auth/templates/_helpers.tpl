@@ -269,16 +269,18 @@ the deployer explicitly serves the jinbe API on its own domain. */}}
 - name: ADMIN_NAME
   value: {{ .Values.jinbe.env.ADMIN_NAME | quote }}
 {{- end }}
-{{- if .Values.jinbe.k8s.enabled }}
+{{- /* mcp.enabled needs ServiceAccount auth too: auth-mcp's actor token is verified by TokenReview */}}
+{{- if or .Values.jinbe.k8s.enabled .Values.mcp.enabled }}
 - name: K8S_SA_AUTH_ENABLED
-  value: {{.Values.jinbe.k8s.enabled | quote }}
+  value: "true"
 - name: K8S_SA_TOKEN_AUDIENCE
   value: {{ .Values.jinbe.k8s.audience }}
 - name: K8S_SA_EMAIL_DOMAIN
   value: {{ .Values.jinbe.k8s.email_domain }}
 - name: K8S_SA_ALLOWED_SUBJECTS
-  value: {{ .Values.jinbe.k8s.subjects }}
+  value: {{ include "auth.jinbe.k8sSubjects" . | quote }}
 {{- end }}
+{{- include "auth.mcp.jinbeEnv" . }}
 {{- range $name, $value := .Values.jinbe.extraEnv }}
 - name: {{ $name }}
   value: {{ $value | quote }}

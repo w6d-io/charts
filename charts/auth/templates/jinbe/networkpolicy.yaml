@@ -61,6 +61,12 @@ spec:
               app.kubernetes.io/component: admin-ui
               app.kubernetes.io/instance: {{ .Release.Name }}
         {{- end }}
+        # auth-mcp (token-info, key exchange, every tool call)
+        {{- if .Values.mcp.enabled }}
+        - podSelector:
+            matchLabels:
+              {{- include "auth.mcp.selectorLabels" . | nindent 14 }}
+        {{- end }}
         {{- with .Values.jinbe.networkPolicy.extraIngress }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
