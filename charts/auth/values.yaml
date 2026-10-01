@@ -1174,6 +1174,23 @@ hydra:
   maester:
     enabled: false
 
+  # Public edge for the issuer host (templates/hydra/route.yaml): Hydra's own public paths go to
+  # <release>-hydra-public:4444; jinbe's RFC 8414 metadata and /oauth2/register go through the
+  # Oathkeeper proxy (rule mcp-oauth-as). Everything else on the host is a 404.
+  # host: default the issuer's host. Gateway API (httpRoute) or nginx (ingress), as mcp. Not under
+  # hydra.ingress, which is the Ory chart's own (whole-port) ingress.
+  edge:
+    host: ""
+    httpRoute:
+      enabled: false
+      parentRefs: []
+      labels: {}          # e.g. what an admission policy on routes expects
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      tls: []
+
   # Token-checking sidecar in front of the Hydra admin API, as kratos.adminAuth: serve.admin.host
   # 127.0.0.1, nginx on the pod IP:4445 requiring `Authorization: Bearer <HYDRA_ADMIN_TOKEN>`. Callers:
   # jinbe (HYDRA_ADMIN_TOKEN) and Oathkeeper's oauth2_introspection (oathkeeper.adminAuth) — enable
@@ -1225,15 +1242,37 @@ hydra:
         admin:
           # 127.0.0.1 while hydra.adminAuth fronts the admin port, else "" (all interfaces).
           host: '{{ include "auth.adminAuth.bindHost" . }}'
+        cookies:
+          same_site_mode: Lax
+      # OAuth sign-in (MCP clients): the login and consent pages are login-ui's, backed by jinbe.
+      # Templated from global.authDomain / global.domain (tpl-rendered by the Ory chart).
       urls:
         self:
+          # Keep the trailing slash: the same string goes to auth-mcp, jinbe and login-ui
+          # (auth.oauth.issuer), and the render fails without it.
           issuer: ""
+        login: 'https://{{ include "auth.authDomain" . }}/oauth2/login'
+        consent: 'https://{{ include "auth.authDomain" . }}/oauth2/consent'
+        error: 'https://{{ include "auth.authDomain" . }}/error'
+        logout: 'https://{{ include "auth.authDomain" . }}/logout'
+        post_logout_redirect: 'https://{{ include "auth.authDomain" . }}/login'
       oauth2:
         expose_internal_errors: false
+        pkce:
+          enforced: true                 # every auth-code client; client_credentials unaffected
+        grant:
+          refresh_token:
+            rotation_grace_period: 10s   # parallel refreshes from one client don't trip reuse detection
+      oidc:
+        dynamic_client_registration:
+          enabled: false                 # jinbe's /oauth2/register is the only registration
       strategies:
         access_token: opaque
       ttl:
         access_token: 15m
+        refresh_token: 168h              # 7-day idle, sliding with rotation
+        login_consent_request: 15m
+        auth_code: 5m
       log:
         level: info
         format: json
@@ -1692,6 +1731,13 @@ kratosLoginUi:
   # Empty: http://<release>-jinbe:<port> whenever jinbe.enabled; set it for an external jinbe.
   jinbePublicUrl: ""
 
+  # HYDRA_PUBLIC_URL (OAuth sign-in pages). Empty: the OAuth issuer (auth.oauth.issuer) whenever
+  # mcp.enabled; set it to render it without mcp.
+  hydraPublicUrl: ""
+
+  # NAME: value, appended to the container env.
+  extraEnv: {}
+
   # NEXT_PUBLIC_SECOND_FACTOR_GATE. Unset (default) = on: after sign-in, users who must have a
   # second factor (per jinbe) and have none are sent to /two-step to enrol. "false" turns the
   # gate off (e.g. while rolling out 2FA).
@@ -1704,6 +1750,7 @@ kratosLoginUi:
   kratos:
     browserUrl: "https://auth.example.com"
     publicUrl: ""  # Auto: http://<release>-kratos-public:80
+    sessionCookie: ""  # KRATOS_SESSION_COOKIE: set with a non-default kratos session.cookie.name
 
   redirects:
     defaultReturnUrl: "https://app.example.com"
@@ -2060,8 +2107,14 @@ mcp:
   enabled: false
   host: ""            # default mcp.<global.domain>; DNS + certificate must cover it
   path: /mcp
-  # Advertised in the protected-resource metadata. Default: hydra.hydra.config.urls.self.issuer.
+  # The OAuth issuer (helper auth.oauth.issuer): auth-mcp HYDRA_ISSUER (protected-resource metadata),
+  # jinbe MCP_OAUTH_ISSUER and login-ui HYDRA_PUBLIC_URL. Default: hydra.hydra.config.urls.self.issuer.
+  # Must end with "/" like Hydra's `iss`.
   authorizationServer: ""
+  # OAuth sign-in from MCP clients (jinbe /oauth2/register and the consent pages).
+  oauth:
+    dcrRate: ""           # MCP_OAUTH_DCR_RATE, jinbe default 10/h/ip,200/d
+    providerCeiling: ""   # MCP_OAUTH_PROVIDER_CEILING, jinbe default 3000 calls/min per replica
   replicaCount: 2
   image:
     repository: ghcr.io/w6d-io/auth-mcp

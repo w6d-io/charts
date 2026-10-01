@@ -34,11 +34,6 @@ app.kubernetes.io/component: mcp
 {{- printf "http://%s:%d" (include "auth.mcp.fullname" .) (int .Values.mcp.service.port) -}}
 {{- end }}
 
-{{/* The authorization server advertised in the protected-resource metadata: Hydra's issuer. */}}
-{{- define "auth.mcp.issuer" -}}
-{{- .Values.mcp.authorizationServer | default .Values.hydra.hydra.config.urls.self.issuer | required "mcp.authorizationServer (or hydra.hydra.config.urls.self.issuer) is required when mcp.enabled" -}}
-{{- end }}
-
 {{/*
 jinbe's ServiceAccount allow-list: jinbe.k8s.subjects, plus auth-mcp when mcp is on. With
 jinbe.k8s.enabled and no subjects (no filter) it stays empty: adding auth-mcp would narrow it.
@@ -54,7 +49,8 @@ jinbe.k8s.enabled and no subjects (no filter) it stays empty: adding auth-mcp wo
 {{/*
 jinbe env with mcp on (main container, bootstrap init container and Job): delegated tokens for the
 MCP audience from the auth-mcp actor, the address kuma shows (MCP_PUBLIC_URL, until an administrator
-saves another), and bootstrap's Oathkeeper rule `mcp` to the in-chart Service (MCP_UPSTREAM_URL).
+saves another), bootstrap's Oathkeeper rule `mcp` to the in-chart Service (MCP_UPSTREAM_URL), and the
+OAuth sign-in (MCP_OAUTH_*: bootstrap emits the rule `mcp-oauth-as` on the issuer host).
 DELEGATED_TOKENS_ENABLED is only the ceiling: MCP stays off until an administrator turns it on.
 */}}
 {{- define "auth.mcp.jinbeEnv" -}}
@@ -69,5 +65,16 @@ DELEGATED_TOKENS_ENABLED is only the ceiling: MCP stays off until an administrat
   value: {{ include "auth.mcp.publicUrl" . | quote }}
 - name: MCP_UPSTREAM_URL
   value: {{ include "auth.mcp.upstreamUrl" . | quote }}
+{{- /* RFC 8414 metadata jinbe serves on the issuer host: its `issuer` must equal auth-mcp's HYDRA_ISSUER */}}
+- name: MCP_OAUTH_ISSUER
+  value: {{ include "auth.oauth.issuer" . | quote }}
+{{- with .Values.mcp.oauth.dcrRate }}
+- name: MCP_OAUTH_DCR_RATE
+  value: {{ . | quote }}
+{{- end }}
+{{- with .Values.mcp.oauth.providerCeiling }}
+- name: MCP_OAUTH_PROVIDER_CEILING
+  value: {{ . | quote }}
+{{- end }}
 {{- end }}
 {{- end }}

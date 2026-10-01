@@ -430,3 +430,37 @@ init container when adminUi.readOnlyRootFilesystem is on).
   value: {{ $value | quote }}
 {{- end }}
 {{- end }}
+
+{{/*
+The OAuth issuer: Hydra's urls.self.issuer, byte for byte, in every place that names it — auth-mcp
+HYDRA_ISSUER (its protected-resource metadata), jinbe MCP_OAUTH_ISSUER (the RFC 8414 document) and
+login-ui HYDRA_PUBLIC_URL. mcp.authorizationServer overrides it. Hydra issues `iss` with the trailing
+slash, so one without it is refused here rather than at the first token.
+*/}}
+{{- define "auth.oauth.issuer" -}}
+{{- $issuer := .Values.mcp.authorizationServer | default (tpl (toString .Values.hydra.hydra.config.urls.self.issuer) .) -}}
+{{- $issuer = required "hydra.hydra.config.urls.self.issuer (or mcp.authorizationServer) is required" $issuer -}}
+{{- if not (hasSuffix "/" $issuer) -}}
+{{- fail (printf "the OAuth issuer %q must end with / (Hydra's iss keeps the slash)" $issuer) -}}
+{{- end -}}
+{{- $issuer -}}
+{{- end }}
+
+{{/*
+Annotations for every cluster-scoped object the chart renders (ClusterRole, ClusterRoleBinding,
+ValidatingAdmissionPolicy[Binding], Zone, CRD): clusterResources.annotations, as a dict merged into
+the object's own (the object's win; Argo sync-options are joined). E.g. argocd.argoproj.io/sync-options: Prune=false,Delete=false.
+*/}}
+{{- define "auth.clusterResources.annotations" -}}
+{{- $own := .own | default dict -}}
+{{- $common := .ctx.Values.clusterResources.annotations | default dict -}}
+{{- $all := merge (deepCopy $own) $common -}}
+{{- $k := "argocd.argoproj.io/sync-options" -}}
+{{- if and (hasKey $own $k) (hasKey $common $k) -}}
+{{- $_ := set $all $k (printf "%s,%s" (index $own $k) (index $common $k)) -}}
+{{- end -}}
+{{- with $all }}
+annotations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

@@ -62,7 +62,7 @@ spec:
             - name: MCP_RESOURCE
               value: {{ include "auth.mcp.publicUrl" . | quote }}
             - name: HYDRA_ISSUER
-              value: {{ include "auth.mcp.issuer" . | quote }}
+              value: {{ include "auth.oauth.issuer" . | quote }}
             - name: TOKEN_VERIFIER
               value: jinbe
             - name: JINBE_URL

@@ -65,6 +65,17 @@ spec:
             - name: JINBE_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.jinbePublicUrl | default (printf "http://%s:%v" (include "auth.jinbe.fullname" .) .Values.jinbe.service.port) | quote }}
             {{- end }}
+            {{- with .Values.kratosLoginUi.kratos.sessionCookie }}
+            # the Kratos session cookie name, when kratos session.cookie.name is not the default
+            - name: KRATOS_SESSION_COOKIE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if or .Values.kratosLoginUi.hydraPublicUrl .Values.mcp.enabled }}
+            # OAuth sign-in (/oauth2/login|consent): Hydra's origin for the redirect allow-list; the
+            # same issuer string as jinbe MCP_OAUTH_ISSUER and auth-mcp HYDRA_ISSUER
+            - name: HYDRA_PUBLIC_URL
+              value: {{ .Values.kratosLoginUi.hydraPublicUrl | default (include "auth.oauth.issuer" .) | quote }}
+            {{- end }}
             {{- $gate := toString .Values.kratosLoginUi.secondFactorGate }}
             {{- if not (has $gate (list "" "<nil>")) }}
             # "false" turns the /two-step second-factor gate off (unset = on)
@@ -95,6 +106,10 @@ spec:
             {{- if .Values.kratosLoginUi.footer.links }}
             - name: NEXT_PUBLIC_FOOTER_LINKS
               value: {{ .Values.kratosLoginUi.footer.links | toJson | quote }}
+            {{- end }}
+            {{- range $name, $value := .Values.kratosLoginUi.extraEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
             {{- end }}
           livenessProbe:
             {{- toYaml .Values.kratosLoginUi.livenessProbe | nindent 12 }}
