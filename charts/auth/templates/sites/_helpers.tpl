@@ -216,7 +216,7 @@ Jinbe env for Sites and observability (runtime only).
 {{- end }}
 {{- end }}
 {{- $o := .Values.jinbe.observability | default dict }}
-{{- range $name, $v := dict "LOKI_URL" $o.lokiUrl "LOKI_NAMESPACE" $o.lokiNamespace "LOKI_AUDIT_SELECTOR" $o.lokiAuditSelector "TEMPO_URL" $o.tempoUrl "GRAFANA_URL" $o.grafanaUrl "GRAFANA_LOKI_DATASOURCE_UID" $o.grafanaLokiDatasourceUid "GRAFANA_TEMPO_DATASOURCE_UID" $o.grafanaTempoDatasourceUid }}
+{{- range $name, $v := dict "LOKI_URL" $o.lokiUrl "LOKI_NAMESPACE" $o.lokiNamespace "LOKI_AUDIT_SELECTOR" $o.lokiAuditSelector "GRAFANA_URL" $o.grafanaUrl }}
 {{- with $v }}
 - name: {{ $name }}
   value: {{ . | quote }}

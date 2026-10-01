@@ -305,8 +305,6 @@ log per burst) */}}
 - name: OPAL_SERVER_URL
   value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
 {{- end }}
-- name: OPA_DATA_URL
-  value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
 - name: OPA_AUTHZ_REMOTE
   value: {{ .Values.jinbe.env.OPA_AUTHZ_REMOTE | default (printf "http://%s:%s/v1/data/rbac/allow" (include "auth.opaAuthzProxy.fullname" .) (.Values.opaAuthzProxy.service.port | toString)) | quote }}
 - name: SERVICE_DEFAULT_NAMESPACE
@@ -327,22 +325,6 @@ log per burst) */}}
 # override jinbe.env.KRATOS_WEBHOOK_SECRET and the Kratos hooks together.
 - name: KRATOS_WEBHOOK_SECRET
   value: {{ .Values.jinbe.env.KRATOS_WEBHOOK_SECRET | default "vault:secret/data/auth#KRATOS_WEBHOOK_SECRET" | quote }}
-{{- if .Values.jinbe.env.DATABASE_URL }}
-- name: DATABASE_URL
-  value: {{ .Values.jinbe.env.DATABASE_URL | quote }}
-{{- end }}
-{{- if .Values.jinbe.env.BACKUP_IMAGE_MONGO }}
-- name: BACKUP_IMAGE_MONGO
-  value: {{ .Values.jinbe.env.BACKUP_IMAGE_MONGO | quote }}
-{{- end }}
-{{- if .Values.jinbe.env.BACKUP_IMAGE_POSTGRES }}
-- name: BACKUP_IMAGE_POSTGRES
-  value: {{ .Values.jinbe.env.BACKUP_IMAGE_POSTGRES | quote }}
-{{- end }}
-{{- if .Values.jinbe.env.BACKUP_GCP_PROJECT_ID }}
-- name: BACKUP_GCP_PROJECT_ID
-  value: {{ .Values.jinbe.env.BACKUP_GCP_PROJECT_ID | quote }}
-{{- end }}
 {{- end }}
 
 {{/*

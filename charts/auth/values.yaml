@@ -1370,7 +1370,6 @@ jinbe:
     # OPA_URL: auto-computed as http://<release>-opal-client:8181
     # OPAL_SERVER_URL: auto-computed as http://<release>-opal-server:7002
     # JINBE_INTERNAL_URL: auto-computed as http://<release>-jinbe:8080
-    # OPA_DATA_URL: auto-computed as http://<release>-opal-client:8181
     # OPA_AUTHZ_REMOTE: auto-computed as http://<release>-opa-authz-proxy:<port>/v1/data/rbac/allow
     # SERVICE_DEFAULT_NAMESPACE: auto-computed as .Release.Namespace
     # SERVICE_DEFAULT_DOMAIN: auto-computed as the chart's app domain (global.appDomain or app.<global.domain>)
@@ -1378,13 +1377,9 @@ jinbe:
     # CORS_ORIGIN: auto-computed from global.appDomain and global.authDomain
     # ENABLE_SWAGGER: "false"
     # LOG_LEVEL: info
-    # DATABASE_URL: set if Jinbe needs a database
     # ADMIN_EMAIL: auto-created on first boot with super_admin access
     # ADMIN_PASSWORD: password for default admin (default: changeme123!)
     # ADMIN_NAME: display name for default admin
-    # BACKUP_IMAGE_MONGO / BACKUP_IMAGE_POSTGRES: private-registry images
-    #   for the /backups feature. Unset = backups disabled.
-    # BACKUP_GCP_PROJECT_ID: GCP project ID injected into backup job env
     # REDIS_AUDIT_MAXLEN: cap for the audit event stream (Redis XADD MAXLEN ~).
     #   Default 100000. Bounds retention of the audit log (Redis-only store).
     # KRATOS_WEBHOOK_SECRET: shared secret authenticating the Kratos auth-event
@@ -1419,15 +1414,12 @@ jinbe:
     resourceAttributes: ""
 
   # Observability backends jinbe queries server-side for kuma (audit tab from Loki, ops logs,
-  # trace links, Grafana deep links). Every key unset by default = feature off.
+  # Grafana deep links). Every key unset by default = feature off.
   observability:
     lokiUrl: ""                   # LOKI_URL, e.g. http://loki-gateway.loki
     lokiNamespace: ""             # LOKI_NAMESPACE: namespace label to scope ops-log queries
     lokiAuditSelector: ""         # LOKI_AUDIT_SELECTOR: json (jinbe default) | label
-    tempoUrl: ""                  # TEMPO_URL, e.g. http://tempo.tempo:3200
     grafanaUrl: ""                # GRAFANA_URL (browser links)
-    grafanaLokiDatasourceUid: ""  # GRAFANA_LOKI_DATASOURCE_UID (jinbe default: loki)
-    grafanaTempoDatasourceUid: "" # GRAFANA_TEMPO_DATASOURCE_UID (jinbe default: tempo)
 
   # Vault KV path jinbe's Vault role reads (e.g. infra/data/jinbe-dev), used to build default
   # secret references such as captcha.secretKey. Empty: those secrets must be set explicitly.

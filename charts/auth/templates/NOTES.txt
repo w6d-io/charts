@@ -13,12 +13,14 @@ Components:
   - Admin UI (Kuma):       http://{{ include "auth.fullname" . }}-admin-ui:{{ .Values.adminUi.service.port }}
 {{- end }}
 
-Endpoints:
-  - RBAC Admin API:     https://{{ include "auth.appDomain" . }}/api/admin/rbac/
-  - OPA Bundle:         http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}/api/opa/bundle
-  - Oathkeeper Rules:   http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}/api/oathkeeper/rules
-  - Permission Sim:     POST /api/admin/rbac/simulate
-  - Audit Events:       GET /api/admin/audit/events
+Endpoints (full API: jinbe's OpenAPI at /api/docs when jinbe.env.ENABLE_SWAGGER is "true"):
+  - Health:             GET http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}/api/health
+  - Oathkeeper rules:   GET http://{{ include "auth.jinbe.fullname" . }}:{{ .Values.jinbe.service.port }}/api/oathkeeper/rules (rules-sync feed)
+  - RBAC admin API:     https://{{ include "auth.appDomain" . }}/api/admin/rbac/
+  - Audit events:       GET /api/audit/events
+{{- if .Values.mcp.enabled }}
+  - MCP server:         {{ include "auth.mcp.publicUrl" . }} (OAuth issuer {{ include "auth.oauth.issuer" . }})
+{{- end }}
 
 First visit: Register at https://{{ include "auth.authDomain" . }}/auth/registration
 First user gets super_admin access automatically.

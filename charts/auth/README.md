@@ -17,7 +17,7 @@ Browser → Oathkeeper (gateway) → Kratos (session) → OPA (policy) → Your 
 
 | Component | Description | Default |
 |-----------|-------------|---------|
-| **Jinbe** | RBAC control plane — admin API, OPA bundles, Oathkeeper rules | enabled |
+| **Jinbe** | RBAC control plane — admin API, OPAL data source, Oathkeeper rules | enabled |
 | **Redis** | RBAC data store + audit event streams | enabled |
 | **Kratos** | Ory Identity Management (sessions, OIDC, MFA) | enabled |
 | **Oathkeeper** | Ory API Gateway (routes, auth, authorization) | enabled |
@@ -102,22 +102,17 @@ Wildcard `*` grants all permissions.
 
 ## Jinbe API Endpoints
 
+The full, current list is jinbe's OpenAPI document (`/api/docs` with `jinbe.env.ENABLE_SWAGGER: "true"`).
+The ones the stack itself depends on:
+
 | Endpoint | Auth | Description |
 |----------|------|-------------|
-| `GET /api/health` | Public | Health check (includes Redis status) |
-| `GET /api/opa/bundle` | Public | OPA policy bundle (tar.gz) |
-| `GET /api/oathkeeper/rules` | Public | Oathkeeper access rules (JSON) |
-| `GET /api/admin/rbac/groups` | Admin | List groups |
-| `POST /api/admin/rbac/groups` | Admin | Create group |
-| `PUT /api/admin/rbac/groups/:name` | Admin | Update group |
-| `DELETE /api/admin/rbac/groups/:name` | Admin | Delete group |
-| `GET /api/admin/rbac/services` | Admin | List services |
-| `POST /api/admin/rbac/services` | Admin | Create service (auto-generates roles, routes, rules) |
-| `DELETE /api/admin/rbac/services/:name` | Admin | Delete service |
-| `GET /api/admin/rbac/access-rules` | Admin | List Oathkeeper rules |
-| `POST /api/admin/rbac/simulate` | Admin | Permission simulator |
-| `GET /api/admin/audit/events` | Admin | Audit event log |
-| `GET /api/admin/rbac/users` | Admin | Users with group matrix |
+| `GET /api/health` | Public | Health check (probes) |
+| `GET /api/oathkeeper/rules` | In-cluster | Oathkeeper access rules (rules-sync feed) |
+| `GET /api/admin/rbac/opal-datasource` | OPAL token | RBAC data for OPAL |
+| `GET /api/admin/rbac/groups` | Admin | Groups |
+| `GET /api/admin/rbac/users` | Admin | Users with their groups |
+| `GET /api/audit/events` | `audit:read` | Audit events (audit/v1) |
 
 ## Data Flow
 
