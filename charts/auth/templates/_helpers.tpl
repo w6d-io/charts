@@ -218,6 +218,18 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.REDIS_URL | default (printf "redis://%s%s-redis-master:6379" (ternary ":$(REDIS_PASSWORD)@" "" (ne $redisPass "")) .Release.Name) | quote }}
 - name: KRATOS_PUBLIC_URL
   value: {{ .Values.jinbe.env.KRATOS_PUBLIC_URL | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
+{{- /* Sign-in gate: the bootstrap (init container, Job) emits the Oathkeeper rules that send
+     self-service POSTs through jinbe, so it needs this as much as the server does. */}}
+{{- $gate := .Values.jinbe.signInGate | default dict }}
+- name: SIGN_IN_GATE_ENABLED
+  value: {{ ternary "true" "false" (eq (toString $gate.enabled) "true") | quote }}
+{{- range $name, $v := dict "SIGN_IN_GATE_CODES_PER_ADDRESS" $gate.codesPerAddress "SIGN_IN_GATE_CODES_PER_IP" $gate.codesPerIp "SIGN_IN_GATE_WINDOW_S" $gate.windowSeconds "SIGN_IN_GATE_VERIFIED_TTL_S" $gate.verifiedTtlSeconds }}
+{{- $s := toString $v }}
+{{- if not (has $s (list "" "<nil>")) }}
+- name: {{ $name }}
+  value: {{ $s | quote }}
+{{- end }}
+{{- end }}
 - name: KRATOS_ADMIN_URL
   value: {{ .Values.jinbe.env.KRATOS_ADMIN_URL | default (printf "http://%s-kratos-admin:80" .Release.Name) | quote }}
 - name: JINBE_INTERNAL_URL

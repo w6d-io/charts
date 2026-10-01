@@ -1453,6 +1453,20 @@ jinbe:
     recaptchaMinScore: ""   # CAPTCHA_RECAPTCHA_MIN_SCORE (reCAPTCHA v3, jinbe default 0.5)
     allowTestKeys: ""       # CAPTCHA_ALLOW_TEST_KEYS: "true" lets provider test keys through
 
+  # Sign-in gate (jinbe sign-in-protection/gate.ts). Kratos looks an address up and emails a code the
+  # moment it is submitted, before any hook runs; enabled, jinbe's bootstrap routes POST
+  # /self-service/{login,registration,recovery,verification,settings} on the auth domain through
+  # jinbe, which requires the bot-check token (X-Captcha-Token, sent by login-ui) on every submit of a
+  # checked flow, and applies the code limits, before Kratos. The bot check is on for every flow once
+  # jinbe.captcha is configured (console toggles still switch flows off). Deploy the login-ui that
+  # sends the header BEFORE enabling this.
+  signInGate:
+    enabled: false
+    codesPerAddress: ""     # SIGN_IN_GATE_CODES_PER_ADDRESS (jinbe default 5 per window)
+    codesPerIp: ""          # SIGN_IN_GATE_CODES_PER_IP (jinbe default 20 per window)
+    windowSeconds: ""       # SIGN_IN_GATE_WINDOW_S (jinbe default 900)
+    verifiedTtlSeconds: ""  # SIGN_IN_GATE_VERIFIED_TTL_S (jinbe default 300)
+
   # K8S config for m2m authentication
   k8s:
     enabled: false
