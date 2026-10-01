@@ -26,6 +26,13 @@ data:
   allowedIngressAnnotations: {{ join "," $annotations | quote }}
   allowedDefaultBackend: {{ $adm.allowedDefaultBackend | quote }}
   allowedIngressAnnotationPrefixes: {{ join "," $adm.allowedIngressAnnotationPrefixes | quote }}
+  {{- if .Values.siteOperator.gatewayApi.enabled }}
+  allowedGateways: {{ join "," .Values.siteOperator.gatewayApi.gateways | quote }}
+  {{- end }}
+  {{- with (include "auth.hydra.edgeRouteParams" .) }}
+  # the OAuth issuer host's public route (hydra.edge): the one route that may reach Hydra
+  {{- . | nindent 2 }}
+  {{- end }}
   allowedUpstream: {{ .Values.siteOperator.allowedUpstream | quote }}
   deniedUpstream: {{ .Values.siteOperator.deniedUpstream | quote }}
   ruleWriters: {{ prepend $adm.ruleWriters $operator | join "," | quote }}
@@ -44,16 +51,22 @@ data:
   {{- end }}
 {{- $files := list "site_policy.yaml" "hosts_policy.yaml" "ingress_policy.yaml" "rule_policy.yaml" }}
 {{- if .Values.siteOperator.gateway.enabled }}{{ $files = append $files "gateway_policy.yaml" }}{{ end }}
+{{- if .Values.siteOperator.gatewayApi.enabled }}{{ $files = append $files "route_policy.yaml" }}{{ end }}
 {{- range $file := $files }}
 {{- range $doc := splitList "\n---\n" ($.Files.Get (printf "files/admission/%s" $file)) }}
 {{- $obj := fromYaml $doc }}
 {{- if $obj.kind }}
 {{- $name := include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.metadata.name) }}
 {{- $_ := set $obj "metadata" (dict "name" $name "labels" (include "auth.labels" $ | fromYaml)) }}
+{{- with (include "auth.clusterResources.annotations" (dict "ctx" $) | fromYaml).annotations }}
+{{- $_ := set $obj.metadata "annotations" . }}
+{{- end }}
 {{- if eq $obj.kind "ValidatingAdmissionPolicyBinding" }}
 {{- $_ := set $obj.spec "policyName" (include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.spec.policyName)) }}
+{{- if $obj.spec.paramRef }}
 {{- $param := ternary (include "auth.siteOperator.zonesConfigMap" $) (include "auth.siteOperator.policyConfigMap" $) (eq $obj.spec.paramRef.name "site-operator-zones") }}
 {{- $_ := set $obj.spec "paramRef" (dict "name" $param "namespace" $ns "parameterNotFoundAction" "Deny") }}
+{{- end }}
 {{- $_ := set $obj.spec "matchResources" (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" $ns))) }}
 {{- end }}
 ---

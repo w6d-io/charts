@@ -21,6 +21,9 @@ spec:
     - jsonPath: .spec.ingress
       name: Ingress
       type: string
+    - jsonPath: .spec.gateway.name
+      name: Gateway
+      type: string
     - jsonPath: .spec.tls.mode
       name: TLS
       type: string
@@ -56,7 +59,9 @@ spec:
           spec:
             description: |-
               ZoneSpec is an admin-defined wildcard domain: any Site host that is one label
-              under Domain is served by the Zone's single wildcard Ingress.
+              under Domain is served by the Zone's entry points: an Ingress (wildcard or per
+              site) and/or a Gateway API Gateway (one HTTPRoute per host). Both at once is
+              the migration state: add the gateway, move DNS, then set ingress none.
             properties:
               domain:
                 description: Domain without the leading "*.", e.g. dev.example.com.
@@ -65,14 +70,36 @@ spec:
                 x-kubernetes-validations:
                 - message: domain is immutable; create another Zone
                   rule: self == oldSelf
+              gateway:
+                description: Gateway attaches every Site host of the Zone to a Gateway
+                  API Gateway.
+                properties:
+                  name:
+                    pattern: ^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$
+                    type: string
+                  namespace:
+                    pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+                    type: string
+                  sectionName:
+                    description: |-
+                      SectionName pins the listener (tls mode default); empty lets the Gateway
+                      pick the HTTPS listener whose hostname covers the Zone.
+                    pattern: ^[a-z0-9]([a-z0-9-]{0,251}[a-z0-9])?$
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
               ingress:
                 default: wildcard
                 description: |-
-                  Ingress is wildcard (default: one *.<domain> Ingress) or per-site (one
-                  exact-host Ingress per Site, for a domain other Ingresses already use).
+                  Ingress is wildcard (default: one *.<domain> Ingress), per-site (one
+                  exact-host Ingress per Site, for a domain other Ingresses already use) or
+                  none (the gateway alone serves the Zone).
                 enum:
                 - wildcard
                 - per-site
+                - none
                 type: string
               ingressClass:
                 description: IngressClass must be one the operator allows; empty uses
@@ -108,6 +135,9 @@ spec:
             required:
             - domain
             type: object
+            x-kubernetes-validations:
+            - message: 'ingress none needs a gateway: a zone needs an entry point'
+              rule: '!has(self.ingress) || self.ingress != ''none'' || has(self.gateway)'
           status:
             description: ZoneStatus is written by the operator only.
             properties:

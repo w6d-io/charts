@@ -43,6 +43,12 @@ rules:
   - apiGroups: [networking.k8s.io]
     resources: [ingresses]
     verbs: [get, list, watch, create, update, patch, delete]
+  {{- if .Values.siteOperator.gatewayApi.enabled }}
+  # Gateway API zones: one HTTPRoute per host, the zone ListenerSet (routes admission limits both)
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes, listenersets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  {{- end }}
   {{- if .Values.siteOperator.enableCertificates }}
   - apiGroups: [cert-manager.io]
     resources: [certificates]
@@ -101,6 +107,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
   labels:
     {{- include "auth.labels" . | nindent 4 }}
     app.kubernetes.io/component: site-operator
@@ -117,6 +124,12 @@ rules:
   - apiGroups: [networking.k8s.io]
     resources: [ingresses]
     verbs: [get, list, watch]
+  {{- if .Values.siteOperator.gatewayApi.enabled }}
+  # HostTaken on Gateway API hosts, and the Gateways zones attach to (read-only)
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [gateways, httproutes, listenersets]
+    verbs: [get, list, watch]
+  {{- end }}
   - apiGroups: ["", events.k8s.io]
     resources: [events]
     verbs: [create, patch]
@@ -125,6 +138,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
   labels:
     {{- include "auth.labels" . | nindent 4 }}
     app.kubernetes.io/component: site-operator

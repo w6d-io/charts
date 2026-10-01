@@ -2155,6 +2155,14 @@ mcp:
   tolerations: []
   affinity: {}
 
+# Annotations added to every cluster-scoped object the chart renders (ClusterRoles,
+# ClusterRoleBindings, ValidatingAdmissionPolicies and bindings, Zones, CRDs). Names already carry
+# <namespace>-, so releases never collide. Under Argo CD, e.g.
+#   argocd.argoproj.io/sync-options: Prune=false,Delete=false
+# keeps them when the app is pruned or deleted.
+clusterResources:
+  annotations: {}
+
 # site-operator — reconciles Site/Zone CRs into maester Rules, Ingresses, Certificates.
 siteOperator:
   enabled: false
@@ -2165,6 +2173,9 @@ siteOperator:
     pullPolicy: IfNotPresent
   # Ship the Site and Zone CRDs (auth.w6d.io). Set false where another release owns them.
   installCRDs: true
+  # Render sites.zones as Zone objects (cluster-scoped). false: Zones are managed elsewhere (e.g. a
+  # GitOps manifest); sites.zones still feeds jinbe's SITES_ZONES.
+  installZones: true
   # Gateway settings CRD (gateways.auth.w6d.io) + operator RBAC on it. files/crds holds a
   # SNAPSHOT of site-operator's in-progress CRD (wave4/op3, uncommitted 2026-09-26): re-copy
   # once it lands. jinbe's Gateway RBAC comes with sites.enabled regardless.
@@ -2186,6 +2197,13 @@ siteOperator:
   # refuses secret-looking keys.
   gateway:
     enabled: false
+  # Zones on a Gateway API Gateway (site-operator >= 0d0cc6b): one HTTPRoute per host on the zone's
+  # ListenerSet, routes admission (files/admission/route_policy.yaml). gateways: namespace/name of
+  # the Gateways routes and ListenerSets may attach to (their policies run the WAF and CrowdSec).
+  gatewayApi:
+    enabled: false
+    gateways: []                          # e.g. [envoy-gateway-system/eg]
+    routeRequestTimeout: ""               # --route-request-timeout, e.g. 300s
   ingressClasses: [nginx]                 # first is the default
   # stamped on every Ingress the operator writes (must stay in the admission allow-list)
   ingressAnnotations:

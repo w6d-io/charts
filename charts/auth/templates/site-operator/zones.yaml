@@ -1,4 +1,4 @@
-{{- if .Values.siteOperator.enabled }}
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.installZones }}
 {{- range .Values.sites.zones }}
 ---
 # Admin-defined wildcard zone: one wildcard Ingress (+ certificate) for every site one
@@ -9,11 +9,17 @@ metadata:
   name: {{ required "sites.zones[].name is required" .name }}
   labels:
     {{- include "auth.labels" $ | nindent 4 }}
-  annotations:
-    # the Zone CRD ships in this release: let Argo CD skip the dry run on first sync
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  # the Zone CRD may ship in this release: Argo CD skips the dry run on first sync
+  {{- include "auth.clusterResources.annotations" (dict "ctx" $ "own" (dict "argocd.argoproj.io/sync-options" "SkipDryRunOnMissingResource=true")) | trim | nindent 2 }}
 spec:
   domain: {{ required "sites.zones[].domain is required" .domain | quote }}
+  {{- with .gateway }}
+  gateway:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .ingress }}
+  ingress: {{ . | quote }}
+  {{- end }}
   {{- with .ingressClass }}
   ingressClass: {{ . | quote }}
   {{- end }}

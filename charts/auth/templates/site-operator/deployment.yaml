@@ -71,6 +71,16 @@ spec:
             # op3+ binary: empty = no Gateway controller (its default would target auth-oathkeeper)
             - --gateway-deployment=
             {{- end }}
+            {{- with .Values.siteOperator.gatewayApi }}
+            {{- if .enabled }}
+            - --enable-gateway-api=true
+            - --gateways={{ required "siteOperator.gatewayApi.gateways is required" .gateways | join "," }}
+            - --gateway-service-port-number=4455
+            {{- with .routeRequestTimeout }}
+            - --route-request-timeout={{ . }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- range .Values.siteOperator.extraArgs }}
             - {{ . }}
             {{- end }}

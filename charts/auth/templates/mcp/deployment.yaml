@@ -154,6 +154,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ printf "%s-%s-token-review" .Release.Namespace (include "auth.jinbe.fullname" .) | trunc 63 | trimSuffix "-" }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
   labels:
     {{- include "auth.labels" . | nindent 4 }}
     app.kubernetes.io/component: mcp

@@ -8,6 +8,10 @@
 #   host-<hash8> (per-site Zone, shared by the Sites on one host) serves exactly
 #   the one host of its auth.w6d.io/host annotation, is owned only by Sites (none
 #   the controller) and uses only a Zone's TLS Secret.
+# - HTTPRoutes the operator writes (Zone with a gateway): host-<hash8>, the same
+#   rules as a host Ingress (one host under a Zone, its annotation, Site owners).
+# - ListenerSets the operator writes: zone-<name>, only the wildcard of a Zone
+#   domain, with a Zone's TLS Secret.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -25,6 +29,10 @@ spec:
       apiVersions: [v1]
       operations: [CREATE, UPDATE]
       resources: [ingresses]
+    - apiGroups: [gateway.networking.k8s.io]
+      apiVersions: ["*"]
+      operations: [CREATE, UPDATE]
+      resources: [httproutes, listenersets]
   variables:
   - name: domains
     expression: "(has(params.data) && 'domains' in params.data ? params.data.domains : '').split(',').map(s, s.trim()).filter(s, s != '')"
@@ -32,6 +40,12 @@ spec:
     expression: "(has(params.data) && 'secrets' in params.data ? params.data.secrets : '').split(',').map(s, s.trim()).filter(s, s != '')"
   - name: isSite
     expression: request.resource.resource == 'sites'
+  - name: isIngress
+    expression: request.resource.resource == 'ingresses'
+  - name: isRoute
+    expression: request.resource.resource == 'httproutes'
+  - name: isListenerSet
+    expression: request.resource.resource == 'listenersets'
   - name: labels
     expression: "has(object.metadata.labels) ? object.metadata.labels : {}"
   - name: managed
@@ -40,6 +54,8 @@ spec:
   - name: hosts
     expression: >-
       variables.isSite ? object.spec.hosts :
+      variables.isRoute ? object.spec.?hostnames.orValue([]) :
+      variables.isListenerSet ? object.spec.listeners.map(l, l.?hostname.orValue('')) :
       (has(object.spec.rules) ? object.spec.rules.map(r, has(r.host) ? r.host : '') : [])
   - name: underZone
     expression: >-
@@ -50,22 +66,36 @@ spec:
     message: every site host must be one DNS label under a Zone domain
     reason: Forbidden
   - expression: >-
-      variables.isSite || !variables.managed || !object.metadata.name.startsWith('zone-') ||
+      variables.isSite || variables.isRoute || !variables.managed || !object.metadata.name.startsWith('zone-') ||
       variables.hosts.all(h, h.startsWith('*.') && h.substring(2) in variables.domains)
-    message: a zone Ingress serves only the wildcard of a Zone domain
+    message: a zone Ingress or ListenerSet serves only the wildcard of a Zone domain
     reason: Forbidden
-  - expression: "variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || variables.underZone"
+  - expression: >-
+      !variables.isListenerSet || !variables.managed ||
+      object.spec.listeners.all(l, l.?tls.certificateRefs.orValue([]).all(c, c.name in variables.secrets))
+    message: a zone ListenerSet uses a Zone TLS Secret
+    reason: Forbidden
+  - expression: >-
+      !variables.isRoute || !variables.managed || (
+        object.metadata.name.matches('^host-[0-9a-f]{8}$') && variables.underZone && size(variables.hosts) == 1 &&
+        has(object.metadata.annotations) && 'auth.w6d.io/host' in object.metadata.annotations &&
+        object.metadata.annotations['auth.w6d.io/host'] == variables.hosts[0] &&
+        has(object.metadata.ownerReferences) && object.metadata.ownerReferences.all(o,
+          o.kind == 'Site' && o.apiVersion.startsWith('auth.w6d.io/') && !(has(o.controller) && o.controller)))
+    message: a host HTTPRoute serves exactly one host under a Zone (its auth.w6d.io/host) and is owned only by Sites
+    reason: Forbidden
+  - expression: "!variables.isIngress || !variables.managed || !object.metadata.name.startsWith('site-') || variables.underZone"
     message: a site Ingress host must be one DNS label under a Zone domain
     reason: Forbidden
   - expression: >-
-      variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || (
+      !variables.isIngress || !variables.managed || !object.metadata.name.startsWith('site-') || (
         has(object.metadata.ownerReferences) && object.metadata.ownerReferences.exists(o,
           o.kind == 'Site' && o.apiVersion.startsWith('auth.w6d.io/') && has(o.controller) && o.controller &&
           'site-' + o.name == object.metadata.name))
     message: a site Ingress is named site-<site> and controlled by that Site
     reason: Forbidden
   - expression: >-
-      variables.isSite || !variables.managed || !object.metadata.name.startsWith('host-') || (
+      !variables.isIngress || !variables.managed || !object.metadata.name.startsWith('host-') || (
         object.metadata.name.matches('^host-[0-9a-f]{8}$') && variables.underZone && size(variables.hosts) == 1 &&
         has(object.metadata.annotations) && 'auth.w6d.io/host' in object.metadata.annotations &&
         object.metadata.annotations['auth.w6d.io/host'] == variables.hosts[0] &&
@@ -75,7 +105,7 @@ spec:
     message: a host Ingress serves exactly one host under a Zone (its auth.w6d.io/host), is owned only by Sites and uses a Zone TLS Secret
     reason: Forbidden
   - expression: >-
-      variables.isSite || !variables.managed || !object.metadata.name.startsWith('site-') || !has(object.spec.tls) ||
+      !variables.isIngress || !variables.managed || !object.metadata.name.startsWith('site-') || !has(object.spec.tls) ||
       object.spec.tls.all(t, t.secretName == object.metadata.name + '-tls' || t.secretName in variables.secrets)
     message: a site Ingress uses its own TLS Secret or its Zone's
     reason: Forbidden

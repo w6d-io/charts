@@ -4,8 +4,8 @@
 {{- end }}
 {{/*
   jinbe writes Site intent only: no Ingress, Rule, Certificate, Service, ConfigMap or
-  Secret, and no Site status (the operator owns it). Zones are cluster-scoped and
-  created/deleted by admins through jinbe (never updated).
+  Secret, and no Site status (the operator owns it). Zones are cluster-scoped and managed
+  by admins through jinbe (create, delete, and update for the zone's settings).
 */}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -28,11 +28,18 @@ rules:
   - apiGroups: [auth.w6d.io]
     resources: [gateways/status]
     verbs: [get]
-  # unmanaged view: read the Oathkeeper config jinbe is pointed at, that ConfigMap only
+  # unmanaged view: read the Oathkeeper config jinbe is pointed at (and, in Gateway mode, the
+  # seed config the operator falls back to), those ConfigMaps only
   - apiGroups: [""]
     resources: [configmaps]
     resourceNames: [{{ include "auth.jinbe.gatewayConfigMap" . }}]
     verbs: [get]
+  {{- if and .Values.siteOperator.gateway.enabled (ne (include "auth.jinbe.gatewayConfigMap" .) (include "auth.oathkeeper.configMapName" .)) }}
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "auth.oathkeeper.configMapName" . }}]
+    verbs: [get]
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -53,30 +60,41 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.jinbe.fullname" .))) }}
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
   labels:
     {{- include "auth.jinbe.labels" . | nindent 4 }}
 rules:
-  # admins manage Zones from kuma through jinbe: create/delete, never update (domain is
-  # immutable; a changed zone is a new one)
+  # admins manage Zones from kuma through jinbe (kube-sites.ts: list/get/create/delete, replace
+  # for the zone's settings; the domain itself is immutable)
   - apiGroups: [auth.w6d.io]
     resources: [zones]
-    verbs: [get, list, watch, create, delete]
+    verbs: [get, list, watch, create, update, delete]
   # host-collision pre-check before a site is saved: read-only, every namespace
   - apiGroups: [networking.k8s.io]
     resources: [ingresses]
     verbs: [get, list]
+  {{- if .Values.siteOperator.gatewayApi.enabled }}
+  # the same pre-check for Gateway API hosts, and the route-policy view (read-only)
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [gateways, httproutes, listenersets]
+    verbs: [get, list]
+  - apiGroups: [gateway.envoyproxy.io]
+    resources: [securitypolicies, envoyextensionpolicies]
+    verbs: [get, list]
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.jinbe.fullname" .))) }}
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
   labels:
     {{- include "auth.jinbe.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.jinbe.fullname" .))) }}
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zone-reader" (include "auth.jinbe.fullname" .))) }}
 subjects:
   - kind: ServiceAccount
     name: {{ include "auth.jinbe.serviceAccountName" . }}

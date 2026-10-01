@@ -175,6 +175,10 @@ Jinbe env for Sites and observability (runtime only).
   value: {{ .Values.sites.syncIntervalMs | int64 | toString | quote }}
 - name: SITES_RULES_LOADED_TIMEOUT_MS
   value: {{ .Values.sites.rulesLoadedTimeoutMs | int64 | toString | quote }}
+{{- if .Values.siteOperator.gatewayApi.enabled }}
+- name: SITES_GATEWAYS
+  value: {{ join "," .Values.siteOperator.gatewayApi.gateways | quote }}
+{{- end }}
 {{- with .Values.sites.upstreamAllow }}
 - name: SITES_UPSTREAM_ALLOW
   value: {{ join "," . | quote }}
@@ -232,6 +236,7 @@ Site/Rule and take the gateway rules with it.
 {{- $crd := .ctx.Files.Get (printf "files/crds/%s" .file) | fromYaml -}}
 {{- $ann := $crd.metadata.annotations | default dict -}}
 {{- $_ := set $ann "helm.sh/resource-policy" "keep" -}}
+{{- $ann = (include "auth.clusterResources.annotations" (dict "ctx" .ctx "own" $ann) | fromYaml).annotations -}}
 {{- $_ := set $crd.metadata "annotations" $ann -}}
 {{- $_ := set $crd.metadata "labels" (include "auth.labels" .ctx | fromYaml) -}}
 {{ toYaml $crd }}
