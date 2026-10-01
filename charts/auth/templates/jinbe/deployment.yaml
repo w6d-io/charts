@@ -52,6 +52,9 @@ spec:
             {{- include "auth.jinbe.env" . | nindent 12 }}
             {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
             {{- include "auth.backup.env" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           {{- with .Values.jinbe.bootstrap.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -112,4 +115,11 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      # The only writable path with the default read-only root filesystem.
+      volumes:
+        - name: tmp
+          emptyDir: {}
 {{- end }}

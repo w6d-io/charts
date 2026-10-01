@@ -20,6 +20,12 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      # The proxy never calls the Kubernetes API.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: opa-authz-proxy
           image: "{{ .Values.opaAuthzProxy.image.repository }}:{{ .Values.opaAuthzProxy.image.tag | default .Chart.AppVersion }}"

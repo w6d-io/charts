@@ -17,17 +17,95 @@ spec:
       labels:
         app.kubernetes.io/component: postgresql
         app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- with .Values.postgresqlSimple.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.postgresqlSimple.serviceAccountName }}
+      serviceAccountName: {{ . }}
+      {{- end }}
+      automountServiceAccountToken: {{ .Values.postgresqlSimple.automountServiceAccountToken }}
+      {{- with .Values.postgresqlSimple.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresqlSimple.tls.enabled }}
+      initContainers:
+        # A fresh self-signed certificate at every start: clients use sslmode=require (encryption, no CA).
+        - name: pg-tls
+          image: "{{ .Values.postgresqlSimple.image.repository }}:{{ .Values.postgresqlSimple.image.tag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
+                -subj /CN={{ .Release.Name }}-postgresql \
+                -addext subjectAltName=DNS:{{ .Release.Name }}-postgresql,DNS:{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc,DNS:{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local \
+                -keyout /tls/tls.key -out /tls/tls.crt 2>/dev/null
+              chmod 600 /tls/tls.key
+          env:
+            - name: HOME
+              value: /tmp
+          {{- with .Values.postgresqlSimple.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+            - name: tmp
+              mountPath: /tmp
+      {{- end }}
       containers:
         - name: postgresql
           image: "{{ .Values.postgresqlSimple.image.repository }}:{{ .Values.postgresqlSimple.image.tag }}"
+          # explicit, so the Bank-Vaults webhook can wrap it without a registry lookup
+          command: ["docker-entrypoint.sh"]
+          {{- if not (or .Values.postgresqlSimple.tls.enabled .Values.postgresqlSimple.hba) }}
+          args: ["postgres"]
+          {{- end }}
+          {{- if or .Values.postgresqlSimple.tls.enabled .Values.postgresqlSimple.hba }}
+          args:
+            {{- if .Values.postgresqlSimple.tls.enabled }}
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/tls/tls.crt
+            - -c
+            - ssl_key_file=/tls/tls.key
+            - -c
+            - ssl_min_protocol_version=TLSv1.2
+            {{- end }}
+            {{- if .Values.postgresqlSimple.hba }}
+            - -c
+            - hba_file=/etc/postgresql-hba/pg_hba.conf
+            {{- end }}
+          {{- end }}
+          {{- with .Values.postgresqlSimple.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 5432
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgresqlSimple.auth.username | quote }}
             - name: POSTGRES_PASSWORD
+              {{- if .Values.postgresqlSimple.auth.passwordVaultRef }}
+              value: {{ .Values.postgresqlSimple.auth.passwordVaultRef | quote }}
+              {{- else if .Values.postgresqlSimple.auth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresqlSimple.auth.existingSecret }}
+                  key: {{ .Values.postgresqlSimple.auth.existingSecretPasswordKey }}
+              {{- else }}
               value: {{ .Values.postgresqlSimple.auth.password | quote }}
+              {{- end }}
             - name: POSTGRES_DB
               value: {{ .Values.postgresqlSimple.auth.database | quote }}
             - name: PGDATA
@@ -35,6 +113,21 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            # writable paths under the read-only root filesystem
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.postgresqlSimple.tls.enabled }}
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+            {{- end }}
+            {{- if .Values.postgresqlSimple.hba }}
+            - name: hba
+              mountPath: /etc/postgresql-hba
+              readOnly: true
+            {{- end }}
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "{{ .Values.postgresqlSimple.auth.username }}"]
@@ -47,6 +140,22 @@ spec:
             periodSeconds: 10
           resources:
             {{- toYaml .Values.postgresqlSimple.resources | nindent 12 }}
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.postgresqlSimple.tls.enabled }}
+        - name: tls
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        {{- end }}
+        {{- if .Values.postgresqlSimple.hba }}
+        - name: hba
+          configMap:
+            name: {{ .Release.Name }}-postgresql-hba
+        {{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data

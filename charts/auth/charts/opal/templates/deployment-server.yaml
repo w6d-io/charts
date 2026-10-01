@@ -61,6 +61,10 @@ spec:
           # an empty dataset, and silently leaving OPA without bindings.
           # Configured via .Values.server.waitForDataSource.url.
           image: {{ .Values.server.waitForDataSource.image | default "curlimages/curl:8.10.1" | quote }}
+          {{- with .Values.server.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.server.waitForDataSource.bearerToken }}
           env:
             - name: DATA_SOURCE_TOKEN

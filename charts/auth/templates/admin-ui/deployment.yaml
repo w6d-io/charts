@@ -26,28 +26,72 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.adminUi.readOnlyRootFilesystem }}
+      # kuma never calls the Kubernetes API.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      # The image's own CMD rewrites index.html in place (root + writable image).
+      # Render the same html tree into an emptyDir instead; nginx serves it read-only.
+      initContainers:
+        - name: render-html
+          image: "{{ .Values.adminUi.image.repository }}:{{ .Values.adminUi.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.adminUi.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              cp -R /usr/share/nginx/html/. /out/
+              envsubst '${API_BASE} ${AUTH_DOMAIN} ${GRAFANA_URL} ${BACKUP_ENABLED} ${OIDC_AUTHORITY} ${OIDC_CLIENT_ID} ${OIDC_AUDIENCE} ${ORG_AUTHORITY} ${KRATOS_PUBLIC_URL} ${ORG_DIRECTORY_AUDIENCE} ${ORG_DIRECTORY_URL} ${ORG_SELECTION_URL}' \
+                < /usr/share/nginx/html/index.html > /out/index.html
+          env:
+            {{- include "auth.adminUi.env" . | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          volumeMounts:
+            - name: html
+              mountPath: /out
+      {{- end }}
       containers:
         - name: admin-ui
           image: "{{ .Values.adminUi.image.repository }}:{{ .Values.adminUi.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.adminUi.image.pullPolicy }}
+          {{- if .Values.adminUi.readOnlyRootFilesystem }}
+          command: ["nginx"]
+          args: ["-g", "daemon off;"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-tmp
+              mountPath: /tmp
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.adminUi.containerPort | default 8080 }}
               protocol: TCP
           env:
-            - name: API_BASE
-              value: {{ .Values.adminUi.env.API_BASE | default "" | quote }}
-            # AUTH_DOMAIN is substituted into kuma's index.html at container start
-            # (envsubst → window.__AUTH_DOMAIN__). Drives the 401 redirect target.
-            - name: AUTH_DOMAIN
-              value: {{ .Values.adminUi.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
-            # BACKUP_ENABLED → window.__BACKUP_ENABLED__ (gates the Backup tab).
-            - name: BACKUP_ENABLED
-              value: {{ .Values.backup.enabled | quote }}
-            {{- range $name, $value := .Values.adminUi.extraEnv }}
-            - name: {{ $name }}
-              value: {{ $value | quote }}
-            {{- end }}
+            {{- include "auth.adminUi.env" . | nindent 12 }}
           readinessProbe:
             httpGet:
               path: /
@@ -64,4 +108,15 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- if .Values.adminUi.readOnlyRootFilesystem }}
+      volumes:
+        - name: html
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: nginx-tmp
+          emptyDir: {}
+      {{- end }}
 {{- end }}

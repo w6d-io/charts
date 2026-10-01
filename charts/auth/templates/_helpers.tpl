@@ -404,3 +404,23 @@ templates/jinbe/deployment.yaml and templates/jinbe/bootstrap-job.yaml.
   value: {{ include "auth.oathkeeper.enabledKeys" ($errors.handlers | default dict) | quote }}
 {{- end -}}
 {{- end }}
+
+{{/*
+kuma runtime env: substituted into index.html (by the image CMD, or by the render-html
+init container when adminUi.readOnlyRootFilesystem is on).
+*/}}
+{{- define "auth.adminUi.env" -}}
+- name: API_BASE
+  value: {{ .Values.adminUi.env.API_BASE | default "" | quote }}
+# AUTH_DOMAIN is substituted into kuma's index.html at container start
+# (envsubst → window.__AUTH_DOMAIN__). Drives the 401 redirect target.
+- name: AUTH_DOMAIN
+  value: {{ .Values.adminUi.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
+# BACKUP_ENABLED → window.__BACKUP_ENABLED__ (gates the Backup tab).
+- name: BACKUP_ENABLED
+  value: {{ .Values.backup.enabled | quote }}
+{{- range $name, $value := .Values.adminUi.extraEnv }}
+- name: {{ $name }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- end }}

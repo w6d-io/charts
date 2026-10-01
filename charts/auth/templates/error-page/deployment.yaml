@@ -23,8 +23,17 @@ spec:
         # picks up new error pages without a manual restart.
         checksum/config: {{ include (print $.Template.BasePath "/error-page/configmap.yaml") . | sha256sum }}
     spec:
+      automountServiceAccountToken: false
+      {{- with .Values.errorPage.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: nginx
+          {{- with .Values.errorPage.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.errorPage.image.repository }}:{{ .Values.errorPage.image.tag }}"
           imagePullPolicy: {{ .Values.errorPage.image.pullPolicy }}
           ports:
@@ -51,6 +60,13 @@ spec:
               mountPath: /usr/share/nginx/html/404.html
               subPath: 404.html
               readOnly: true
+            # nginx's writable paths under a read-only root filesystem
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-tmp
+              mountPath: /tmp
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
@@ -65,4 +81,10 @@ spec:
         - name: conf
           configMap:
             name: {{ include "auth.error-page.fullname" . }}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: nginx-tmp
+          emptyDir: {}
 {{- end }}

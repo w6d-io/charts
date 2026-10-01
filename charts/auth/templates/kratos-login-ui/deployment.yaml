@@ -102,6 +102,20 @@ spec:
             {{- toYaml .Values.kratosLoginUi.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.kratosLoginUi.resources | nindent 12 }}
+          # Next.js writes only its image/fetch cache and /tmp: the writable paths
+          # a read-only root filesystem needs.
+          volumeMounts:
+            - name: next-cache
+              mountPath: /app/.next/cache
+            - name: tmp
+              mountPath: /tmp
+      # login-ui never calls the Kubernetes API.
+      automountServiceAccountToken: false
+      volumes:
+        - name: next-cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
       {{- with .Values.kratosLoginUi.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

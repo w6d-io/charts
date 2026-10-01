@@ -805,6 +805,12 @@ oathkeeper:
           - name: {{ include "oathkeeper.name" . }}-rules-volume
             mountPath: /etc/rules
             readOnly: false
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
         livenessProbe:
           exec: { command: ["/bin/sh", "-c", "test -f /etc/rules/access-rules.json"] }
           initialDelaySeconds: 10
@@ -1096,6 +1102,18 @@ opal:
 
   server:
     port: 7002
+    # The opal images run as `opal` (uid 1000); runAsNonRoot needs the numeric uid.
+    # No read-only root: the server clones the policy repo into the image filesystem.
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
     # The RBAC policy repo. The policy uses the `import rego.v1` BRIDGE syntax:
     # it parses on pre-1.0 OPA engines AND OPA >= 1.0 strict mode, so the
     # opal-client/OPA image can be upgraded independently of the policy.
@@ -1136,6 +1154,17 @@ opal:
   client:
     port: 7000
     opaPort: 8181
+    # uid 1000 as for the server; no read-only root (the inline OPA writes bundles locally).
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
     replicas: 1
     # NOTE: Must be overridden per-release since OPAL subchart doesn't support tpl
     # Use: --set opal.client.serverUrl=http://{release}-opal-server:7002
@@ -1301,27 +1330,27 @@ jinbe:
   podAnnotations: {}
 
   # Pod-level securityContext applied to BOTH the jinbe Deployment pod and the
-  # bootstrap Job pod. Empty by default so nothing is assumed about the image.
-  # Uncomment fields you need cluster-wide (e.g. fsGroup for a mounted volume).
-  podSecurityContext: {}
-    # fsGroup: 1000
+  # bootstrap Job pod. The image runs as `nodejs` (uid 1001, gid 65533); the uid
+  # is spelled out because runAsNonRoot cannot verify a non-numeric image USER.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 65533
+    seccompProfile:
+      type: RuntimeDefault
 
   # Container-level securityContext applied to the jinbe container, the inline
   # bootstrap initContainer, and the standalone bootstrap Job container.
-  # SAFE hardening defaults that do NOT assume a particular image user, so they
-  # will not break boot. runAsNonRoot and readOnlyRootFilesystem are left
-  # COMMENTED on purpose: the jinbe image's runtime user and its writable-path
-  # requirements are unverified, and enabling either blind can crash the pod.
-  # Verify against the image, then uncomment.
+  # Read-only root: jinbe writes only /tmp (an emptyDir the template mounts) and,
+  # when KRATOS_CONFIG_PATH is set, that file — mount it writable if you use it.
   securityContext:
     allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
     capabilities:
       drop:
         - ALL
     seccompProfile:
       type: RuntimeDefault
-    # runAsNonRoot: true
-    # readOnlyRootFilesystem: true
 
   resources:
     requests:
@@ -1567,8 +1596,21 @@ kratosLoginUi:
     periodSeconds: 5
 
   podAnnotations: {}
-  podSecurityContext: {}
-  securityContext: {}
+  # The image runs as `nextjs` (uid 1001). Read-only root works with the two
+  # emptyDirs the template mounts (/app/.next/cache, /tmp) — checked against
+  # kratos-login-ui:develop: /, /login, /api/health identical to a default run.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 65533
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -1584,8 +1626,50 @@ postgresqlSimple:
     tag: "16"
   auth:
     username: kratos
+    # Only read at initdb (first start on an empty volume). In order of preference:
+    #  - passwordVaultRef: a `vault:` reference put straight into POSTGRES_PASSWORD, resolved by
+    #    vault-env in the pod (set podAnnotations to the Bank-Vaults role annotations, a
+    #    serviceAccountName bound to that role and automountServiceAccountToken: true — vault-env
+    #    logs in with the SA token). Do NOT rely on the Bank-Vaults secrets webhook rewriting a
+    #    Secret: it logs into Vault with its own identity, which per-env roles do not accept.
+    #  - existingSecret / existingSecretPasswordKey: a plain Secret.
+    #  - password: literal placeholder for local use only.
     password: kratos
+    passwordVaultRef: ""   # e.g. vault:infra/data/<env>#PG_SUPERUSER_PASSWORD
+    existingSecret: ""
+    existingSecretPasswordKey: postgres-password
     database: kratos
+  podAnnotations: {}
+  serviceAccountName: ""
+  # No API access needed unless vault-env is used (passwordVaultRef): then true.
+  automountServiceAccountToken: false
+  # TLS: an init container generates a fresh self-signed P-256 certificate into a
+  # memory emptyDir at every start (nothing to renew); postgres runs ssl=on, TLS>=1.2.
+  # Clients use sslmode=require. hba (when set) replaces pg_hba.conf through
+  # hba_file; `hostnossl all all all reject` makes TLS mandatory for network logins.
+  tls:
+    enabled: false
+  hba: ""
+  #  local   all all              trust
+  #  host    all all 127.0.0.1/32 trust
+  #  host    all all ::1/128      trust
+  #  hostssl all all all          scram-sha-256
+  #  hostnossl all all all        reject
+  # Runs as the image's postgres user (uid 999, the owner of PGDATA) with no
+  # capabilities and a read-only root (socket dir and /tmp are emptyDirs).
+  # No fsGroup on purpose: kubelet's recursive chmod breaks PGDATA's 0700 mode.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
   persistence:
     size: 5Gi
   resources:
@@ -1620,6 +1704,20 @@ errorPage:
     textColor: "#F9FAFB"
     homeUrl: ""           # defaults to https://{appDomain}
     supportEmail: ""
+  # nginx as its `nginx` user (uid 101) on a read-only root; cache/run/tmp are
+  # emptyDirs. Same responses as the root default (checked on 1.27-alpine).
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
   resources:
     requests:
       cpu: 5m
@@ -1652,6 +1750,12 @@ adminUi:
     AUTH_DOMAIN: ""
   extraEnv: {}
   podAnnotations: {}
+  # kuma's image rewrites /usr/share/nginx/html/index.html at start (envsubst),
+  # which needs root and a writable image. With readOnlyRootFilesystem an init
+  # container (same image, same env) renders the html tree into an emptyDir and
+  # nginx serves it as uid 101 (restricted profile). Checked on kuma:develop:
+  # index.html byte-identical, /, /healthz and SPA routes unchanged.
+  readOnlyRootFilesystem: true
   service:
     type: ClusterIP
     port: 80
