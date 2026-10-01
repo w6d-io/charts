@@ -1,5 +1,11 @@
-/charts/*/charts
+/charts/*/charts/*
 !/charts/auth/charts/opal
+# develop is read from git by Argo CD, whose repo-server has no Ory or Bitnami repo registered:
+# the remote dependencies ship vendored (helm dependency build rewrites them from Chart.lock)
+!/charts/auth/charts/hydra-*.tgz
+!/charts/auth/charts/kratos-*.tgz
+!/charts/auth/charts/oathkeeper-*.tgz
+!/charts/auth/charts/redis-*.tgz
 .idea
 .cr-release-packages/
 /config.json
