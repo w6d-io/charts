@@ -195,12 +195,22 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   (jinbe's ioredis also reads REDIS_PASSWORD directly, which takes precedence).
 */}}
 {{- $redisPass := "" -}}
+{{- $redisSecret := "" -}}
 {{- if .Values.jinbe.env.REDIS_PASSWORD -}}
 {{- $redisPass = .Values.jinbe.env.REDIS_PASSWORD -}}
+{{- else if and .Values.redis.enabled .Values.redis.auth.enabled .Values.redis.auth.existingSecret -}}
+{{- $redisSecret = .Values.redis.auth.existingSecret -}}
+{{- $redisPass = "from-secret" -}}
 {{- else if and .Values.redis.enabled .Values.redis.auth.enabled -}}
 {{- $redisPass = (.Values.redis.auth.password | default "") -}}
 {{- end -}}
-{{- if $redisPass }}
+{{- if $redisSecret }}
+- name: REDIS_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ $redisSecret }}
+      key: {{ .Values.redis.auth.existingSecretPasswordKey | default "redis-password" }}
+{{- else if $redisPass }}
 - name: REDIS_PASSWORD
   value: {{ $redisPass | quote }}
 {{- end }}

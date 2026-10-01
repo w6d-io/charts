@@ -1454,6 +1454,20 @@ redis:
 # OUT of the redis.* block so it does not collide with the bitnami subchart's
 # networkPolicy schema. Set enabled=false if your CNI doesn't support
 # NetworkPolicy. Only rendered when redis.enabled.
+# Render redis.auth.existingSecret holding a vault: reference AS-IS (label mutate=skip). The redis
+# POD resolves it with vault-env: the Bank-Vaults pod webhook follows secretKeyRef values (checked
+# with a server dry-run on dev-aws-1), so the redis pod needs, in the bitnami values:
+#   master.podAnnotations: the vault-addr / vault-role / vault-skip-verify annotations
+#   serviceAccount: {create: false, name: <SA bound to the role>}, master.automountServiceAccountToken: true
+#   master.livenessProbe/readinessProbe.enabled: false + master.customLivenessProbe/customReadinessProbe
+#     exec `redis-cli -h localhost -p 6379 ping | grep -qE '^(PONG|NOAUTH)'` — the stock probes send the
+#     raw reference (kubelet exec env) and redis-server overwrites /proc/1/environ.
+# jinbe: set jinbe.env.REDIS_PASSWORD to a vault: ref its own role can read (otherwise it gets this
+# Secret, whose reference jinbe's role may not be allowed to resolve). The OPAL broadcaster needs its
+# own URL with the password (opal.server.broadcastUri).
+redisAuthSecret:
+  vaultRef: ""
+
 redisNetworkPolicy:
   enabled: true
   # extraIngress: additional NetworkPolicyPeer entries appended to the rule.
