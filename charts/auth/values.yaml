@@ -2107,6 +2107,26 @@ gatekit:
   tolerations: []
   affinity: {}
 
+# hydrator — the endpoint Oathkeeper's `hydrator` mutator calls (and Kratos's /resolve-org
+# registration hook), in this release's namespace: set
+# oathkeeper.oathkeeper.config.mutators.hydrator.config.api.url to http://<release>-hydrator/hydrate.
+hydrator:
+  enabled: false
+  replicaCount: 1
+  image: node:22-alpine
+  tenantUrl: ""             # tenant service for /resolve-org; empty = never assigns an organization
+  # Admin API tokens when kratos/hydra.adminAuth is on: vault: references resolved by vault-env
+  # (then podAnnotations = the Bank-Vaults role annotations, serviceAccountName = an SA bound to
+  # the role, automountServiceAccountToken: true).
+  kratosAdminToken: ""
+  hydraAdminToken: ""
+  podAnnotations: {}
+  serviceAccountName: ""    # default <release>-hydrator
+  automountServiceAccountToken: false
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
 # mcp — auth-mcp, the admin MCP server: people use the console from an AI client, as themselves
 # (a Hydra token narrowed to their permissions and one org). It holds no credential: its projected
 # ServiceAccount token (audience jinbe.k8s.audience) goes to jinbe beside the user's token, and jinbe

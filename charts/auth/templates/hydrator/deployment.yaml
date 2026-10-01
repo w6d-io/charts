@@ -1,0 +1,126 @@
+{{- if .Values.hydrator.enabled }}
+{{/*
+  The hydrator Oathkeeper's `hydrator` mutator calls (POST /hydrate): adds the Kratos identity's
+  metadata_admin to the session, or, for a Hydra client (M2M), its metadata.organization_id. Also
+  Kratos's post-registration /resolve-org hook. Every URL is in this release's namespace: point
+  mutators.hydrator.config.api.url at http://<release>-hydrator/hydrate.
+*/}}
+{{- $name := printf "%s-hydrator" (include "auth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- $h := .Values.hydrator }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hydrator
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hydrator
+data:
+  server.js: |
+    {{- .Files.Get "files/hydrator/server.js" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hydrator
+spec:
+  replicas: {{ $h.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: hydrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: hydrator
+      annotations:
+        checksum/script: {{ .Files.Get "files/hydrator/server.js" | sha256sum }}
+        {{- with $h.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ $h.serviceAccountName | default $name }}
+      # true only for vault-env (admin tokens as vault: references): it logs in with the SA token
+      automountServiceAccountToken: {{ $h.automountServiceAccountToken }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: node
+          image: {{ $h.image | quote }}
+          imagePullPolicy: IfNotPresent
+          # explicit, so the Bank-Vaults webhook can wrap it without a registry lookup
+          command: ["node", "/app/server.js"]
+          env:
+            - name: KRATOS_ADMIN_URL
+              value: {{ printf "http://%s-kratos-admin:80" .Release.Name | quote }}
+            - name: HYDRA_ADMIN_URL
+              value: {{ ternary (printf "http://%s-hydra-admin:4445" .Release.Name) "" .Values.hydra.enabled | quote }}
+            - name: TENANT_URL
+              value: {{ $h.tenantUrl | quote }}
+            {{- with $h.kratosAdminToken }}
+            - name: KRATOS_ADMIN_TOKEN
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with $h.hydraAdminToken }}
+            - name: HYDRA_ADMIN_TOKEN
+              value: {{ . | quote }}
+            {{- end }}
+          ports:
+            - { name: http, containerPort: 8080, protocol: TCP }
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          {{- with $h.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: script
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: {{ $name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hydrator
+spec:
+  type: ClusterIP
+  ports:
+    - { name: http, port: 80, targetPort: http, protocol: TCP }
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: hydrator
+{{- end }}
