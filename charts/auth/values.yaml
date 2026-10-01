@@ -60,6 +60,55 @@ kratos:
     # secret value. Generated from the final kratos.config hooks, so env overlays need no change.
     # Empty disables it (then a Vault reference in a hook is sent verbatim and jinbe answers 401).
     environmentSecretsName: auth-kratos-webhook-env
+    # Admin token sidecar (kratos.adminAuth below, templates/_admin-auth.tpl). Renders nothing
+    # while kratos.adminAuth.enabled is false.
+    extraContainers: |
+      {{- include "auth.adminAuth.sidecar" (dict "root" . "port" .Values.kratos.config.serve.admin.port "key" "KRATOS_ADMIN_TOKEN") }}
+    # Probes on the PUBLIC port: the admin port is behind the token sidecar once adminAuth is on (its
+    # health paths stay open, but a probe there would restart Kratos whenever the sidecar is down).
+    # Same checks as the chart defaults (/health/alive and /health/ready exist on both ports).
+    customReadinessProbe:
+      httpGet:
+        path: /health/alive
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 5
+    customStartupProbe:
+      httpGet:
+        path: /health/ready
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      failureThreshold: 5
+      successThreshold: 1
+      periodSeconds: 1
+      timeoutSeconds: 2
+      initialDelaySeconds: 1
+
+  # The courier StatefulSet falls back to deployment.extraContainers when this is empty; it serves no
+  # admin API, so it gets a template that renders nothing instead of the sidecar.
+  statefulSet:
+    extraContainers: '{{- /* no admin-auth sidecar in the courier */ -}}'
+
+  # Token-checking sidecar in front of the Kratos admin API (P0: NetworkPolicy is not enforced, so
+  # every pod reaches it). Enabled: serve.admin.host becomes 127.0.0.1 and an nginx sidecar on the pod
+  # IP, same port, lets through only `Authorization: Bearer <KRATOS_ADMIN_TOKEN>` (health and metrics
+  # paths open). Every admin caller must send it first: jinbe >= the admin-auth build with
+  # KRATOS_ADMIN_TOKEN in jinbe.extraEnv. Token: `token` (a literal or a vault: reference vault-env
+  # resolves in this Vault-annotated pod) or else Secret `secretName` / `secretKey`
+  # (adminAuthSecret renders one from Vault).
+  adminAuth:
+    enabled: false
+    token: ""
+    secretName: ""        # default <release>-admin-tokens
+    secretKey: KRATOS_ADMIN_TOKEN
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    resources: {}         # default requests 5m/8Mi, limit 32Mi
 
   ingress:
     public:
@@ -117,6 +166,9 @@ kratos:
           - id: default
             url: file:///etc/config/person.schema.json
       serve:
+        admin:
+          # 127.0.0.1 while kratos.adminAuth fronts the admin port, else "" (all interfaces).
+          host: '{{ include "auth.adminAuth.bindHost" . }}'
         public:
           base_url: https://auth.example.com/
           cors:
@@ -601,6 +653,14 @@ oathkeeper:
     initRetries: 30
     image: "curlimages/curl:8.11.1"
 
+  # Send the Hydra admin token on token introspection (needed once hydra.adminAuth is on). Reads
+  # Secret secretName (default <release>-admin-tokens) / secretKey — rendered by adminAuthSecret or
+  # created by hand (Oathkeeper's pod has no Vault annotations; see adminAuthSecret).
+  adminAuth:
+    enabled: false
+    secretName: ""
+    secretKey: HYDRA_ADMIN_TOKEN
+
   # Where Oathkeeper reads its access rules from (Sites cut-over, docs/SERVICE_PLUG.md):
   #   legacy  — rules-sync file only (/etc/rules/access-rules.json). Default; unchanged behaviour.
   #   maester — oathkeeper-maester in sidecar mode (native sidecar, API watch of Rule CRs in this
@@ -677,6 +737,17 @@ oathkeeper:
         sleep:
           seconds: 10
     terminationGracePeriodSeconds: 30
+    # oauth2_introspection -> Hydra admin with the Hydra admin token (oathkeeper.adminAuth below).
+    # Disabled: the Secret is optional and the header override is `{}`, Oathkeeper's default.
+    extraEnv:
+      - name: HYDRA_ADMIN_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: '{{ include "auth.adminAuth.secretName" . }}'
+            key: '{{ .Values.adminAuth.secretKey | default "HYDRA_ADMIN_TOKEN" }}'
+            optional: true
+      - name: AUTHENTICATORS_OAUTH2_INTROSPECTION_CONFIG_INTROSPECTION_REQUEST_HEADERS
+        value: '{{ include "auth.adminAuth.introspectionHeaders" . }}'
     # Blocking first fetch: guarantees /etc/rules/access-rules.json exists (seeds "[]"
     # fail-closed after initRetries). tpl-rendered in the subchart context.
     extraInitContainers: |
@@ -1052,6 +1123,25 @@ oathkeeper:
   # externalAccessRulesConfigMap: "my-access-rules-configmap"
   accessRules: ""
 
+# Admin API tokens, rendered as Secret <release>-admin-tokens (templates/admin-auth/secret.yaml) with
+# vault: references the Bank-Vaults secrets webhook rewrites (role vaultRole, through the namespace's
+# default ServiceAccount). Read by kratos/hydra/oathkeeper.adminAuth. jinbe takes the same values
+# through vault-env, e.g. jinbe.extraEnv:
+#   KRATOS_ADMIN_TOKEN: vault:infra/data/<env>-jinbe#KRATOS_ADMIN_TOKEN
+#   HYDRA_ADMIN_TOKEN:  vault:infra/data/<env>-jinbe#HYDRA_ADMIN_TOKEN
+# Roll out in this order: jinbe with the tokens (harmless before any sidecar) -> oathkeeper.adminAuth
+# -> kratos.adminAuth -> hydra.adminAuth.
+# The Secret route needs the Bank-Vaults webhook's own identity to be accepted by vaultRole; where it is
+# not (auth-dev), set kratos/hydra.adminAuth.token to the vault: reference (vault-env in those
+# Vault-annotated pods) and create the Secret Oathkeeper reads yourself, piped from Vault:
+#   vault kv get -field=HYDRA_ADMIN_TOKEN infra/<env> | tr -d '\n' | kubectl create secret generic \
+#     <release>-admin-tokens --from-file=HYDRA_ADMIN_TOKEN=/dev/stdin
+adminAuthSecret:
+  name: ""                # default <release>-admin-tokens
+  vaultRole: ""
+  kratosTokenRef: ""      # e.g. vault:infra/data/<env>#KRATOS_ADMIN_TOKEN
+  hydraTokenRef: ""       # e.g. vault:infra/data/<env>#HYDRA_ADMIN_TOKEN
+
 # =============================================================================
 # Hydra - OAuth2 / OpenID Connect server (M2M client_credentials API keys)
 # =============================================================================
@@ -1073,6 +1163,45 @@ hydra:
   maester:
     enabled: false
 
+  # Token-checking sidecar in front of the Hydra admin API, as kratos.adminAuth: serve.admin.host
+  # 127.0.0.1, nginx on the pod IP:4445 requiring `Authorization: Bearer <HYDRA_ADMIN_TOKEN>`. Callers:
+  # jinbe (HYDRA_ADMIN_TOKEN) and Oathkeeper's oauth2_introspection (oathkeeper.adminAuth) — enable
+  # both first.
+  adminAuth:
+    enabled: false
+    token: ""
+    secretName: ""        # default <release>-admin-tokens
+    secretKey: HYDRA_ADMIN_TOKEN
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    resources: {}
+
+  deployment:
+    extraContainers: |
+      {{- include "auth.adminAuth.sidecar" (dict "root" . "port" .Values.hydra.config.serve.admin.port "key" "HYDRA_ADMIN_TOKEN") }}
+    # Probes on the public port (see kratos.deployment.customReadinessProbe).
+    customReadinessProbe:
+      httpGet:
+        path: /health/alive
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 5
+    customStartupProbe:
+      httpGet:
+        path: /health/ready
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      failureThreshold: 5
+      successThreshold: 1
+      periodSeconds: 1
+      timeoutSeconds: 2
+      initialDelaySeconds: 1
+
   hydra:
     automigration:
       enabled: true
@@ -1081,6 +1210,10 @@ hydra:
       # the environment overlay (extraEnv -> Vault) so they are never committed.
       dsn: ""
       secrets: {}
+      serve:
+        admin:
+          # 127.0.0.1 while hydra.adminAuth fronts the admin port, else "" (all interfaces).
+          host: '{{ include "auth.adminAuth.bindHost" . }}'
       urls:
         self:
           issuer: ""
