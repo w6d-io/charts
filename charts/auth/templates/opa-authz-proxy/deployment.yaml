@@ -1,4 +1,8 @@
 {{- if .Values.opaAuthzProxy.enabled }}
+{{- $p := .Values.opaAuthzProxy }}
+{{- if and (hasPrefix "vault:" ($p.opaToken | default "")) (not (and $p.automountServiceAccountToken (hasKey ($p.podAnnotations | default dict) "vault.security.banzaicloud.io/vault-role"))) }}
+{{- fail "opaAuthzProxy.opaToken is a vault: reference: set opaAuthzProxy.podAnnotations (vault-role) and automountServiceAccountToken: true" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,13 +19,21 @@ spec:
     metadata:
       labels:
         {{- include "auth.opaAuthzProxy.selectorLabels" . | nindent 8 }}
+      {{- with $p.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with $p.serviceAccountName }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       # The proxy never calls the Kubernetes API.
-      automountServiceAccountToken: false
+      {{- /* only vault-env (opaToken as a vault: reference) needs the SA token */}}
+      automountServiceAccountToken: {{ $p.automountServiceAccountToken }}
       # nobody: runAsNonRoot cannot verify a non-numeric image USER
       securityContext:
         runAsNonRoot: true
@@ -32,6 +44,10 @@ spec:
         - name: opa-authz-proxy
           image: "{{ .Values.opaAuthzProxy.image.repository }}:{{ .Values.opaAuthzProxy.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.opaAuthzProxy.image.pullPolicy }}
+          {{- if $p.opaToken }}
+          # explicit, so the Bank-Vaults webhook can wrap it without a registry lookup
+          command: ["/opa-authz-proxy"]
+          {{- end }}
           ports:
             - name: http
               containerPort: 8080
@@ -45,6 +61,16 @@ spec:
               {{- end }}
             - name: LISTEN_ADDR
               value: ":8080"
+            {{- if $p.opaToken }}
+            - name: OPA_TOKEN
+              value: {{ $p.opaToken | quote }}
+            {{- else if ($p.opaTokenSecretRef | default dict).name }}
+            - name: OPA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $p.opaTokenSecretRef.name }}
+                  key: {{ $p.opaTokenSecretRef.key | default "token" }}
+            {{- end }}
           securityContext:
             runAsNonRoot: true
             runAsUser: 65534

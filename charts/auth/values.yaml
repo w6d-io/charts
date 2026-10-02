@@ -1709,6 +1709,19 @@ opaAuthzProxy:
   # Auto-computed from opal client service if empty
   opaUpstreamUrl: ""
 
+  # Bearer token the proxy sends to OPA as OPA_TOKEN (>= 32 characters, or the proxy refuses to
+  # start). OPA must accept it for POST /v1/data/rbac/decision (system.authz rule reading
+  # OPA_DECISION_TOKEN, see opal.client.opaStartupData). Unset: no token is sent.
+  #   opaToken: a literal or a vault: reference. A vault: reference is resolved by vault-env in
+  #     this pod: it needs the webhook podAnnotations, an SA bound to the Vault role
+  #     (serviceAccountName) and automountServiceAccountToken: true.
+  #   opaTokenSecretRef: {name, key} of an existing Secret, used when opaToken is empty.
+  opaToken: ""
+  opaTokenSecretRef: {}
+  serviceAccountName: ""          # the namespace's default SA when empty
+  automountServiceAccountToken: false
+  podAnnotations: {}
+
   service:
     type: ClusterIP
     port: 8080
