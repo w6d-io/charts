@@ -58,3 +58,10 @@ First-time setup checklist
 
 The Bootstrap Job (auth-jinbe-bootstrap) runs once per Helm install/upgrade
 and is a no-op on subsequent runs (Redis marker rbac:bootstrap:state).
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.admission.enabled .Values.oathkeeper.enabled (ne (include "auth.oathkeeper.rulesSource" .) "legacy") (not .Values.siteOperator.admission.ruleWriters) }}
+
+WARNING: siteOperator.admission.ruleWriters is empty. The rules admission policy only lets
+the site-operator (and system:masters) write maester Rules, so this chart's platform Rules
+are refused unless the identity applying the chart is listed there (for Argo CD:
+system:serviceaccount:<argo namespace>:argocd-application-controller).
+{{- end }}

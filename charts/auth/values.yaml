@@ -2296,9 +2296,11 @@ siteOperator:
   # the release namespace. Cluster-scoped objects, named after the namespace.
   admission:
     enabled: true
-    # extra Rule writers besides the operator (GitOps-authored platform Rules)
-    ruleWriters:
-      - system:serviceaccount:argocd:argocd-application-controller
+    # extra Rule writers besides the operator: whoever applies this chart's platform Rules
+    # (oathkeeper.rules.source maester|dual), e.g. the cluster's Argo CD application controller,
+    # system:serviceaccount:<argo namespace>:argocd-application-controller. Without it the
+    # rules policy refuses them (system:masters excepted).
+    ruleWriters: []
     ruleDeleters:
       - system:serviceaccount:kube-system:generic-garbage-collector
       - system:serviceaccount:kube-system:namespace-controller
