@@ -251,13 +251,19 @@ postgresqlSimple:
   automountServiceAccountToken: true
   tls:
     enabled: true
-  # Kratos logs in as kratos_app (KRATOS_DSN), never as the superuser
+  # REQUIRED on a fresh install with app-role DSNs: initdb creates these roles and databases only when the
+  # script is mounted (initdb runs once, on an empty volume). Kratos logs in as kratos_app (KRATOS_DSN),
+  # never as the superuser; each password equals the one inside its DSN.
   appRoles:
     enabled: true
     roles:
       - name: kratos_app
         database: kratos
-        password: vault:secret/data/auth#KRATOS_DB_PASSWORD
+        password: vault:secret/data/auth#KRATOS_APP_PASSWORD
+      # with hydra.enabled (HYDRA_DSN = postgresql://hydra_app:<HYDRA_APP_PASSWORD>@auth-postgresql:5432/hydra?sslmode=require)
+      # - name: hydra_app
+      #   database: hydra
+      #   password: vault:secret/data/auth#HYDRA_APP_PASSWORD
 
 # --- login-ui (sign-in pages) ---------------------------------------------------------------
 kratosLoginUi:
