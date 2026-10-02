@@ -165,7 +165,10 @@ const server = http.createServer(async (req, res) => {
                     }
                 }
                 res.writeHead(200, {"Content-Type": "application/json"});
-                res.end(JSON.stringify({subject, extra}));
+                // Echo the whole session back (header, match_context…), only extra enriched:
+                // Oathkeeper replaces its session with this reply, and mutators after the hydrator
+                // read .MatchContext (the Cookie strip reads the request's Cookie header from it).
+                res.end(JSON.stringify({...payload, subject, extra}));
             } catch (err) {
                 console.error("hydrate error:", err.message);
                 res.writeHead(502);
