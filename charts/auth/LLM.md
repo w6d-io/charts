@@ -16,7 +16,8 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
    Never `argocd app sync` a whole app on the operator's behalf without an explicit go.
 4. **Write Vault keys before the pods that read them roll out.** vault-env stops a container whose key is missing.
 5. **Never run `bootstrap.js --apply`** without a plan the operator has reviewed, and its exact `planHash`.
-6. Ask before any cluster-scoped change: CRDs, ValidatingAdmissionPolicies, ClusterRoles, Zones, AppProject.
+6. Ask before any cluster-scoped change: CRDs, ValidatingAdmissionPolicies and their bindings, ClusterRoles, Zones,
+   AppProject. Never remove finalizers or admission bindings outside a namespace that is being deleted.
 7. Never put a `vault:` reference where only a file reads it (a ConfigMap, the Kratos config file), except through
    the chart's env mechanisms (`auth-kratos-webhook-env`, `secrets` lists). A file never gets the reference resolved.
 8. Never disable the OPA token auth (`OPAL_INLINE_OPA_CONFIG` authentication), the `system.authz` rule, or the
@@ -62,6 +63,17 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
   2FA switch is per group.
 - **Role headers** need four links: gate `passRoles` (policy authorizer), jinbe `SITES_ROLE_HEADERS=true`, proxy
   `opaToken`, and OPA's `system.authz` decision rule plus `OPA_DECISION_TOKEN` on opal-client.
+- **Postgres on a fresh volume** needs `fsGroup: 999` (`OnRootMismatch`, the chart default), and
+  `postgresqlSimple.appRoles` **on** whenever the DSNs use `kratos_app` / `hydra_app`: initdb runs the role script
+  only on an empty PGDATA. `KRATOS_APP_PASSWORD` / `HYDRA_APP_PASSWORD` must equal the passwords inside the DSNs.
+  The app-roles Job is a PostSync hook: it never runs while Kratos or Hydra crash-loop on their migration init container.
+  A StatefulSet does not roll a pod that never became Ready: after fixing its spec, delete the crash-looping pod.
+- **Ory migrations** run as init containers (`automigration.type: initContainer`, the default for Kratos and Hydra).
+  `job` is a pre-install hook (Argo PreSync) that runs before Postgres exists, and a fresh install hangs.
+- **Site policy params**: the bindings use `parameterNotFoundAction: Allow` (a namespace delete cannot deadlock).
+  `<ns>-site-operator-params` refuses deleting the two params ConfigMaps unless the namespace is terminating, the
+  caller is in `system:masters`, or it is listed in `siteOperator.admission.paramDeleters`. Older charts (Deny)
+  deadlock a namespace delete.
 - **Argo CD**:
   - `ServerSideApply=true` keeps hand-added fields;
   - a `value`↔`valueFrom` switch fails the apply until the object is replaced once;
@@ -117,6 +129,11 @@ vault kv get -mount=<mount> -field=OPA_DECISION_TOKEN <path> | wc -c            
 | Data from a new jinbe release missing in OPA | Restart the OPAL server, then the client. Set `global.jinbeRevision`. |
 | Role-header gates 403/502, plain gates fine | `system.authz` refuses `/v1/data/rbac/decision`: check the rule, `OPA_DECISION_TOKEN` on opal-client (>= 32), and the proxy `opaToken` (same key). |
 | Kratos → jinbe hooks 401 | The webhook secret differs, or a `vault:` string sits in the Kratos config file. Keep `auth-kratos-webhook-env`. |
+| Postgres `mkdir … pgdata: Permission denied` | `fsGroup: 999` + `OnRootMismatch` (default since C8), then delete the crash-looping pod (the StatefulSet will not roll it). |
+| Kratos/Hydra `password authentication failed for user "kratos_app"`; Postgres log `ignoring /docker-entrypoint-initdb.d/*` | appRoles was off at initdb. Enable it. With the operator's go, either recreate the empty volume (data loss) or run the app-roles Job by hand (it is PostSync, so it is blocked while the migrations crash-loop). |
+| Fresh sync hangs on a `*-automigrate` PreSync Job | `automigration.type: job`: set `initContainer` for Kratos and Hydra, then delete the Job. |
+| Namespace stuck Terminating: `<ns>-site-operator-…` denied, `no params found` | A chart from before C8. With the operator's go: `kubectl delete validatingadmissionpolicybindings -l app.kubernetes.io/instance=<release>` (a sync recreates them), or upgrade the chart. |
+| Namespace stuck Terminating on `rules.oathkeeper.ory.sh` | The maester finalizer is orphaned. Only in a namespace being deleted, and with the operator's go: remove the finalizers (`kubectl patch … -p '{"metadata":{"finalizers":null}}'`). |
 | Argo sync error `valueFrom: may not be specified when value is not empty` | Sync that one object with `--replace`, once. |
 | Argo applies, but site rules vanish | Missing `RespectIgnoreDifferences`: the Oathkeeper config volume was reset to the seed. Add it and let site-operator re-roll. |
 | Rule `platform-ready` refused by the VAP `<ns>-site-operator-rules` | Add Argo's controller SA (its real namespace) to `siteOperator.admission.ruleWriters`. |

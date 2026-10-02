@@ -131,10 +131,18 @@ p ENCRYPTION_KEY="$(hex 32)" KRATOS_WEBHOOK_SECRET="$(hex 32)" ADMIN_PASSWORD="$
 p KRATOS_SECRETS_DEFAULT="$(hex 32)" KRATOS_SECRETS_COOKIE="$(hex 32)" KRATOS_SECRETS_CIPHER="$(hex 16)"
 p PG_SUPERUSER_PASSWORD="$(hex 24)" REDIS_PASSWORD="$(hex 24)" OPA_ROOT_TOKEN="$(hex 32)" OPA_DECISION_TOKEN="$(hex 32)"
 
-# Kratos's database role and its DSN share one password
+# Each app role and its DSN share one password (postgresqlSimple.appRoles creates the role at initdb)
 KP="$(hex 24)"
-p KRATOS_DB_PASSWORD="$KP" KRATOS_DSN="postgresql://kratos_app:${KP}@auth-postgresql:5432/kratos?sslmode=require"
-unset KP
+p KRATOS_APP_PASSWORD="$KP" KRATOS_DSN="postgresql://kratos_app:${KP}@auth-postgresql:5432/kratos?sslmode=require"
+# with Hydra: HP="$(hex 24)"; p HYDRA_APP_PASSWORD="$HP" HYDRA_DSN="postgresql://hydra_app:${HP}@auth-postgresql:5432/hydra?sslmode=require"
+unset KP HP
+```
+
+**`postgresqlSimple.appRoles` must be on for a fresh install** whose DSNs use `kratos_app` / `hydra_app`
+(the minimal example has it; add the `hydra_app` entry when Hydra is on). initdb runs the script only on an
+**empty** volume; without it, Postgres starts with the superuser alone and Kratos and Hydra fail to log in.
+
+```sh
 
 p COURIER_SMTP_CONNECTION_URI='smtps://<user>:<password>@<smtp-host>:465/'
 
@@ -170,6 +178,10 @@ What comes up:
 - Kratos. Its automigrate init container creates the schema.
 - jinbe. Its bootstrap init container runs (step 6).
 - The OPAL server.
+
+Both Ory migrations run as **init containers** (`kratos.kratos.automigration.type` and
+`hydra.hydra.automigration.type` default to `initContainer`). Do not switch them to `job`: the job is a Helm
+pre-install hook (Argo CD PreSync) that runs before Postgres exists, so a fresh install hangs.
 
 The OPAL client stays **not Ready** (its client token is still a placeholder, so the OPAL server refuses it, and
 OPA has no data). That is expected until step 5.
@@ -261,7 +273,7 @@ Every key the chart can read. Paths follow the minimal example: one path, `secre
 | `KRATOS_SECRETS_CIPHER` | Kratos (`kratos`) | `kratos.kratos.config.secrets.cipher` | `openssl rand -hex 16` (**exactly 32 chars**) | always |
 | `COURIER_SMTP_CONNECTION_URI` | Kratos, courier (`kratos`) | `kratos.*.extraEnv` | your SMTP URI | always |
 | `PG_SUPERUSER_PASSWORD` | Postgres, app-roles Job (`default`) | `postgresqlSimple.auth.passwordVaultRef` | `openssl rand -hex 24` | bundled Postgres (read at initdb only) |
-| `KRATOS_DB_PASSWORD`, `HYDRA_DB_PASSWORD` | Postgres initdb, app-roles Job (`default`) | `postgresqlSimple.appRoles.roles[].password` | `openssl rand -hex 24` (>= 16; URL-safe, it goes in the DSN) | `appRoles.enabled` |
+| `KRATOS_APP_PASSWORD`, `HYDRA_APP_PASSWORD` | Postgres initdb, app-roles Job (`default`) | `postgresqlSimple.appRoles.roles[].password` | `openssl rand -hex 24` (>= 16; URL-safe; **equal to the password inside `KRATOS_DSN` / `HYDRA_DSN`**) | `appRoles.enabled` (required with app-role DSNs) |
 | `REDIS_PASSWORD` | Redis (`default`) via Secret `<redis.auth.existingSecret>`; jinbe | `redisAuthSecret.vaultRef`, `jinbe.env.REDIS_PASSWORD` | `openssl rand -hex 24` | `redis.auth.enabled` |
 | `REDIS_BROADCAST_URL` | OPAL server (`default`) | `opal.server.broadcastUri` | `redis://:<REDIS_PASSWORD>@auth-redis-master:6379` | `uvicornWorkers > 1` |
 | `OPAL_AUTH_PRIVATE_KEY`, `OPAL_AUTH_PUBLIC_KEY` | OPAL server; public key also on opal-client (`default`) | `opal.server.extraEnv`, `opal.client.extraEnv` | `ssh-keygen -t rsa -b 4096 -m pem`; private key with `\n` → `_` | always |
@@ -431,6 +443,12 @@ spec:
 - **`siteOperator.admission.ruleWriters`** must name your Argo CD controller,
   `system:serviceaccount:<argo namespace>:argocd-application-controller`. The rules admission policy refuses
   every other writer, including Argo applying the chart's `platform-ready` Rule. There is no default; NOTES warn when it is empty.
+- **Deleting the app or the namespace.** The site policies' bindings read their parameters from two ConfigMaps
+  in the release namespace (`<release>-site-operator-policy`, `-zones`), with `parameterNotFoundAction: Allow`, so
+  a namespace delete cannot deadlock. To keep the policies from being switched off by deleting those ConfigMaps,
+  the policy `<namespace>-site-operator-params` refuses their deletion unless the namespace is being deleted, or
+  the caller is in `system:masters` (a `cluster-admin` binding is not enough) or listed in
+  `siteOperator.admission.paramDeleters`. Add your Argo CD controller there if you delete the app but keep the namespace.
 - **`clusterResources.annotations`** applies to every cluster-scoped object (ValidatingAdmissionPolicies,
   ClusterRoles, ClusterRoleBindings). Use `argocd.argoproj.io/sync-options: Prune=false,Delete=false` so deleting
   the app keeps them.
@@ -517,6 +535,7 @@ The keys most installs touch, grouped by component. Everything else is documente
 | `oathkeeper.rules.source` | `legacy` | `dual` with Sites (adds the maester sidecar). |
 | `oathkeeper.adminAuth.tokenRef` | `""` | Hydra admin token for introspection (vault ref). |
 | `hydra.enabled`, `hydra.edge.httpRoute`, `hydra.adminAuth`, `hydra.hydra.config.urls.self.issuer` | off | Issuer must end with `/`. |
+| `kratos.kratos.automigration.type`, `hydra.hydra.automigration.type` | `initContainer` | Keep it: `job` is a pre-install hook that hangs a fresh install. |
 | `jinbe.image.tag`, `jinbe.env.*`, `jinbe.extraEnv` | chart appVersion | `env`: the keys the chart knows. `extraEnv`: anything else (`OPAL_*`, `OPA_TOKEN`, `SITES_ROLE_HEADERS`, `JINBE_RBAC_APPLY_EXPECT`, admin tokens). |
 | `jinbe.serviceAccount.annotations` | `{}` | IRSA role for backup. |
 | `jinbe.captcha.*`, `jinbe.signInGate.*` | off | Bot check and sign-in code limits. |
@@ -527,11 +546,12 @@ The keys most installs touch, grouped by component. Everything else is documente
 | `opal.client.{extraEnv,podAnnotations,opaStartupData}` | | OPA token auth and `system.authz`. |
 | `opaAuthzProxy.{image.tag,opaToken,opaTokenSecretRef,podAnnotations,automountServiceAccountToken}` | `v0.4.0`, no token | `v0.6.0` or later is needed for `OPA_TOKEN`. |
 | `redis.auth.*`, `redisAuthSecret.vaultRef` | auth off | See the minimal example for the vault-env pod settings. |
-| `postgresqlSimple.{auth.passwordVaultRef,tls.enabled,hba,appRoles}` | | App roles: initdb on an empty volume plus a hook Job. |
+| `postgresqlSimple.{auth.passwordVaultRef,tls.enabled,hba,appRoles}` | | App roles: initdb on an empty volume plus a hook Job. **Required** on a fresh install with app-role DSNs. |
+| `postgresqlSimple.podSecurityContext.fsGroup` | `999` (`OnRootMismatch`) | Lets postgres create PGDATA on a root-owned fresh volume. |
 | `backup.{enabled,schedule,s3.*}` | off | |
 | `mcp.{enabled,host,image.tag,readOnly,httpRoute}` | off | Needs an OAuth issuer (Hydra, or `mcp.authorizationServer`); jinbe verifies auth-mcp's service-account token with TokenReview (`mcp.tokenReviewBinding`). |
 | `sites.{enabled,zones,zoneRbac,reservedHosts,upstreamAllow,...}` | off | jinbe's site publishing. |
-| `siteOperator.{enabled,image.tag,gatewayApi,admission.ruleWriters,installCRDs,installZones}` | off | |
+| `siteOperator.{enabled,image.tag,gatewayApi,admission.ruleWriters,admission.paramDeleters,installCRDs,installZones}` | off | |
 | `gatekit.{enabled,image.tag}` | off | |
 | `clusterResources.annotations` | `{}` | On every cluster-scoped object. |
 | `observability.serviceMonitors.*` | off | |
@@ -550,6 +570,12 @@ The keys most installs touch, grouped by component. Everything else is documente
 | Kratos → jinbe audit/guard hooks get 401 | The Kratos side sends the literal `vault:` string (a reference in the ConfigMap, not in env) | Keep `kratos.deployment.environmentSecretsName` (`auth-kratos-webhook-env`). Do not put secrets in hook config directly. |
 | Everyone gets 403 right after an install or restart | OPA has no data yet: the OPAL client is not Ready | Wait for the startup probe (`requireBindings`). Check the OPAL JWTs exist and have not expired. |
 | Large site drafts, OpenAPI imports or MCP tool calls get **403/413** at the edge | A WAF (Coraza/ModSecurity) in front blocks or cannot inspect bodies past its limit (often 128 KiB) | Exclude those paths from body inspection, or raise the limit for the console, API and MCP hosts. |
+| Postgres crash-loops on a fresh volume: `mkdir: cannot create directory '/var/lib/postgresql/data/pgdata': Permission denied` | The new volume is root-owned and the pod runs as uid 999 without `fsGroup` (charts before C8) | Set `postgresqlSimple.podSecurityContext.fsGroup: 999` and `fsGroupChangePolicy: OnRootMismatch` (the default now). Then **delete the crash-looping pod**: a StatefulSet does not roll a pod that never became Ready, so the fixed spec waits forever otherwise. |
+| Kratos or Hydra cannot log in (`password authentication failed for user "kratos_app"` / `role … does not exist`); the Postgres log shows `ignoring /docker-entrypoint-initdb.d/*` | initdb ran without the app-roles script: `postgresqlSimple.appRoles` was off on the first start | Enable `appRoles` with the roles your DSNs use. Then either recreate the **empty** volume (initdb runs only on an empty PGDATA: delete the StatefulSet's PVC and pod; this loses the data), or let the app-roles Job create the roles. That Job is a **PostSync** hook (Helm post-install/upgrade), so it never runs while Kratos or Hydra crash-loop in their migration init container: run it by hand (`helm template … -s templates/postgresql-simple/app-roles-job.yaml` and apply it), or scale Kratos/Hydra to 0 until it has run. |
+| A fresh install or Argo sync hangs on a `*-automigrate` Job (PreSync) | `automigration.type: job`: the hook runs before Postgres exists | Set `kratos.kratos.automigration.type` and `hydra.hydra.automigration.type` to `initContainer` (the default). Delete the stuck Job. |
+| The namespace stays **Terminating**; its conditions show `ValidatingAdmissionPolicy '<ns>-site-operator-…' … denied request: … no params found` | Charts before C8 bound the site policies with `parameterNotFoundAction: Deny`. The namespace delete removes the params ConfigMaps first, then every remaining delete is refused. | Upgrade the chart. To unblock now: `kubectl delete validatingadmissionpolicybindings -l app.kubernetes.io/instance=<release>` (named `<ns>-site-operator-*`); a sync recreates them. |
+| The namespace stays **Terminating** on `rules.oathkeeper.ory.sh` objects | The Rule CRs keep the `finalizer.oathkeeper.ory.sh` finalizer, but their maester sidecar is gone with the Oathkeeper pod | `kubectl -n <ns> get rules.oathkeeper.ory.sh -o name \| xargs -I{} kubectl -n <ns> patch {} --type=merge -p '{"metadata":{"finalizers":null}}'`, only for a namespace you are deleting. |
+| Deleting `<release>-site-operator-policy` / `-zones` is refused by `<ns>-site-operator-params` | The guard: those ConfigMaps feed the site policies | Expected. Delete the namespace, or add the caller to `siteOperator.admission.paramDeleters`. |
 | `helm template` fails with `jinbe.env.ENCRYPTION_KEY is required` | Bare defaults | Start from `examples/minimal-values.yaml`. |
 | The first sign-in is asked for a second factor | `super_admins` requires 2FA (the default for write-capable groups) | Enrol an authenticator or a security key. That is expected. |
 
