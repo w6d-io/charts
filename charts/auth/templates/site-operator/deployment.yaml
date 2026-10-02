@@ -84,6 +84,16 @@ spec:
             {{- range .Values.siteOperator.extraArgs }}
             - {{ . }}
             {{- end }}
+          {{- $zoneNames := list }}
+          {{- range .Values.sites.zones }}{{ $zoneNames = append $zoneNames (required "sites.zones[].name is required" .name) }}{{ end }}
+          {{- if and .Values.siteOperator.zoneScope $zoneNames }}
+          env:
+            # Only these Zones (cluster-scoped, shared by every release): another release's Zones are left
+            # alone, and a Site here under one of them is refused (ZoneNotOwned). An env var, not --zones:
+            # an operator image without the flag ignores it instead of refusing to start.
+            - name: SITE_OPERATOR_ZONES
+              value: {{ $zoneNames | uniq | join "," | quote }}
+          {{- end }}
           ports:
             - { name: metrics, containerPort: 8080 }
             - { name: probes, containerPort: 8081 }

@@ -96,6 +96,10 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
   `MCP_SERVER_URL`, `MCP_SERVER_NAME`) go in `adminUi.extraEnv`. They reach the page only if they are in the
   `envsubst` whitelist of `templates/admin-ui/deployment.yaml`, which must match the kuma Dockerfile's list.
   login-ui: `kratosLoginUi.branding.appName` plus `kratosLoginUi.extraEnv` (`LOGO_*`, `LOGO_SHOWS_NAME`, `FAVICON_URL`).
+- **Several releases on one cluster:** Zones are cluster-scoped. Each Zone is declared once and listed in one
+  release's `sites.zones`. `siteOperator.zoneScope: true` (default) passes `SITE_OPERATOR_ZONES` so that each
+  operator handles only its own Zones (it needs an image with `--zones`). A Site under another release's Zone gets
+  `ZoneNotOwned`. Never copy URLs, Vault paths or cookie names between releases.
 - **Argo CD**:
   - `ServerSideApply=true` keeps hand-added fields;
   - a `value`↔`valueFrom` switch fails the apply until the object is replaced once;

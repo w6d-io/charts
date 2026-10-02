@@ -2271,6 +2271,12 @@ clusterResources:
 siteOperator:
   enabled: false
   replicaCount: 2    # leader election; the second pod is a warm standby
+  # Reconcile only the Zones named in sites.zones (SITE_OPERATOR_ZONES): Zones are cluster-scoped, so
+  # without it every release's operator reconciles every Zone (status fights, another release's
+  # ListenerSet/Certificate written into this namespace). Needs a site-operator image with --zones
+  # (feat/zone-scope); an older one ignores the variable and reconciles every Zone. Empty sites.zones:
+  # nothing is rendered (every Zone, as before).
+  zoneScope: true
   image:
     repository: ghcr.io/w6d-io/site-operator
     tag: ""          # REQUIRED when enabled (no published release yet)

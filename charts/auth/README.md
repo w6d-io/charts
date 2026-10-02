@@ -518,6 +518,30 @@ spec:
   (`post-install,post-upgrade`) runs as a PostSync hook. Helm test pods are ignored by Argo.
 - Never sync without reading `argocd app diff` first.
 
+### Several releases on one cluster
+
+Two environments can share one cluster, for example `auth-dev` for `*.dev.example.com` and `auth-qualif` for
+`*.qualif.example.com`. Each runs the whole stack in its own namespace. What keeps them apart:
+
+| Concern | How |
+|---|---|
+| Cluster-scoped objects (VAPs, bindings, ClusterRoles, CRBs) | Named `<namespace>-…`, so they never collide. `clusterResources.annotations` (`Prune=false,Delete=false`) keeps them when an app is deleted. |
+| CRDs (`zones`/`sites.auth.w6d.io`, `rules.oathkeeper.ory.sh`) | Shared. Install them once: `siteOperator.installCRDs` / `oathkeeper.rules.installCRD` true in **one** release (or neither, with the CRDs managed apart). |
+| **Zones** (cluster-scoped) | Declare each Zone in exactly one place (one release's `siteOperator.installZones`, or a GitOps manifest with `Prune=false,Delete=false`), and list it in **that** release's `sites.zones` only. |
+| **Which operator handles a Zone** | `siteOperator.zoneScope: true` (default) gives the operator `SITE_OPERATOR_ZONES` = the names in `sites.zones`. It watches, writes status for and renders children (Ingress, Certificate, ListenerSet) of those Zones only, and mirrors only their domains. A Site in its namespace under another release's Zone is refused (`Validated=False ZoneNotOwned`). Without it, every operator reconciles every Zone: status flips between releases, and one release's ListenerSet and Certificate get written into the other's namespace. Needs a site-operator image with `--zones`; an older one ignores the variable. |
+| Hosts | Each release has its own sign-in, console, API, MCP and issuer hosts. One HTTPRoute per host: on a shared Gateway listener, two routes for the same host means the older one wins. |
+| Session | Its own cookie domain (the parent domain of its sites) and its own cookie name (`kratos.kratos.config.session.cookie.name`, `oathkeeper…cookie_session.only`, `kratosLoginUi.kratos.sessionCookie`), so two stacks on related domains never overwrite each other's session. |
+| Secrets | Its own Vault path and role, with every secret generated for it. Never copy a URL from the other release's configuration: in-namespace URLs come from the chart defaults (this release's Services), or a copied URL makes one environment use the other's Kratos or Redis. |
+| Zone management from the console | `sites.zoneRbac.resourceNames` limits jinbe's cluster-wide Zone grant to the release's own Zones. |
+
+Example:
+
+| | auth-dev | auth-qualif |
+|---|---|---|
+| `sites.zones[].name` → `SITE_OPERATOR_ZONES` | `authdev,dev` | `qualif` |
+| Zone manifests | in auth-dev's GitOps source | in auth-qualif's |
+| Cookie | `.dev.example.com` | `.qualif.example.com` |
+
 ## Upgrading
 
 ### Server-side apply (Argo CD `ServerSideApply=true`)
@@ -610,6 +634,7 @@ The keys most installs touch, grouped by component. Everything else is documente
 | `backup.{enabled,schedule,s3.*}` | off | |
 | `mcp.{enabled,host,image.tag,readOnly,httpRoute}` | off | Needs an OAuth issuer (Hydra, or `mcp.authorizationServer`); jinbe verifies auth-mcp's service-account token with TokenReview (`mcp.tokenReviewBinding`). |
 | `sites.{enabled,zones,zoneRbac,reservedHosts,upstreamAllow,...}` | off | jinbe's site publishing. `zones` must list **every** Zone (with `tls`): the site policies take the Zone domains and TLS Secrets from it. |
+| `siteOperator.zoneScope` | `true` | `SITE_OPERATOR_ZONES` from `sites.zones`: the operator handles only this release's Zones ([Several releases](#several-releases-on-one-cluster)). |
 | `siteOperator.admission.zoneParams` | `false` | Also read the operator's Zone mirror ConfigMap (Zones created at runtime). |
 | `siteOperator.{enabled,image.tag,gatewayApi,admission.ruleWriters,admission.paramDeleters,installCRDs,installZones}` | off | |
 | `gatekit.{enabled,image.tag}` | off | |
@@ -656,6 +681,8 @@ diff <(echo "$img") <(echo "$chart") && echo "whitelists match"
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| A Site stays `Validated=False` with reason `ZoneNotOwned` | Its host is under a Zone that is not in this release's `sites.zones` (another release owns it, given `siteOperator.zoneScope`) | Publish it in the release that owns the Zone, or move the Zone (one place only) and add it to this release's `sites.zones`. |
+| Zone status flips between two releases, or a release's namespace gets another Zone's ListenerSet/Certificate | Several operators reconcile every Zone: `zoneScope` off, empty `sites.zones`, or a site-operator image without `--zones` | Keep `siteOperator.zoneScope: true`, list each release's Zones, and use an image with `--zones`. Then delete the stray children in the wrong namespace. |
 | Apps behind an **enrich** gate (hydrator + header mutators) receive no cookies, or no request headers at all | A hydrator that replies with only `{subject, extra}`: Oathkeeper **replaces** its session with the hydrator's reply, so `match_context` is lost, and later mutators (the Cookie strip reads `.MatchContext.Header`) see no request headers | The hydrator must echo the whole session it receives, with only `extra` changed (the bundled hydrator does, since charts e65a6ee). When retesting after a fix, change the cookie value: the hydrator mutator caches replies for 60 s, keyed on the full session JSON, so an identical request can get the stale reply. |
 | kuma shows `${LOGO_URL}` (or another `${…}`) literally, or a branding or MCP value is ignored | The chart's read-only render (`render-html` init container) lacks that var in its `envsubst` whitelist | Add the var to the whitelist in `templates/admin-ui/deployment.yaml`, to match the kuma Dockerfile's list ([Branding](#branding-kuma-and-login-ui)). Fixed for `MCP_SERVER_URL`, `MCP_SERVER_NAME`, `LOGO_*`, `FAVICON_URL` and `APP_NAME` in charts 1a61eef / 9173954. |
 | A zone reports `ListenerSet attachment from namespace <ns> not allowed`; the console, API, sign-in and Hydra routes stay unhealthy; the Argo sync waits forever and later waves (jinbe) are never created | The namespace lacks the label the Gateway's `allowedListeners` selects (typical after the namespace was recreated) | Add `syncPolicy.managedNamespaceMetadata.labels` with that label to the Application ([GitOps](#gitops-with-argo-cd)), or label the namespace. Then terminate the running sync and sync again (next row). |
