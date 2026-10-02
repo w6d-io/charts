@@ -583,10 +583,48 @@ The keys most installs touch, grouped by component. Everything else is documente
 | `clusterResources.annotations` | `{}` | On every cluster-scoped object. |
 | `observability.serviceMonitors.*` | off | |
 
+### Branding (kuma and login-ui)
+
+Both images read their branding at runtime, through env vars:
+
+```yaml
+adminUi:
+  extraEnv:
+    APP_NAME: Example                                   # tab title "<APP_NAME> — Access console"
+    LOGO_URL: https://cdn.example.com/logo.svg          # full logo (wordmark)
+    LOGO_DARK_URL: https://cdn.example.com/logo-dark.svg
+    LOGO_SMALL_URL: https://cdn.example.com/icon.svg    # square logo; also the tab icon by default
+    FAVICON_URL: https://cdn.example.com/favicon.png    # when it is not the small logo
+    MCP_SERVER_URL: https://mcp.example.com/mcp         # shown on Connections & keys (with mcp.enabled)
+    MCP_SERVER_NAME: example                            # name in MCP client snippets (lowercase, digits, dashes)
+kratosLoginUi:
+  branding:
+    appName: Example                                    # NEXT_PUBLIC_APP_NAME
+  extraEnv:
+    LOGO_URL: https://cdn.example.com/logo.svg
+    LOGO_DARK_URL: https://cdn.example.com/logo-dark.svg
+    LOGO_SMALL_URL: https://cdn.example.com/icon.svg
+    LOGO_SHOWS_NAME: "false"                            # the logo has no product name: show the name beside the small logo
+    FAVICON_URL: https://cdn.example.com/favicon.png
+```
+
+URLs must be `https://…` or a path on the same origin. kuma's read-only root means the chart, not the image,
+substitutes these into `index.html`: its `render-html` init container (`templates/admin-ui/deployment.yaml`) runs
+`envsubst` with a whitelist that must name every runtime var the image substitutes. A var missing from that
+list is served literally (`${LOGO_URL}` in the page). When you bump kuma, compare the two lists, ideally in CI:
+
+```sh
+img=$(git show <kuma-ref>:Dockerfile | grep -o "envsubst '[^']*'" | grep -o '\${[A-Z_]*}' | sort -u)
+chart=$(grep -o "envsubst '[^']*'" charts/auth/templates/admin-ui/deployment.yaml | grep -o '\${[A-Z_]*}' | sort -u)
+diff <(echo "$img") <(echo "$chart") && echo "whitelists match"
+```
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Apps behind an **enrich** gate (hydrator + header mutators) receive no cookies, or no request headers at all | A hydrator that replies with only `{subject, extra}`: Oathkeeper **replaces** its session with the hydrator's reply, so `match_context` is lost, and later mutators (the Cookie strip reads `.MatchContext.Header`) see no request headers | The hydrator must echo the whole session it receives, with only `extra` changed (the bundled hydrator does, since charts e65a6ee). When retesting after a fix, change the cookie value: the hydrator mutator caches replies for 60 s, keyed on the full session JSON, so an identical request can get the stale reply. |
+| kuma shows `${LOGO_URL}` (or another `${…}`) literally, or a branding or MCP value is ignored | The chart's read-only render (`render-html` init container) lacks that var in its `envsubst` whitelist | Add the var to the whitelist in `templates/admin-ui/deployment.yaml`, to match the kuma Dockerfile's list ([Branding](#branding-kuma-and-login-ui)). Fixed for `MCP_SERVER_URL`, `MCP_SERVER_NAME`, `LOGO_*`, `FAVICON_URL` and `APP_NAME` in charts 1a61eef / 9173954. |
 | A zone reports `ListenerSet attachment from namespace <ns> not allowed`; the console, API, sign-in and Hydra routes stay unhealthy; the Argo sync waits forever and later waves (jinbe) are never created | The namespace lacks the label the Gateway's `allowedListeners` selects (typical after the namespace was recreated) | Add `syncPolicy.managedNamespaceMetadata.labels` with that label to the Application ([GitOps](#gitops-with-argo-cd)), or label the namespace. Then terminate the running sync and sync again (next row). |
 | An Argo sync keeps "waiting for healthy state" after an admission policy (or any error) refused some resources | A sync operation does not retry resources that failed; it waits for health with the failures recorded | Fix the cause, then **terminate the operation** (`argocd app terminate-op <app>`) and sync again. |
 | Kratos fails its config schema: `doesn't validate with #/definitions/selfServiceAfterRegistration` (or a similar `#/definitions/…`) | A key set to `null` in values inside `kratos.kratos.config` (e.g. `selfservice.flows.registration.after.password: null`): Helm passes the null through to the subchart, and it is rendered literally | Never null keys inside the Kratos or Hydra config. Override the parent value with the full list or map you want instead. |

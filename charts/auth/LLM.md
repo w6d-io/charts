@@ -80,6 +80,13 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
   `<ns>-site-operator-params` refuses deleting the two params ConfigMaps unless the namespace is terminating, the
   caller is in `system:masters`, or it is listed in `siteOperator.admission.paramDeleters`. Older charts (Deny)
   deadlock a namespace delete.
+- **The hydrator echoes the whole Oathkeeper session** (only `extra` changed). Oathkeeper replaces its session
+  with the reply, so a reply without `match_context` blinds every later mutator (no request headers, no cookies
+  on enrich gates). Its cache is 60 s, keyed on the session JSON: retest with a changed cookie value.
+- **kuma branding and MCP values** (`APP_NAME`, `LOGO_URL`, `LOGO_DARK_URL`, `LOGO_SMALL_URL`, `FAVICON_URL`,
+  `MCP_SERVER_URL`, `MCP_SERVER_NAME`) go in `adminUi.extraEnv`. They reach the page only if they are in the
+  `envsubst` whitelist of `templates/admin-ui/deployment.yaml`, which must match the kuma Dockerfile's list.
+  login-ui: `kratosLoginUi.branding.appName` plus `kratosLoginUi.extraEnv` (`LOGO_*`, `LOGO_SHOWS_NAME`, `FAVICON_URL`).
 - **Argo CD**:
   - `ServerSideApply=true` keeps hand-added fields;
   - a `value`↔`valueFrom` switch fails the apply until the object is replaced once;
@@ -127,6 +134,8 @@ vault kv get -mount=<mount> -field=OPA_DECISION_TOKEN <path> | wc -c            
 
 | Signature | Fix |
 |---|---|
+| Enrich-gate apps get no cookies or request headers | The hydrator reply dropped `match_context`: it must echo the whole session (charts >= e65a6ee). Retest with a new cookie value (60 s cache). |
+| kuma page shows `${LOGO_URL}` (or any `${VAR}`) literally | The var is missing from the chart's `envsubst` whitelist: align it with the kuma Dockerfile, then roll kuma. |
 | Zone: `ListenerSet attachment from namespace <ns> not allowed`; platform HTTPRoutes unhealthy; Argo never reaches jinbe's wave | The namespace lacks the Gateway's `allowedListeners` label. Propose `syncPolicy.managedNamespaceMetadata.labels` in the Application (or a namespace label, with the operator's go), then terminate the sync and sync again. |
 | Argo sync stuck "waiting for healthy state" after resources were refused | Sync operations don't retry failed resources: fix the cause, then `argocd app terminate-op <app>` and sync again (with the operator's go). |
 | Kratos/Hydra schema error `doesn't validate with #/definitions/…` | A `null` in values inside the subchart config. Replace it with an explicit full list or map. |
