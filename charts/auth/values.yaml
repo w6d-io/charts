@@ -566,6 +566,8 @@ kratos:
     # hook that runs BEFORE chart resources, deadlocking fresh installs that
     # bundle their own postgres (hook waits for DB, DB hasn't been deployed
     # yet). InitContainer is idempotent and safe for already-migrated DBs.
+    # Keep it: with `type: job` Argo CD runs the hook as PreSync and a fresh sync hangs forever
+    # (hydra.hydra.automigration has the same default for the same reason).
     automigration:
       enabled: true
       type: initContainer
@@ -1249,8 +1251,14 @@ hydra:
       initialDelaySeconds: 1
 
   hydra:
+    # initContainer, not the subchart's default `job`: the job is a Helm pre-install/pre-upgrade hook
+    # (Argo CD PreSync) that runs before anything else in the release, so on a fresh install it waits
+    # for a Postgres that does not exist yet and the install or sync hangs. As an init container the
+    # migration runs in each Hydra pod once Postgres is up (the database and its role come from
+    # postgresqlSimple.appRoles' initdb script); it is idempotent.
     automigration:
       enabled: true
+      type: initContainer
     config:
       # dsn and secrets.system are intentionally empty here; supply them via
       # the environment overlay (extraEnv -> Vault) so they are never committed.
@@ -1905,11 +1913,16 @@ postgresqlSimple:
   #  hostnossl all all all        reject
   # Runs as the image's postgres user (uid 999, the owner of PGDATA) with no
   # capabilities and a read-only root (socket dir and /tmp are emptyDirs).
-  # No fsGroup on purpose: kubelet's recursive chmod breaks PGDATA's 0700 mode.
+  # fsGroup 999: a fresh volume (e.g. EBS) is root-owned, and postgres cannot create PGDATA in it
+  # ("mkdir: cannot create directory '/var/lib/postgresql/data/pgdata': Permission denied").
+  # OnRootMismatch: kubelet fixes ownership only while the volume root does not match, i.e. on the
+  # first mount, before initdb creates pgdata 0700; later mounts are left alone, so PGDATA's mode holds.
   podSecurityContext:
     runAsNonRoot: true
     runAsUser: 999
     runAsGroup: 999
+    fsGroup: 999
+    fsGroupChangePolicy: OnRootMismatch
     seccompProfile:
       type: RuntimeDefault
   securityContext:
@@ -2323,6 +2336,12 @@ siteOperator:
     ruleDeleters:
       - system:serviceaccount:kube-system:generic-garbage-collector
       - system:serviceaccount:kube-system:namespace-controller
+    # Who may delete the policies' params ConfigMaps (<release>-site-operator-policy, -zones) while the
+    # namespace is active (system:masters always may; a namespace being deleted always does). E.g. the
+    # Argo CD controller if you delete the app without deleting the namespace. The bindings use
+    # parameterNotFoundAction: Allow so a namespace delete cannot deadlock; this guard is what keeps
+    # the params from being removed to switch the policies off.
+    paramDeleters: []
     # Ingress annotations accepted in the gateway namespace, on top of the operator's own
     # (ingressAnnotations) and every key the chart's Ingresses use.
     allowedIngressAnnotations:

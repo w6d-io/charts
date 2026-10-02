@@ -1,0 +1,56 @@
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.admission.enabled }}
+{{- $adm := .Values.siteOperator.admission }}
+{{- $ns := include "auth.sites.namespace" . }}
+{{- $params := list (include "auth.siteOperator.policyConfigMap" .) (include "auth.siteOperator.zonesConfigMap" .) }}
+{{- $name := include "auth.sites.clusterName" (dict "ctx" . "name" "site-operator-params") }}
+{{- /*
+  The site policies' bindings read their params from two ConfigMaps in the release namespace with
+  parameterNotFoundAction: Allow, so that deleting the namespace (which removes the params early) does
+  not deny every later delete and leave it Terminating. This policy keeps the params from going away
+  any other way: their DELETE is refused unless the namespace is being deleted, the caller is in
+  system:masters, or it is listed in siteOperator.admission.paramDeleters. Updates stay with RBAC; a
+  params ConfigMap missing a key makes the site policies fail closed (failurePolicy: Fail).
+*/}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ $name }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["configmaps"]
+  matchConditions:
+    - name: site-policy-params
+      expression: 'oldObject.metadata.name in {{ toJson $params }}'
+  validations:
+    - expression: >-
+        has(namespaceObject.metadata.deletionTimestamp) ||
+        (has(request.userInfo.groups) && 'system:masters' in request.userInfo.groups) ||
+        request.userInfo.username in {{ toJson ($adm.paramDeleters | default list) }}
+      messageExpression: >-
+        'the site policies read their parameters from ConfigMap ' + oldObject.metadata.name +
+        ': it can only be deleted with the namespace (or by siteOperator.admission.paramDeleters)'
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ $name }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+spec:
+  policyName: {{ $name }}
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: {{ $ns }}
+{{- end }}

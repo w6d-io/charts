@@ -65,7 +65,11 @@ data:
 {{- $_ := set $obj.spec "policyName" (include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.spec.policyName)) }}
 {{- if $obj.spec.paramRef }}
 {{- $param := ternary (include "auth.siteOperator.zonesConfigMap" $) (include "auth.siteOperator.policyConfigMap" $) (eq $obj.spec.paramRef.name "site-operator-zones") }}
-{{- $_ := set $obj.spec "paramRef" (dict "name" $param "namespace" $ns "parameterNotFoundAction" "Deny") }}
+{{- /* Allow, not Deny: a namespace being deleted loses its params ConfigMaps first, and with Deny every
+     remaining delete in it (ingresses, rules, sites, configmaps) was refused, so it stuck in Terminating.
+     The params can only go away while the namespace is deleted: <ns>-site-operator-params refuses their
+     DELETE otherwise (admission-params-guard.yaml). */}}
+{{- $_ := set $obj.spec "paramRef" (dict "name" $param "namespace" $ns "parameterNotFoundAction" "Allow") }}
 {{- end }}
 {{- $_ := set $obj.spec "matchResources" (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" $ns))) }}
 {{- end }}
