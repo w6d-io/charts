@@ -47,7 +47,7 @@ spec:
             - |
               set -e
               cp -R /usr/share/nginx/html/. /out/
-              envsubst '${API_BASE} ${AUTH_DOMAIN} ${GRAFANA_URL} ${BACKUP_ENABLED} ${OIDC_AUTHORITY} ${OIDC_CLIENT_ID} ${OIDC_AUDIENCE} ${ORG_AUTHORITY} ${KRATOS_PUBLIC_URL} ${ORG_DIRECTORY_AUDIENCE} ${ORG_DIRECTORY_URL} ${ORG_SELECTION_URL}' \
+              envsubst '${API_BASE} ${AUTH_DOMAIN} ${GRAFANA_URL} ${BACKUP_ENABLED} ${OIDC_AUTHORITY} ${OIDC_CLIENT_ID} ${OIDC_AUDIENCE} ${ORG_AUTHORITY} ${KRATOS_PUBLIC_URL} ${ORG_DIRECTORY_AUDIENCE} ${ORG_DIRECTORY_URL} ${ORG_SELECTION_URL} ${MCP_SERVER_URL} ${LOGO_URL} ${LOGO_DARK_URL} ${LOGO_SMALL_URL} ${FAVICON_URL} ${APP_NAME}' \
                 < /usr/share/nginx/html/index.html > /out/index.html
           env:
             {{- include "auth.adminUi.env" . | nindent 12 }}
