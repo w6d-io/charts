@@ -67,9 +67,27 @@ metadata:
 rules:
   # admins manage Zones from kuma through jinbe (kube-sites.ts: list/get/create/delete, replace
   # for the zone's settings; the domain itself is immutable)
+  {{- $zr := .Values.sites.zoneRbac | default dict }}
+  {{- $verbs := $zr.verbs | default (list "get" "list" "watch" "create" "update" "delete") }}
+  {{- if $zr.resourceNames }}
+  {{- $named := list }}{{- $open := list }}
+  {{- range $verbs }}{{- if has . (list "update" "patch" "delete") }}{{- $named = append $named . }}{{- else }}{{- $open = append $open . }}{{- end }}{{- end }}
+  {{- if $open }}
   - apiGroups: [auth.w6d.io]
     resources: [zones]
-    verbs: [get, list, watch, create, update, delete]
+    verbs: [{{ join ", " $open }}]
+  {{- end }}
+  {{- if $named }}
+  - apiGroups: [auth.w6d.io]
+    resources: [zones]
+    resourceNames: [{{ join ", " $zr.resourceNames }}]
+    verbs: [{{ join ", " $named }}]
+  {{- end }}
+  {{- else }}
+  - apiGroups: [auth.w6d.io]
+    resources: [zones]
+    verbs: [{{ join ", " $verbs }}]
+  {{- end }}
   # host-collision pre-check before a site is saved: read-only, every namespace
   - apiGroups: [networking.k8s.io]
     resources: [ingresses]

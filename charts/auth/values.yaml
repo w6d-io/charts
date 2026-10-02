@@ -2075,6 +2075,13 @@ sites:
   #     tls: {mode: default}           # default | secret (secretName) | issuer (issuer)
   #     cookieDomain: .example.com   # optional, jinbe only (SSO coverage hint)
   zones: []
+  # jinbe's cluster-wide grant on Zone CRs (<namespace>-<release>-jinbe-zone-reader). The default
+  # lets admins create and delete zones from kuma. Drop create/delete to keep zones GitOps-only;
+  # resourceNames limits update/patch/delete to the listed zones (get/list/watch and create
+  # cannot be limited by name, Kubernetes ignores resourceNames for them).
+  zoneRbac:
+    verbs: [get, list, watch, create, update, delete]
+    resourceNames: []
   # Hosts only system sites may use, on top of every oathkeeper.ingress.proxy host.
   reservedHosts: []
   # Kratos session cookie domain, for jinbe's SSO-coverage warning (SITES_COOKIE_DOMAIN).
