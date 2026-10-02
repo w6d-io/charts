@@ -76,7 +76,12 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
   A StatefulSet does not roll a pod that never became Ready: after fixing its spec, delete the crash-looping pod.
 - **Ory migrations** run as init containers (`automigration.type: initContainer`, the default for Kratos and Hydra).
   `job` is a pre-install hook (Argo PreSync) that runs before Postgres exists, and a fresh install hangs.
-- **Site policy params**: the bindings use `parameterNotFoundAction: Allow` (a namespace delete cannot deadlock).
+- **Site policies do not read params** (since C9): the chart writes their settings into the CEL, including the Zone
+  domains and TLS Secrets from `sites.zones`. Every Zone must be listed there with its `tls`, even with
+  `installZones: false`, or its hosts and its ListenerSet are refused. `siteOperator.admission.zoneParams: true`
+  adds the operator's Zone mirror (runtime Zones). That mirror is unreliable after a namespace recreate (the API
+  server serves a stale or missing copy, and nothing refreshes it).
+- **Site policy params guard**: the remaining paramRef uses `parameterNotFoundAction: Allow` (a namespace delete cannot deadlock).
   `<ns>-site-operator-params` refuses deleting the two params ConfigMaps unless the namespace is terminating, the
   caller is in `system:masters`, or it is listed in `siteOperator.admission.paramDeleters`. Older charts (Deny)
   deadlock a namespace delete.
@@ -139,7 +144,8 @@ vault kv get -mount=<mount> -field=OPA_DECISION_TOKEN <path> | wc -c            
 | Zone: `ListenerSet attachment from namespace <ns> not allowed`; platform HTTPRoutes unhealthy; Argo never reaches jinbe's wave | The namespace lacks the Gateway's `allowedListeners` label. Propose `syncPolicy.managedNamespaceMetadata.labels` in the Application (or a namespace label, with the operator's go), then terminate the sync and sync again. |
 | Argo sync stuck "waiting for healthy state" after resources were refused | Sync operations don't retry failed resources: fix the cause, then `argocd app terminate-op <app>` and sync again (with the operator's go). |
 | Kratos/Hydra schema error `doesn't validate with #/definitions/…` | A `null` in values inside the subchart config. Replace it with an explicit full list or map. |
-| Site policy `no params found` with the params ConfigMap present, after a namespace recreate | A pre-C8 chart (Deny bindings, stale API-server param cache). Upgrade the chart. |
+| Site policy `no params found` with the params ConfigMap present, or a host under an existing Zone refused, after a namespace recreate | A pre-C9 chart reading params (the API-server param informer serves none or a stale copy). Upgrade the chart, and list the Zone in `sites.zones` with `tls`. |
+| `a zone ListenerSet uses a Zone TLS Secret` | The Zone's `sites.zones` entry lacks `tls`. Set it as on the Zone. |
 | A container fails at start with a vault-env error that a key or path was not found, or permission denied | Write the key (`kv patch`) or bind the SA to the role. The container recovers on restart. |
 | jinbe `Init:Error`, bootstrap exit **6** (`MigrationNotApprovedError`) | Old-schema store: run `--plan` in a one-off Job with the new image, have the operator review it, then `--apply --expect <hash>` or set `JINBE_RBAC_APPLY_EXPECT`. Never bypass this. |
 | Bootstrap exit 1 mentioning `ADMIN_PASSWORD` | Weak or short password: store a new `openssl rand -base64 24`. |

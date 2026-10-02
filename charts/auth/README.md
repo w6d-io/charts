@@ -467,15 +467,28 @@ spec:
 - **`siteOperator.admission.ruleWriters`** must name your Argo CD controller,
   `system:serviceaccount:<argo namespace>:argocd-application-controller`. The rules admission policy refuses
   every other writer, including Argo applying the chart's `platform-ready` Rule. There is no default; NOTES warn when it is empty.
-- **Deleting the app or the namespace.** The site policies' bindings read their parameters from two ConfigMaps
-  in the release namespace (`<release>-site-operator-policy`, `-zones`), with `parameterNotFoundAction: Allow`, so
-  a namespace delete cannot deadlock. To keep the policies from being switched off by deleting those ConfigMaps,
-  the policy `<namespace>-site-operator-params` refuses their deletion unless the namespace is being deleted, or
-  the caller is in `system:masters` (a `cluster-admin` binding is not enough) or listed in
-  `siteOperator.admission.paramDeleters`. Add your Argo CD controller there if you delete the app but keep the namespace.
-  Allow also matters beyond deletes: after a namespace was deleted and recreated, Deny bindings kept answering
-  "no params found" although the params ConfigMap existed again (the API server's param informer for the recreated
-  namespace), and recreating the bindings and the policies did not clear it.
+- **Site policies carry their parameters inline.** The site-operator ValidatingAdmissionPolicies do not read a
+  params ConfigMap: the chart writes the values into their CEL. That covers the operator and writer identities,
+  the reserved hosts, the upstream regexes, the gateway Service and Gateways, and the issuer route. It also covers
+  the **Zone domains and Zone TLS Secrets, taken from `sites.zones`**. So list every Zone there, with its `tls`
+  as the Zone has it (`mode: issuer` → Secret `zone-<name>-tls`; `mode: secret` → `secretName`), even with
+  `siteOperator.installZones: false`.
+
+  Why: the API server's param informer is unreliable for a namespace that was deleted and recreated. Bindings
+  kept answering "no params found" although the ConfigMap existed, and later evaluated with a **stale copy** of it
+  (a Zone added after the rebuild was refused). Annotating the ConfigMap, and recreating the bindings and the
+  policies, did not refresh it.
+
+  `siteOperator.admission.zoneParams: true` re-adds the operator's Zone mirror (`<release>-site-operator-zones`)
+  as an extra source, for Zones created at runtime from kuma. It is read with `parameterNotFoundAction: Allow`
+  (a namespace delete cannot deadlock), so it inherits that informer risk.
+- **Deleting the app or the namespace.** The policy `<namespace>-site-operator-params` refuses deleting the
+  `<release>-site-operator-policy` and `-zones` ConfigMaps unless:
+  - the namespace is being deleted;
+  - the caller is in `system:masters` (a `cluster-admin` binding is not enough);
+  - or the caller is listed in `siteOperator.admission.paramDeleters`.
+
+  Add your Argo CD controller there if you delete the app but keep the namespace.
 - **`clusterResources.annotations`** applies to every cluster-scoped object (ValidatingAdmissionPolicies,
   ClusterRoles, ClusterRoleBindings). Use `argocd.argoproj.io/sync-options: Prune=false,Delete=false` so deleting
   the app keeps them.
@@ -577,7 +590,8 @@ The keys most installs touch, grouped by component. Everything else is documente
 | `postgresqlSimple.podSecurityContext.fsGroup` | `999` (`OnRootMismatch`) | Lets postgres create PGDATA on a root-owned fresh volume. |
 | `backup.{enabled,schedule,s3.*}` | off | |
 | `mcp.{enabled,host,image.tag,readOnly,httpRoute}` | off | Needs an OAuth issuer (Hydra, or `mcp.authorizationServer`); jinbe verifies auth-mcp's service-account token with TokenReview (`mcp.tokenReviewBinding`). |
-| `sites.{enabled,zones,zoneRbac,reservedHosts,upstreamAllow,...}` | off | jinbe's site publishing. |
+| `sites.{enabled,zones,zoneRbac,reservedHosts,upstreamAllow,...}` | off | jinbe's site publishing. `zones` must list **every** Zone (with `tls`): the site policies take the Zone domains and TLS Secrets from it. |
+| `siteOperator.admission.zoneParams` | `false` | Also read the operator's Zone mirror ConfigMap (Zones created at runtime). |
 | `siteOperator.{enabled,image.tag,gatewayApi,admission.ruleWriters,admission.paramDeleters,installCRDs,installZones}` | off | |
 | `gatekit.{enabled,image.tag}` | off | |
 | `clusterResources.annotations` | `{}` | On every cluster-scoped object. |
@@ -628,7 +642,8 @@ diff <(echo "$img") <(echo "$chart") && echo "whitelists match"
 | A zone reports `ListenerSet attachment from namespace <ns> not allowed`; the console, API, sign-in and Hydra routes stay unhealthy; the Argo sync waits forever and later waves (jinbe) are never created | The namespace lacks the label the Gateway's `allowedListeners` selects (typical after the namespace was recreated) | Add `syncPolicy.managedNamespaceMetadata.labels` with that label to the Application ([GitOps](#gitops-with-argo-cd)), or label the namespace. Then terminate the running sync and sync again (next row). |
 | An Argo sync keeps "waiting for healthy state" after an admission policy (or any error) refused some resources | A sync operation does not retry resources that failed; it waits for health with the failures recorded | Fix the cause, then **terminate the operation** (`argocd app terminate-op <app>`) and sync again. |
 | Kratos fails its config schema: `doesn't validate with #/definitions/selfServiceAfterRegistration` (or a similar `#/definitions/…`) | A key set to `null` in values inside `kratos.kratos.config` (e.g. `selfservice.flows.registration.after.password: null`): Helm passes the null through to the subchart, and it is rendered literally | Never null keys inside the Kratos or Hydra config. Override the parent value with the full list or map you want instead. |
-| Site policy bindings answer `no params found` although the params ConfigMap exists (after the namespace was recreated) | Charts before C8 (`parameterNotFoundAction: Deny`): the API server's param cache for the recreated namespace. Recreating the bindings and policies does not clear it | Upgrade the chart (Allow plus the params guard). |
+| Site policy bindings answer `no params found` although the params ConfigMap exists, or a Site host under an existing Zone is refused (`every site host must be one DNS label under a Zone domain`) although `<release>-site-operator-zones` lists the domain, after the namespace was recreated | Charts before C9 read params ConfigMaps, and the API server's param informer for a recreated namespace serves none, or a stale copy. Annotating the ConfigMap or recreating the bindings and policies does not refresh it | Upgrade the chart: the policies carry their parameters inline. Add the Zone to `sites.zones` (with `tls`). |
+| The operator's zone ListenerSet or host Ingress is refused: `a zone ListenerSet uses a Zone TLS Secret` / `… uses a Zone TLS Secret` | The Zone's `tls` is missing from its `sites.zones` entry, so the policy does not know its Secret | Set `tls` on the entry as on the Zone (e.g. `{mode: issuer, issuer: <issuer>}` → `zone-<name>-tls`). |
 | A jinbe release with new data paths (a new feed) does not reach OPA: rules fail or decisions miss data; the OPAL client logs no error | The OPAL server read jinbe's entry list at start and keeps the old one | `kubectl rollout restart deploy/auth-opal-server`, then `deploy/auth-opal-client`. Prevent it with `global.jinbeRevision`. |
 | Site gates with role headers answer **403/502**; plain gates work | OPA's `system.authz` refuses `POST /v1/data/rbac/decision`: rule missing, `OPA_DECISION_TOKEN` unset or under 32 chars on opal-client, or the proxy token differs | Check [role headers](#authorization-model) steps 3 and 4. Both sides must read the same Vault key. |
 | jinbe stuck in `Init:Error`, bootstrap log `exit 6` / `MigrationNotApprovedError` | The store is the previous model's schema | Plan, review, apply ([Upgrading](#access-model-releases-bootstrap-schema)). |

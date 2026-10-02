@@ -2106,6 +2106,8 @@ sites:
   #     ingressClass: nginx            # optional, operator default otherwise
   #     tls: {mode: default}           # default | secret (secretName) | issuer (issuer)
   #     cookieDomain: .example.com   # optional, jinbe only (SSO coverage hint)
+  # Every Zone the site policies accept hosts under (and, with siteOperator.installZones, the Zone CRs
+  # the chart renders). Set tls as the Zone has it: the hosts policy derives the Zone TLS Secret from it.
   zones: []
   # jinbe's cluster-wide grant on Zone CRs (<namespace>-<release>-jinbe-zone-reader). The default
   # lets admins create and delete zones from kuma. Drop create/delete to keep zones GitOps-only;
@@ -2342,6 +2344,13 @@ siteOperator:
     # parameterNotFoundAction: Allow so a namespace delete cannot deadlock; this guard is what keeps
     # the params from being removed to switch the policies off.
     paramDeleters: []
+    # The policies carry their parameters inline: the chart's own settings, and the Zone domains and
+    # TLS Secrets from sites.zones (list every Zone there, with its tls, even with installZones: false).
+    # true also reads the operator's Zone mirror (ConfigMap <release>-site-operator-zones), in ADDITION
+    # to sites.zones, for Zones created at runtime (kuma, SITES_ZONE_ALLOWED_PARENTS). The API server
+    # can keep evaluating with a stale or missing copy of that ConfigMap after the namespace is deleted
+    # and recreated, so leave it off where every Zone is in values.
+    zoneParams: false
     # Ingress annotations accepted in the gateway namespace, on top of the operator's own
     # (ingressAnnotations) and every key the chart's Ingresses use.
     allowedIngressAnnotations:
