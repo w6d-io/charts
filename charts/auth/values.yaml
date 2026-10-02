@@ -20,6 +20,10 @@ global:
     address: http://vault.vault:8200
     role: ""
     envFromPath: ""
+  # Set to jinbe.image.tag (the same value, bumped together): opal-server reads jinbe's
+  # data-source entry list only on start, so a new value rolls opal-server in the same release.
+  # Empty: no annotation (restart opal-server by hand after a jinbe release that changes feeds).
+  jinbeRevision: ""
   audit:
     webhook:
       secret: vault:secret/data/auth#KRATOS_WEBHOOK_SECRET

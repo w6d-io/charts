@@ -21,9 +21,16 @@ spec:
     metadata:
       labels:
         {{- include "opal.serverLabels" . | nindent 8 }}
-      {{- with .Values.server.podAnnotations }}
+      {{- $jinbeRev := (.Values.global | default dict).jinbeRevision | default "" }}
+      {{- if or .Values.server.podAnnotations $jinbeRev }}
       annotations:
+        {{- with .Values.server.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $jinbeRev }}
+        # opal-server reads jinbe's data-source entry list only on start: a new jinbe rolls it
+        checksum/jinbe-revision: {{ $jinbeRev | toString | sha256sum | trunc 16 | quote }}
+        {{- end }}
       {{- end }}
     spec:
       {{- with .Values.image.server.pullSecrets }}
