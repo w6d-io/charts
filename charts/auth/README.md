@@ -108,6 +108,10 @@ The order matters on a fresh install (and on a rebuild after deleting the namesp
 3. **Install or sync.**
 4. **Check the first jinbe pod's bootstrap log** (step 7) before anything restarts it.
 
+On a rebuild with the backup on, decide first what the first bootstrap does with the backup
+(`backup.restoreOnFirstInit`, [Backup](#backup-and-restore)): `"false"` for a deliberate blank rebuild,
+`"true"` for disaster recovery (restore or fail), `auto` (default) to restore when a backup exists.
+
 ### 1. Pick names
 
 - Domain `example.com`: sign-in at `auth.example.com`, console and API at `app.example.com`.
@@ -226,7 +230,8 @@ run (no Redis marker `rbac:bootstrap:state`), it:
    `staff-auditors`, `staff-ops`, `staff-support`, `staff-developers`, `staff-viewers`), jinbe's org roles,
    and the generated route map (every jinbe route and the permission it needs);
 2. writes the built-in gateway rules for the sign-in pages, the console and the API on your domains;
-3. restores the RBAC bundle from `latest.json` when the S3 backup is on and a backup exists;
+3. restores the RBAC bundle from `latest.json`, as `backup.restoreOnFirstInit` says (by default when the S3
+   backup is on and a backup exists);
 4. creates the **default super admin**: a Kratos identity `ADMIN_EMAIL` with password `ADMIN_PASSWORD`, email
    marked verified, in group `super_admins`. The password must be at least 16 characters with real entropy,
    or jinbe refuses to start (no weak default exists);
@@ -320,6 +325,7 @@ and Hydra clients are **not** in the bundle: back up Postgres separately (`pg_du
 backup:
   enabled: true
   schedule: "0 2 * * *"          # UTC; replicas dedupe through a Redis claim
+  restoreOnFirstInit: auto       # first bootstrap run only: auto | "true" | "false" (below)
   s3: {bucket: <bucket>, prefix: <prefix>, region: <region>}
 jinbe:
   serviceAccount:
@@ -355,6 +361,18 @@ Trust: `system:serviceaccount:<namespace>:auth-jinbe` (the jinbe SA), audience `
 `kms:Encrypt`/`kms:Decrypt`/`kms:GenerateDataKey` if the bucket uses SSE-KMS. The bundle contains email
 addresses: keep the bucket private, versioned and encrypted, with a lifecycle rule.
 
+**Restore on first init** (`backup.restoreOnFirstInit`, env `BACKUP_RESTORE_ON_FIRST_INIT`, on the jinbe pod and
+its bootstrap): what the **first** bootstrap run (no marker in Redis) does with `<prefix>/latest.json`:
+
+| Value | Behaviour | Use for |
+|---|---|---|
+| `auto` (default) | Restore when backup is on and a `latest.json` exists; otherwise, or if the import fails, keep the freshly seeded model | Normal installs |
+| `"false"` | Never restore (logs `first init: restore skipped`) | A deliberate blank rebuild, without the old access model |
+| `"true"` | Restore, or fail the bootstrap with **exit 9** (backup off, no `latest.json`, or a failed import). No marker is written, so jinbe retries on the next start | Disaster recovery: never come up empty by accident |
+
+Later runs ignore it. Quote `"true"` / `"false"` or not, both render the same. It needs a jinbe image that reads
+`BACKUP_RESTORE_ON_FIRST_INIT`; older images ignore it and behave as `auto`.
+
 **Operate**
 
 | Action | How |
@@ -362,7 +380,7 @@ addresses: keep the bucket private, versioned and encrypted, with a lifecycle ru
 | Back up now | kuma → Backup → "Back up now", or `POST /api/admin/rbac/bundle/backups/now` (`policy.bundle:write`) |
 | List | `GET /api/admin/rbac/bundle/backups` (`policy.bundle:read`) |
 | Restore a backup | `POST /api/admin/rbac/bundle/backups/restore` with `{"key": "<prefix>/<timestamp>.json"}` (`policy.bundle:write`). Audited; OPA sees the result within seconds. |
-| Rebuild from zero | A first run (empty Redis) with backup on restores `latest.json` automatically, after seeding the model. |
+| Rebuild from zero | A first run (empty Redis, no bootstrap marker) seeds the model, then follows `backup.restoreOnFirstInit`. |
 | Roll back an access-model move | `node dist/cli/bootstrap.js --restore-snapshot <prefix>-snapshots/<name>.json`, then redeploy the previous release ([Upgrading](#upgrading)). |
 
 ## Authorization model
@@ -555,6 +573,7 @@ Bootstrap exit codes:
 | 6 | Old-model store, and no reviewed plan approves the move |
 | 7 | Break-glass refused |
 | 8 | Apply refused: the snapshot would not outlive the pod |
+| 9 | First init with `backup.restoreOnFirstInit: "true"` and no restore: backup off, no `latest.json`, or a failed import. No marker is written, so the next run tries again. |
 
 ## Values reference
 

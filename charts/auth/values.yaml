@@ -2062,6 +2062,12 @@ adminUi:
 #         eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
 backup:
   enabled: false
+  # First bootstrap run only (no marker in Redis): what to do with the backup's latest.json.
+  #   auto  — restore it when backup is on and one exists; else keep the freshly seeded model
+  #   false — never restore: a deliberate blank rebuild
+  #   true  — disaster recovery: restore, or fail the bootstrap (exit 9: backup off, no latest.json, or a
+  #           failed import; no marker is written, so the next run tries again)
+  restoreOnFirstInit: auto
   schedule: "0 2 * * *"        # Daily at 02:00 UTC (jinbe-run, cron in UTC)
   s3:
     bucket: ""                  # Required when enabled=true

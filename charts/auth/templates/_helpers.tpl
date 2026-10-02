@@ -350,6 +350,13 @@ ServiceAccount's IRSA annotation (no static keys).
 {{- define "auth.backup.env" -}}
 - name: BACKUP_ENABLED
   value: {{ .Values.backup.enabled | quote }}
+{{- /* not `default`: a YAML false must stay "false", not become "auto" */}}
+{{- $restore := "auto" }}
+{{- if hasKey .Values.backup "restoreOnFirstInit" }}{{ if not (kindIs "invalid" .Values.backup.restoreOnFirstInit) }}{{ $restore = toString .Values.backup.restoreOnFirstInit }}{{ end }}{{ end }}
+{{- if eq $restore "" }}{{ $restore = "auto" }}{{ end }}
+{{- if not (has $restore (list "auto" "true" "false")) }}{{ fail "backup.restoreOnFirstInit must be \"auto\", \"true\" or \"false\"" }}{{ end }}
+- name: BACKUP_RESTORE_ON_FIRST_INIT
+  value: {{ $restore | quote }}
 {{- if .Values.backup.enabled }}
 - name: BACKUP_S3_BUCKET
   value: {{ required "backup.s3.bucket is required when backup.enabled=true" .Values.backup.s3.bucket | quote }}

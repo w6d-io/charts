@@ -28,6 +28,8 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
 10. A fresh install or rebuild goes in this order: Vault keys (app-role passwords and `OPA_DECISION_TOKEN` included)
    → namespace labels (Gateway `allowedListeners` label, Pod Security) → install/sync → read the first jinbe
    pod's bootstrap log.
+11. Before a rebuild with backup on, ask whether the old access model must come back: set
+   `backup.restoreOnFirstInit` to `"true"` (disaster recovery) or `"false"` (deliberate blank), never guess.
 
 ## Facts you must not get wrong
 
@@ -58,7 +60,9 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
 - **The OPAL server reads jinbe's data-source list only on start.** After a jinbe release, restart the OPAL server
   and then the client, or set `global.jinbeRevision` = `jinbe.image.tag`.
 - **Bootstrap**: init container `bootstrap` in the jinbe pod, Redis marker `rbac:bootstrap:state`, schema version 8.
-  - First run: seeds the model from code, writes the gateway rules, restores `latest.json` if backup is on, creates
+  - First run: seeds the model from code, writes the gateway rules, restores `latest.json` per
+    `backup.restoreOnFirstInit` (`auto`: if backup is on and one exists; `"false"`: never, for a blank rebuild;
+    `"true"`: restore or exit **9**, for disaster recovery), creates
     the `ADMIN_EMAIL` super admin.
   - An older-schema store needs a reviewed plan. Otherwise it exits **6**.
   - Exit codes: [README › Upgrading](README.md#access-model-releases-bootstrap-schema).
@@ -148,6 +152,7 @@ vault kv get -mount=<mount> -field=OPA_DECISION_TOKEN <path> | wc -c            
 | `a zone ListenerSet uses a Zone TLS Secret` | The Zone's `sites.zones` entry lacks `tls`. Set it as on the Zone. |
 | A container fails at start with a vault-env error that a key or path was not found, or permission denied | Write the key (`kv patch`) or bind the SA to the role. The container recovers on restart. |
 | jinbe `Init:Error`, bootstrap exit **6** (`MigrationNotApprovedError`) | Old-schema store: run `--plan` in a one-off Job with the new image, have the operator review it, then `--apply --expect <hash>` or set `JINBE_RBAC_APPLY_EXPECT`. Never bypass this. |
+| Bootstrap exit **9** | `backup.restoreOnFirstInit: "true"` and nothing restored: check `backup.enabled`, IRSA access to `<prefix>/latest.json`, and the import error in the log. Do not switch to `auto` to "make it start" without the operator's decision: that brings up an empty access model. |
 | Bootstrap exit 1 mentioning `ADMIN_PASSWORD` | Weak or short password: store a new `openssl rand -base64 24`. |
 | `--apply` exit 8, or `AccessDenied` on `<prefix>-snapshots/` | Turn on the S3 backup, and add `<prefix>-snapshots/*` to IAM. |
 | Everyone 403 after a restart | The OPAL client is not Ready or OPA has no data: check the JWTs (expired? placeholders?), then the OPAL server's logs. |
