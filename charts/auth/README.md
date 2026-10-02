@@ -203,6 +203,22 @@ jinbe:
     ENCRYPTION_KEY: "vault:secret/data/myapp#ENCRYPTION_KEY"
 ```
 
+## Upgrading with server-side apply (Argo CD `ServerSideApply=true`)
+
+Server-side apply removes only the fields its own manager owned. Two consequences when a release
+takes over objects that were also edited by hand (`kubectl set env`, `kubectl patch`):
+
+- **An env var that switches between `value` and `valueFrom` fails the apply.** The merged object
+  carries both, and the API server rejects it (`valueFrom: may not be specified when value is not
+  empty`). Examples: the Redis password (`value` → `secretKeyRef` of `redisAuthSecret`), or
+  `OPA_DECISION_TOKEN` on opal-client when it moves from a Secret to a vault reference. Apply
+  those objects once with replace (`argocd app sync --resource <group>:<kind>:<name> --replace`,
+  or the `Replace=true` sync option on the object). For a StatefulSet, replace works only while
+  `volumeClaimTemplates`, `selector` and `serviceName` are unchanged.
+- **Hand-added fields survive a sync** (env vars, annotations), so "Synced" does not mean "equal to
+  the chart". After the first sync, replace each object that still lists foreign managers in
+  `metadata.managedFields` once, then let the release be the only writer.
+
 ## Adding a New Service
 
 ```bash
