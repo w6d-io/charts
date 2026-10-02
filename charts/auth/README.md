@@ -97,6 +97,17 @@ Oathkeeper loads them. With `oathkeeper.rules.source: dual` (Sites), the oathkee
 From an empty namespace to a signed-in super admin, with the bundled Postgres and Redis and every secret
 in Vault. The full values file is [`examples/minimal-values.yaml`](examples/minimal-values.yaml).
 
+The order matters on a fresh install (and on a rebuild after deleting the namespace):
+
+1. **Vault keys first**: every key in [the table](#secrets-and-vault), including the app-role passwords
+   (`KRATOS_APP_PASSWORD`, `HYDRA_APP_PASSWORD` with Hydra) and `OPA_DECISION_TOKEN`. A pod whose key is missing
+   does not start.
+2. **Namespace labels**: the label your Gateway's `allowedListeners` selects (when site zones attach a
+   ListenerSet to it), and the Pod Security labels. With Argo CD, put them in `managedNamespaceMetadata`
+   ([GitOps](#gitops-with-argo-cd)), so a recreated namespace gets them before anything else.
+3. **Install or sync.**
+4. **Check the first jinbe pod's bootstrap log** (step 7) before anything restarts it.
+
 ### 1. Pick names
 
 - Domain `example.com`: sign-in at `auth.example.com`, console and API at `app.example.com`.
@@ -436,7 +447,20 @@ spec:
     - {group: "", kind: ConfigMap, name: auth-site-operator-zones, managedFieldsManagers: [site-operator]}
   syncPolicy:
     syncOptions: [CreateNamespace=true, ServerSideApply=true, RespectIgnoreDifferences=true]
+    # Labels the namespace needs before anything is created in it: Argo applies them when it creates
+    # (or recreates) the namespace
+    managedNamespaceMetadata:
+      labels:
+        # the label your Gateway's allowedListeners selects (site zones attach a ListenerSet to it)
+        <gateway-listener-label>: "true"
+        pod-security.kubernetes.io/enforce: restricted
 ```
+
+- **Namespace labels.** When site-operator zones attach a `ListenerSet` to a shared Gateway whose
+  `allowedListeners` admits only labelled namespaces (`namespaces: {from: Selector, selector: {matchLabels: …}}`),
+  a namespace without that label has every platform HTTPRoute (console, API, sign-in, Hydra) unattached.
+  Argo then waits on their health forever and never reaches the later sync waves (jinbe is never created).
+  `managedNamespaceMetadata` puts the label on a namespace Argo creates, including after a delete.
 
 - **`RespectIgnoreDifferences=true`** is required with site-operator. Otherwise a sync points Oathkeeper back at
   the seed config map and drops every site rule.
@@ -449,6 +473,9 @@ spec:
   the policy `<namespace>-site-operator-params` refuses their deletion unless the namespace is being deleted, or
   the caller is in `system:masters` (a `cluster-admin` binding is not enough) or listed in
   `siteOperator.admission.paramDeleters`. Add your Argo CD controller there if you delete the app but keep the namespace.
+  Allow also matters beyond deletes: after a namespace was deleted and recreated, Deny bindings kept answering
+  "no params found" although the params ConfigMap existed again (the API server's param informer for the recreated
+  namespace), and recreating the bindings and the policies did not clear it.
 - **`clusterResources.annotations`** applies to every cluster-scoped object (ValidatingAdmissionPolicies,
   ClusterRoles, ClusterRoleBindings). Use `argocd.argoproj.io/sync-options: Prune=false,Delete=false` so deleting
   the app keeps them.
@@ -560,6 +587,10 @@ The keys most installs touch, grouped by component. Everything else is documente
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| A zone reports `ListenerSet attachment from namespace <ns> not allowed`; the console, API, sign-in and Hydra routes stay unhealthy; the Argo sync waits forever and later waves (jinbe) are never created | The namespace lacks the label the Gateway's `allowedListeners` selects (typical after the namespace was recreated) | Add `syncPolicy.managedNamespaceMetadata.labels` with that label to the Application ([GitOps](#gitops-with-argo-cd)), or label the namespace. Then terminate the running sync and sync again (next row). |
+| An Argo sync keeps "waiting for healthy state" after an admission policy (or any error) refused some resources | A sync operation does not retry resources that failed; it waits for health with the failures recorded | Fix the cause, then **terminate the operation** (`argocd app terminate-op <app>`) and sync again. |
+| Kratos fails its config schema: `doesn't validate with #/definitions/selfServiceAfterRegistration` (or a similar `#/definitions/…`) | A key set to `null` in values inside `kratos.kratos.config` (e.g. `selfservice.flows.registration.after.password: null`): Helm passes the null through to the subchart, and it is rendered literally | Never null keys inside the Kratos or Hydra config. Override the parent value with the full list or map you want instead. |
+| Site policy bindings answer `no params found` although the params ConfigMap exists (after the namespace was recreated) | Charts before C8 (`parameterNotFoundAction: Deny`): the API server's param cache for the recreated namespace. Recreating the bindings and policies does not clear it | Upgrade the chart (Allow plus the params guard). |
 | A jinbe release with new data paths (a new feed) does not reach OPA: rules fail or decisions miss data; the OPAL client logs no error | The OPAL server read jinbe's entry list at start and keeps the old one | `kubectl rollout restart deploy/auth-opal-server`, then `deploy/auth-opal-client`. Prevent it with `global.jinbeRevision`. |
 | Site gates with role headers answer **403/502**; plain gates work | OPA's `system.authz` refuses `POST /v1/data/rbac/decision`: rule missing, `OPA_DECISION_TOKEN` unset or under 32 chars on opal-client, or the proxy token differs | Check [role headers](#authorization-model) steps 3 and 4. Both sides must read the same Vault key. |
 | jinbe stuck in `Init:Error`, bootstrap log `exit 6` / `MigrationNotApprovedError` | The store is the previous model's schema | Plan, review, apply ([Upgrading](#access-model-releases-bootstrap-schema)). |

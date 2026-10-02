@@ -22,6 +22,12 @@ linked per section below. Prefer reading the chart (`values.yaml`, `templates/`)
    the chart's env mechanisms (`auth-kratos-webhook-env`, `secrets` lists). A file never gets the reference resolved.
 8. Never disable the OPA token auth (`OPAL_INLINE_OPA_CONFIG` authentication), the `system.authz` rule, or the
    NetworkPolicies to "make it work". Fix the cause instead.
+9. Never set a key to `null` inside `kratos.kratos.config` or `hydra.hydra.config` to "remove" it: Helm passes the
+   null to the subchart, which renders it literally, and Kratos/Hydra fail their schema. Override the parent list or
+   map with exactly what you want.
+10. A fresh install or rebuild goes in this order: Vault keys (app-role passwords and `OPA_DECISION_TOKEN` included)
+   → namespace labels (Gateway `allowedListeners` label, Pod Security) → install/sync → read the first jinbe
+   pod's bootstrap log.
 
 ## Facts you must not get wrong
 
@@ -121,6 +127,10 @@ vault kv get -mount=<mount> -field=OPA_DECISION_TOKEN <path> | wc -c            
 
 | Signature | Fix |
 |---|---|
+| Zone: `ListenerSet attachment from namespace <ns> not allowed`; platform HTTPRoutes unhealthy; Argo never reaches jinbe's wave | The namespace lacks the Gateway's `allowedListeners` label. Propose `syncPolicy.managedNamespaceMetadata.labels` in the Application (or a namespace label, with the operator's go), then terminate the sync and sync again. |
+| Argo sync stuck "waiting for healthy state" after resources were refused | Sync operations don't retry failed resources: fix the cause, then `argocd app terminate-op <app>` and sync again (with the operator's go). |
+| Kratos/Hydra schema error `doesn't validate with #/definitions/…` | A `null` in values inside the subchart config. Replace it with an explicit full list or map. |
+| Site policy `no params found` with the params ConfigMap present, after a namespace recreate | A pre-C8 chart (Deny bindings, stale API-server param cache). Upgrade the chart. |
 | A container fails at start with a vault-env error that a key or path was not found, or permission denied | Write the key (`kv patch`) or bind the SA to the role. The container recovers on restart. |
 | jinbe `Init:Error`, bootstrap exit **6** (`MigrationNotApprovedError`) | Old-schema store: run `--plan` in a one-off Job with the new image, have the operator review it, then `--apply --expect <hash>` or set `JINBE_RBAC_APPLY_EXPECT`. Never bypass this. |
 | Bootstrap exit 1 mentioning `ADMIN_PASSWORD` | Weak or short password: store a new `openssl rand -base64 24`. |
