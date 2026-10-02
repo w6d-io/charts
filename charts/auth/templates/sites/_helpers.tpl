@@ -81,12 +81,15 @@ Validated oathkeeper.rules.source.
 {{- end }}
 
 {{/*
-Platform hosts no tenant site may take: sites.reservedHosts + every Oathkeeper proxy host.
+Platform hosts no tenant site may take: sites.reservedHosts + every Oathkeeper proxy host + the
+OAuth issuer host and the MCP host, which carry platform routes outside the proxy list.
 */}}
 {{- define "auth.sites.reservedHosts" -}}
 {{- $hosts := list -}}
 {{- range .Values.sites.reservedHosts }}{{ $hosts = append $hosts . }}{{ end -}}
 {{- range ((((.Values.oathkeeper.ingress | default dict).proxy | default dict).hosts) | default list) }}{{ $hosts = append $hosts .host }}{{ end -}}
+{{- if .Values.hydra.enabled }}{{ with include "auth.hydra.edgeHost" . }}{{ $hosts = append $hosts . }}{{ end }}{{ end -}}
+{{- if .Values.mcp.enabled }}{{ $hosts = append $hosts (include "auth.mcp.host" .) }}{{ end -}}
 {{- $hosts | uniq | sortAlpha | join "," -}}
 {{- end }}
 
