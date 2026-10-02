@@ -1,6 +1,11 @@
 broadcastReplicas: 1
 client:
   containerSecurityContext: {}
+  # Upstream `helm test` pod: it expects OPAL's example data (3 users, 3 roles) and reads OPA
+  # without a token, so it fails against real data or OPA token auth, and a restricted
+  # namespace refuses it. Off unless you run the upstream example.
+  e2eTest:
+    enabled: false
   extraEnv: {}
   opaPort: 8181
   port: 7000
