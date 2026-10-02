@@ -1,0 +1,271 @@
+# Minimal production-shaped install of the auth chart (README "Getting started").
+#
+#   - hosts: auth.example.com (sign-in, login-ui) and app.example.com (kuma console + jinbe API),
+#     behind an existing Gateway API Gateway (Envoy Gateway) with a TLS listener for both hosts
+#   - every secret is a Vault reference resolved inside the pod by the Bank-Vaults webhook
+#     (vault-env): one KV v2 path, secret/data/auth, one Kubernetes-auth role, `auth`
+#   - bundled Postgres (Kratos) and Redis (jinbe, OPAL); no Hydra, MCP, Sites or site-operator
+#
+# Replace example.com, the Gateway reference and the Vault path/role, then:
+#   helm upgrade --install auth oci-or-repo/auth -n auth --create-namespace -f minimal-values.yaml
+# The Vault keys this file reads are listed in README "Secrets and Vault".
+
+global:
+  domain: example.com
+  authDomain: auth.example.com
+  appDomain: app.example.com
+  # jinbe (Deployment + bootstrap) gets the vault-env annotations from here
+  vault:
+    enabled: true
+    address: http://vault.vault:8200
+    role: auth
+  # Kratos authenticates its audit/guard web hooks to jinbe with this shared secret
+  audit:
+    webhook:
+      secret: vault:secret/data/auth#KRATOS_WEBHOOK_SECRET
+
+# --- Kratos (identity) ----------------------------------------------------------------------
+kratos:
+  deployment:
+    automountServiceAccountToken: true
+    extraEnv:
+      - name: DSN
+        value: vault:secret/data/auth#KRATOS_DSN
+      - name: COURIER_SMTP_CONNECTION_URI
+        value: vault:secret/data/auth#COURIER_SMTP_CONNECTION_URI
+  statefulSet:
+    extraEnv:
+      - name: DSN
+        value: vault:secret/data/auth#KRATOS_DSN
+      - name: COURIER_SMTP_CONNECTION_URI
+        value: vault:secret/data/auth#COURIER_SMTP_CONNECTION_URI
+  global:
+    podMetadata:
+      annotations:
+        vault.security.banzaicloud.io/vault-addr: http://vault.vault:8200
+        vault.security.banzaicloud.io/vault-role: auth
+        vault.security.banzaicloud.io/vault-skip-verify: "true"
+  kratos:
+    config:
+      # rendered into Secret <release>-kratos as references; vault-env resolves them in the pod
+      secrets:
+        default: [vault:secret/data/auth#KRATOS_SECRETS_DEFAULT]
+        cookie: [vault:secret/data/auth#KRATOS_SECRETS_COOKIE]
+        cipher: [vault:secret/data/auth#KRATOS_SECRETS_CIPHER]
+      courier:
+        smtp:
+          from_address: no-reply@example.com
+          from_name: Example
+      serve:
+        public:
+          base_url: https://auth.example.com/
+          cors:
+            enabled: true
+            allowed_origins:
+              - https://auth.example.com
+              - https://app.example.com
+      session:
+        cookie:
+          domain: example.com
+      selfservice:
+        allowed_return_urls:
+          - https://*.example.com
+        default_browser_return_url: https://auth.example.com/welcome
+        flows:
+          error:
+            ui_url: https://auth.example.com/error
+          settings:
+            ui_url: https://auth.example.com/settings
+          logout:
+            after:
+              default_browser_return_url: https://auth.example.com/login
+          login:
+            ui_url: https://auth.example.com/login
+          registration:
+            ui_url: https://auth.example.com/register
+
+# --- Oathkeeper (gateway): platform hosts on the Gateway ------------------------------------
+oathkeeper:
+  ingress:
+    proxy:
+      enabled: false
+  edge:
+    httpRoute:
+      enabled: true
+      parentRefs:
+        - {group: gateway.networking.k8s.io, kind: Gateway, name: eg, namespace: envoy-gateway-system, sectionName: https}
+      hosts: [auth.example.com, app.example.com]
+      requestTimeout: 300s
+
+# --- jinbe (RBAC control plane) -------------------------------------------------------------
+jinbe:
+  env:
+    ENCRYPTION_KEY: vault:secret/data/auth#ENCRYPTION_KEY
+    KRATOS_WEBHOOK_SECRET: vault:secret/data/auth#KRATOS_WEBHOOK_SECRET
+    REDIS_PASSWORD: vault:secret/data/auth#REDIS_PASSWORD
+    # first run only: the super admin the bootstrap creates (password >= 16 chars, high entropy)
+    ADMIN_EMAIL: admin@example.com
+    ADMIN_NAME: Platform Admin
+    ADMIN_PASSWORD: vault:secret/data/auth#ADMIN_PASSWORD
+  extraEnv:
+    DISABLE_CORS: "true"
+    # jinbe <-> OPAL: the client JWT both sides present, the datasource JWT jinbe pushes with
+    OPAL_CLIENT_TOKEN: vault:secret/data/auth#OPAL_CLIENT_JWT
+    OPAL_SERVER_TOKEN: vault:secret/data/auth#OPAL_SERVER_JWT
+    # OPA's root token (the same value opal-client gives OPA)
+    OPA_TOKEN: vault:secret/data/auth#OPA_ROOT_TOKEN
+
+# --- OPAL / OPA (policy) --------------------------------------------------------------------
+opal:
+  server:
+    podAnnotations:
+      vault.security.banzaicloud.io/vault-addr: http://vault.vault:8200
+      vault.security.banzaicloud.io/vault-role: auth
+      vault.security.banzaicloud.io/vault-skip-verify: "true"
+    extraEnv:
+      OPAL_AUTH_PRIVATE_KEY: vault:secret/data/auth#OPAL_AUTH_PRIVATE_KEY
+      OPAL_AUTH_PUBLIC_KEY: vault:secret/data/auth#OPAL_AUTH_PUBLIC_KEY
+      OPAL_AUTH_MASTER_TOKEN: vault:secret/data/auth#OPAL_AUTH_MASTER_TOKEN
+    waitForDataSource:
+      bearerToken: vault:secret/data/auth#OPAL_CLIENT_JWT
+  client:
+    podAnnotations:
+      vault.security.banzaicloud.io/vault-addr: http://vault.vault:8200
+      vault.security.banzaicloud.io/vault-role: auth
+      vault.security.banzaicloud.io/vault-skip-verify: "true"
+    extraEnv:
+      OPAL_CLIENT_TOKEN: vault:secret/data/auth#OPAL_CLIENT_JWT
+      OPAL_AUTH_PUBLIC_KEY: vault:secret/data/auth#OPAL_AUTH_PUBLIC_KEY
+      OPAL_DATA_UPDATER_ENABLED: "True"
+      # OPA's own API needs a token; system.authz below decides who may call what
+      OPAL_POLICY_STORE_AUTH_TYPE: token
+      OPAL_POLICY_STORE_AUTH_TOKEN: vault:secret/data/auth#OPA_ROOT_TOKEN
+      OPAL_INLINE_OPA_CONFIG: '{"addr":"0.0.0.0:8181","authentication":"token","authorization":"basic","files":["/opt/opa/startup-data/system_authz.rego"]}'
+      # the opa-authz-proxy's OPA_TOKEN (role headers, README "Authorization model")
+      OPA_DECISION_TOKEN: vault:secret/data/auth#OPA_DECISION_TOKEN
+    opaStartupData:
+      system_authz.rego: |
+        package system.authz
+
+        import rego.v1
+
+        # Authorizes calls to OPA's own REST API (--authentication=token --authorization=basic).
+        default allow := false
+
+        # opal-client pushes policy and data with OPAL_POLICY_STORE_AUTH_TOKEN (OPA inherits its env).
+        allow if {
+        	token := opa.runtime().env.OPAL_POLICY_STORE_AUTH_TOKEN
+        	count(token) >= 32
+        	input.identity == token
+        }
+
+        # Liveness, no data.
+        allow if {
+        	input.method == "GET"
+        	input.path == ["health"]
+        }
+
+        # The gateway decision (Oathkeeper -> opa-authz-proxy -> OPA): a boolean, no data.
+        allow if {
+        	input.method == "POST"
+        	input.path == ["v1", "data", "rbac", "allow"]
+        }
+
+        # The rich decision (groups, roles, permissions) for role headers: only for the proxy's token.
+        allow if {
+        	input.method == "POST"
+        	input.path == ["v1", "data", "rbac", "decision"]
+        	t := opa.runtime().env.OPA_DECISION_TOKEN
+        	count(t) >= 32
+        	input.identity == t
+        }
+
+# The proxy presents OPA_DECISION_TOKEN on every call to OPA
+opaAuthzProxy:
+  opaToken: vault:secret/data/auth#OPA_DECISION_TOKEN
+  automountServiceAccountToken: true
+  podAnnotations:
+    vault.security.banzaicloud.io/vault-addr: http://vault.vault:8200
+    vault.security.banzaicloud.io/vault-role: auth
+    vault.security.banzaicloud.io/vault-skip-verify: "true"
+
+# --- Redis (RBAC store, OPAL broadcast) -----------------------------------------------------
+redis:
+  auth:
+    enabled: true
+    existingSecret: auth-redis-auth
+    existingSecretPasswordKey: redis-password
+  serviceAccount:
+    create: false
+  master:
+    serviceAccount:
+      create: false
+      name: default                    # an SA bound to the Vault role
+    automountServiceAccountToken: true
+    # pod-level, so the injected copy-vault-env init container passes restricted pod security too
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+      fsGroupChangePolicy: Always
+      runAsNonRoot: true
+      runAsUser: 1001
+      runAsGroup: 1001
+      seccompProfile:
+        type: RuntimeDefault
+    podAnnotations:
+      vault.security.banzaicloud.io/vault-addr: http://vault.vault:8200
+      vault.security.banzaicloud.io/vault-role: auth
+      vault.security.banzaicloud.io/vault-skip-verify: "true"
+    # the stock probes send the raw reference (kubelet exec env); redis-server rewrites /proc/1/environ
+    livenessProbe:
+      enabled: false
+    readinessProbe:
+      enabled: false
+    customLivenessProbe:
+      exec:
+        command: ["sh", "-c", "redis-cli -h localhost -p 6379 ping 2>&1 | grep -qE '^(PONG|NOAUTH)'"]
+      initialDelaySeconds: 20
+      periodSeconds: 5
+      timeoutSeconds: 6
+      failureThreshold: 5
+    customReadinessProbe:
+      exec:
+        command: ["sh", "-c", "redis-cli -h localhost -p 6379 ping 2>&1 | grep -qE '^(PONG|NOAUTH)'"]
+      initialDelaySeconds: 20
+      periodSeconds: 5
+      timeoutSeconds: 2
+      failureThreshold: 5
+# Secret auth-redis-auth holds the vault: reference; the redis pod resolves it (never the value)
+redisAuthSecret:
+  vaultRef: vault:secret/data/auth#REDIS_PASSWORD
+
+# --- Postgres (Kratos database) -------------------------------------------------------------
+postgresqlSimple:
+  auth:
+    passwordVaultRef: vault:secret/data/auth#PG_SUPERUSER_PASSWORD
+  podAnnotations:
+    vault.security.banzaicloud.io/vault-addr: http://vault.vault:8200
+    vault.security.banzaicloud.io/vault-role: auth
+    vault.security.banzaicloud.io/vault-skip-verify: "true"
+  serviceAccountName: default
+  automountServiceAccountToken: true
+  tls:
+    enabled: true
+  # Kratos logs in as kratos_app (KRATOS_DSN), never as the superuser
+  appRoles:
+    enabled: true
+    roles:
+      - name: kratos_app
+        database: kratos
+        password: vault:secret/data/auth#KRATOS_DB_PASSWORD
+
+# --- login-ui (sign-in pages) ---------------------------------------------------------------
+kratosLoginUi:
+  branding:
+    appName: Example
+  consoleUrl: https://app.example.com
+  kratos:
+    browserUrl: https://auth.example.com
+  redirects:
+    defaultReturnUrl: https://app.example.com
+    allowedReturnUrls: https://*.example.com
