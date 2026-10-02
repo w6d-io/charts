@@ -97,20 +97,15 @@ spec:
             - name: POSTGRES_USER
               value: {{ .Values.postgresqlSimple.auth.username | quote }}
             - name: POSTGRES_PASSWORD
-              {{- if .Values.postgresqlSimple.auth.passwordVaultRef }}
-              value: {{ .Values.postgresqlSimple.auth.passwordVaultRef | quote }}
-              {{- else if .Values.postgresqlSimple.auth.existingSecret }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgresqlSimple.auth.existingSecret }}
-                  key: {{ .Values.postgresqlSimple.auth.existingSecretPasswordKey }}
-              {{- else }}
-              value: {{ .Values.postgresqlSimple.auth.password | quote }}
-              {{- end }}
+              {{- include "auth.postgresqlSimple.passwordValue" . | trim | nindent 14 }}
             - name: POSTGRES_DB
               value: {{ .Values.postgresqlSimple.auth.database | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+            {{- if .Values.postgresqlSimple.appRoles.enabled }}
+            # initdb (empty volume only): app roles and databases, see app-roles-configmap.yaml
+            {{- include "auth.postgresqlSimple.appRolesEnv" . | trim | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
@@ -127,6 +122,14 @@ spec:
             {{- if .Values.postgresqlSimple.hba }}
             - name: pg-hba
               mountPath: /etc/postgresql-hba
+              readOnly: true
+            {{- end }}
+            {{- if .Values.postgresqlSimple.appRoles.enabled }}
+            - name: app-roles-initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: app-roles
+              mountPath: /app-roles
               readOnly: true
             {{- end }}
           readinessProbe:
@@ -156,6 +159,23 @@ spec:
         - name: pg-hba
           configMap:
             name: {{ .Release.Name }}-postgresql-hba
+        {{- end }}
+        {{- if .Values.postgresqlSimple.appRoles.enabled }}
+        # only the script in the initdb dir: the entrypoint would run a bare .sql file without its variables
+        - name: app-roles-initdb
+          configMap:
+            name: {{ .Release.Name }}-postgresql-app-roles
+            defaultMode: 0555
+            items:
+              - key: app-roles.sh
+                path: 50-app-roles.sh
+        - name: app-roles
+          configMap:
+            name: {{ .Release.Name }}-postgresql-app-roles
+            defaultMode: 0444
+            items:
+              - key: app-roles.sql
+                path: app-roles.sql
         {{- end }}
   volumeClaimTemplates:
     - metadata:

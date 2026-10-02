@@ -1,0 +1,78 @@
+{{- $pg := .Values.postgresqlSimple }}
+{{- if and $pg.enabled $pg.appRoles.enabled $pg.appRoles.job.enabled }}
+# Existing volumes (initdb runs only on an empty one): the same script against the Service.
+# Argo CD runs it as a PostSync hook; it is idempotent.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-postgresql-app-roles
+  labels:
+    app.kubernetes.io/component: postgresql
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ $pg.appRoles.job.backoffLimit }}
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: postgresql-app-roles
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- with $pg.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: OnFailure
+      {{- with $pg.serviceAccountName }}
+      serviceAccountName: {{ . }}
+      {{- end }}
+      automountServiceAccountToken: {{ $pg.automountServiceAccountToken }}
+      {{- with $pg.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: app-roles
+          image: "{{ $pg.image.repository }}:{{ $pg.image.tag }}"
+          # explicit, so the Bank-Vaults webhook can wrap it without a registry lookup
+          command: ["/bin/sh", "/app-roles/app-roles.sh"]
+          env:
+            - name: HOME
+              value: /tmp
+            - name: PGHOST
+              value: {{ .Release.Name }}-postgresql
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              value: {{ $pg.auth.username | quote }}
+            - name: PGPASSWORD
+              {{- include "auth.postgresqlSimple.passwordValue" . | trim | nindent 14 }}
+            - name: PGSSLMODE
+              value: {{ ternary "require" "prefer" $pg.tls.enabled }}
+            - name: PGCONNECT_TIMEOUT
+              value: "10"
+            {{- include "auth.postgresqlSimple.appRolesEnv" . | trim | nindent 12 }}
+          {{- with $pg.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+          volumeMounts:
+            - name: app-roles
+              mountPath: /app-roles
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: app-roles
+          configMap:
+            name: {{ .Release.Name }}-postgresql-app-roles
+            defaultMode: 0444
+        - name: tmp
+          emptyDir: {}
+{{- end }}

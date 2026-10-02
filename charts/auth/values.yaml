@@ -1918,6 +1918,25 @@ postgresqlSimple:
     capabilities:
       drop:
         - ALL
+  # Non-superuser app roles, each owning its database, so no app logs in as the superuser.
+  # Created by an initdb script on an empty volume, and by a post-install/upgrade hook Job
+  # (Argo CD PostSync) on existing ones. Idempotent: CREATE ROLE/DATABASE when missing, then
+  # password, ownership of the database and of every relation in its public schema, and
+  # CONNECT limited to the role. Point the app DSNs at these roles.
+  #   password: >= 16 characters; a literal or a vault: reference (resolved by vault-env with
+  #   podAnnotations / serviceAccountName / automountServiceAccountToken above).
+  appRoles:
+    enabled: false
+    roles: []
+    #  - name: kratos_app
+    #    database: kratos
+    #    password: vault:infra/data/<env>#KRATOS_APP_PASSWORD
+    #  - name: hydra_app
+    #    database: hydra
+    #    password: vault:infra/data/<env>#HYDRA_APP_PASSWORD
+    job:
+      enabled: true
+      backoffLimit: 6
   persistence:
     size: 5Gi
   resources:
