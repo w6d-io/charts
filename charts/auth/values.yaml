@@ -428,6 +428,8 @@ kratos:
             # list REPLACES the global `hooks` for that method, so each carries its own audit
             # copy; a list for a method that is off is inert. The guard body sends the traits:
             # jinbe >= 5297b87 REFUSES a registration body without them (protected traits).
+            # The guard body also sends the flow's return_to: a site whose own sign-up is open (site
+            # intent signUp) takes the registration under its rules (jinbe >= 733c396).
             # Envs that set their own after.<method>.hooks (e.g. `code: [session]`) must repeat
             # guard + audit there, session LAST. To run without the guard, override the lists
             # with the audit hook only (examples/kratos-guard-registration-off-values.yaml).
@@ -443,7 +445,7 @@ kratos:
                     config:
                       url: 'http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos/guard'
                       method: POST
-                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgbG9jYWwgdHAgPSBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAndHJhbnNpZW50X3BheWxvYWQnKSAmJiBjdHguZmxvdy50cmFuc2llbnRfcGF5bG9hZCAhPSBudWxsIHRoZW4gY3R4LmZsb3cudHJhbnNpZW50X3BheWxvYWQgZWxzZSB7fSwKICBsb2NhbCBjb29raWVzID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdyZXF1ZXN0X2Nvb2tpZXMnKSAmJiBjdHgucmVxdWVzdF9jb29raWVzICE9IG51bGwgdGhlbiBjdHgucmVxdWVzdF9jb29raWVzIGVsc2Uge30sCiAgbG9jYWwgaGVhZGVycyA9IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAncmVxdWVzdF9oZWFkZXJzJykgJiYgY3R4LnJlcXVlc3RfaGVhZGVycyAhPSBudWxsIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVycyBlbHNlIHt9LAogIGxvY2FsIGlkZW50aXR5ID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdpZGVudGl0eScpICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5IGVsc2UgbnVsbCwKICBmbG93OiAncmVnaXN0cmF0aW9uJywKICBmbG93X3R5cGU6IGN0eC5mbG93LnR5cGUsCiAgbWV0aG9kOiBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAnYWN0aXZlJykgdGhlbiBjdHguZmxvdy5hY3RpdmUgZWxzZSBudWxsLAogIGVtYWlsOiBpZiBpZGVudGl0eSAhPSBudWxsICYmIHN0ZC5vYmplY3RIYXMoaWRlbnRpdHkudHJhaXRzLCAnZW1haWwnKSB0aGVuIGlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgdHJhaXRzOiBpZiBpZGVudGl0eSAhPSBudWxsIHRoZW4gaWRlbnRpdHkudHJhaXRzIGVsc2UgbnVsbCwKICBjYXB0Y2hhX3Rva2VuOiBpZiBzdGQub2JqZWN0SGFzKHRwLCAnY2FwdGNoYV90b2tlbicpIHRoZW4gdHAuY2FwdGNoYV90b2tlbiBlbHNlIGlmIHN0ZC5vYmplY3RIYXMoY29va2llcywgJ3N0bF9rY2FwJykgdGhlbiBjb29raWVzLnN0bF9rY2FwIGVsc2UgbnVsbCwKICBpcDogaWYgc3RkLm9iamVjdEhhcyhoZWFkZXJzLCAnVHJ1ZS1DbGllbnQtSXAnKSB0aGVuIGhlYWRlcnNbJ1RydWUtQ2xpZW50LUlwJ11bMF0gZWxzZSBpZiBzdGQub2JqZWN0SGFzKGhlYWRlcnMsICdYLUZvcndhcmRlZC1Gb3InKSB0aGVuIGhlYWRlcnNbJ1gtRm9yd2FyZGVkLUZvciddWzBdIGVsc2UgbnVsbCwKfQo='
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgbG9jYWwgdHAgPSBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAndHJhbnNpZW50X3BheWxvYWQnKSAmJiBjdHguZmxvdy50cmFuc2llbnRfcGF5bG9hZCAhPSBudWxsIHRoZW4gY3R4LmZsb3cudHJhbnNpZW50X3BheWxvYWQgZWxzZSB7fSwKICBsb2NhbCBjb29raWVzID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdyZXF1ZXN0X2Nvb2tpZXMnKSAmJiBjdHgucmVxdWVzdF9jb29raWVzICE9IG51bGwgdGhlbiBjdHgucmVxdWVzdF9jb29raWVzIGVsc2Uge30sCiAgbG9jYWwgaGVhZGVycyA9IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAncmVxdWVzdF9oZWFkZXJzJykgJiYgY3R4LnJlcXVlc3RfaGVhZGVycyAhPSBudWxsIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVycyBlbHNlIHt9LAogIGxvY2FsIGlkZW50aXR5ID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdpZGVudGl0eScpICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5IGVsc2UgbnVsbCwKICBmbG93OiAncmVnaXN0cmF0aW9uJywKICBmbG93X3R5cGU6IGN0eC5mbG93LnR5cGUsCiAgbWV0aG9kOiBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAnYWN0aXZlJykgdGhlbiBjdHguZmxvdy5hY3RpdmUgZWxzZSBudWxsLAogIGVtYWlsOiBpZiBpZGVudGl0eSAhPSBudWxsICYmIHN0ZC5vYmplY3RIYXMoaWRlbnRpdHkudHJhaXRzLCAnZW1haWwnKSB0aGVuIGlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgdHJhaXRzOiBpZiBpZGVudGl0eSAhPSBudWxsIHRoZW4gaWRlbnRpdHkudHJhaXRzIGVsc2UgbnVsbCwKICBjYXB0Y2hhX3Rva2VuOiBpZiBzdGQub2JqZWN0SGFzKHRwLCAnY2FwdGNoYV90b2tlbicpIHRoZW4gdHAuY2FwdGNoYV90b2tlbiBlbHNlIGlmIHN0ZC5vYmplY3RIYXMoY29va2llcywgJ3N0bF9rY2FwJykgdGhlbiBjb29raWVzLnN0bF9rY2FwIGVsc2UgbnVsbCwKICByZXR1cm5fdG86IGlmIHN0ZC5vYmplY3RIYXMoY3R4LmZsb3csICdyZXR1cm5fdG8nKSB0aGVuIGN0eC5mbG93LnJldHVybl90byBlbHNlIG51bGwsCiAgaXA6IGlmIHN0ZC5vYmplY3RIYXMoaGVhZGVycywgJ1RydWUtQ2xpZW50LUlwJykgdGhlbiBoZWFkZXJzWydUcnVlLUNsaWVudC1JcCddWzBdIGVsc2UgaWYgc3RkLm9iamVjdEhhcyhoZWFkZXJzLCAnWC1Gb3J3YXJkZWQtRm9yJykgdGhlbiBoZWFkZXJzWydYLUZvcndhcmRlZC1Gb3InXVswXSBlbHNlIG51bGwsCn0K'
                       response:
                         parse: true
                       auth: &kratosWebhookAuth
@@ -603,7 +605,8 @@ kratos:
                     "recovery": { "via": "email" }
                   }
                 },
-                "name": { "type": "string", "title": "Name" }
+                "name": { "type": "string", "title": "Name" },
+                "company": { "type": "string", "title": "Company", "maxLength": 80 }
               },
               "required": ["email"],
               "additionalProperties": false
