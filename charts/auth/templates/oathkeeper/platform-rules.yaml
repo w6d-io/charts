@@ -29,6 +29,9 @@ metadata:
   annotations:
     # the Rule CRD may ship in this release: let Argo CD skip the dry run on first sync
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    # After the admission policies (wave 0): the rules policy lets these through only once it is the
+    # current version, so in the same wave a sync can be refused by the version it replaces.
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   {{- toYaml (index $rules $name) | nindent 2 }}
 {{- end }}
