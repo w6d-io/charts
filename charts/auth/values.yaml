@@ -2055,7 +2055,7 @@ adminUi:
 # to s3://<bucket>/<prefix>/{timestamp}.json + a rolling latest.json (no external
 # CronJob — jinbe is self-authenticated and holds the S3 creds). jinbe also reads
 # the bucket so the kuma Backup tab can list snapshots + one-click restore, and a
-# fresh install auto-restores from latest.json before seeding defaults.
+# fresh install auto-restores from latest.json right after seeding the model (before the default admin).
 #
 # IAM (IRSA): annotate jinbe.serviceAccount.annotations with a role-arn granting
 # s3:PutObject + s3:GetObject + s3:ListBucket on the bucket, e.g.:
