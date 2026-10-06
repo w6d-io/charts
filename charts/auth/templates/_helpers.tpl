@@ -238,6 +238,9 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
 - name: APP_DOMAIN
   value: {{ .Values.jinbe.env.APP_DOMAIN | default (include "auth.appDomain" .) | quote }}
+# The login-ui page an organization invitation link opens (jinbe appends ?token=…).
+- name: INVITATION_URL
+  value: {{ .Values.jinbe.env.INVITATION_URL | default (printf "https://%s/invitation" (include "auth.authDomain" .)) | quote }}
 {{- /* API_DOMAIN deliberately has NO appDomain fallback: defaulting it to the
 app domain made jinbe's bootstrap emit a catch-all gateway rule on the SAME
 host as the kuma-* rules — Oathkeeper then 500s the whole host on every

@@ -190,7 +190,7 @@ Jinbe env for Sites and observability (runtime only).
 - name: SITES_ENV
   value: {{ . | quote }}
 {{- end }}
-{{- range $name, $v := dict "SITES_PRODUCTION" .Values.sites.production "SITES_MIXED_GATEWAY" .Values.sites.mixedGateway }}
+{{- range $name, $v := dict "SITES_PRODUCTION" .Values.sites.production "SITES_MIXED_GATEWAY" .Values.sites.mixedGateway "SITES_UPSTREAM_PATH" .Values.sites.upstreamPath }}
 {{- $s := toString $v }}
 {{- if not (has $s (list "" "<nil>")) }}
 - name: {{ $name }}

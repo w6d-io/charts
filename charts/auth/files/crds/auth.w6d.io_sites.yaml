@@ -191,6 +191,13 @@ spec:
                         namespace:
                           pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
                           type: string
+                        path:
+                          description: |-
+                            Path is prepended to the request path after StripPath is removed, e.g. the service
+                            serves /api/external/... for the site's /api/v1/... Literal segments only.
+                          maxLength: 256
+                          pattern: ^(/[A-Za-z0-9._~@-]+)+$
+                          type: string
                         port:
                           format: int32
                           maximum: 65535
@@ -253,6 +260,13 @@ spec:
                 properties:
                   namespace:
                     pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+                    type: string
+                  path:
+                    description: |-
+                      Path is prepended to the request path after StripPath is removed, e.g. the service
+                      serves /api/external/... for the site's /api/v1/... Literal segments only.
+                    maxLength: 256
+                    pattern: ^(/[A-Za-z0-9._~@-]+)+$
                     type: string
                   port:
                     format: int32

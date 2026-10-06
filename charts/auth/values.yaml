@@ -1718,7 +1718,9 @@ opaAuthzProxy:
     # (oathkeeper's remote_json authorizer rejects any other status), and the
     # rego's decision.reason rides along as an `X-Authz-Reason` header for
     # upstreams that want to distinguish a route_map miss from a denial.
-    tag: "v0.4.0"
+    # v0.7.0 also emits X-Org-Id, X-Org-Roles and X-Client-Id from the decision (organization
+    # context, org API keys); v0.6.0 the caller's X-User-Roles / X-User-Permissions and OPA_TOKEN.
+    tag: "v0.7.0"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
@@ -2155,6 +2157,9 @@ sites:
   # (maester) rules side by side (oathkeeper.rules.source=dual), so jinbe checks site routes
   # against legacy ones. jinbe refuses to start with it and SITES_PRODUCTION=true. Empty: false.
   mixedGateway: ""
+  # Sites may set upstream.path (prepended after stripPath). Needs site-operator >= 25d0e11, whose
+  # Site CRD carries the field; "false" refuses it at render instead. Empty: false.
+  upstreamPath: "true"
 
 # gatekit — stateless rule checker (compile · overlap · match · render). No egress.
 gatekit:
@@ -2339,8 +2344,8 @@ siteOperator:
     extraApiIngress: []
   extraArgs: []
   # Same regexes feed the operator flags and the admission params (kept in step).
-  allowedUpstream: '^https?://[a-z]([a-z0-9-]*[a-z0-9])?\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.svc\.cluster\.local:[0-9]{1,5}$'
-  deniedUpstream: '^https?://(([a-z0-9-]+-)?(kratos-admin|opa|opal-client|opal-server|redis|redis-master|postgres|postgresql|kubernetes)\.|[^/]*:(4434|8181|7002|6379|5432)$)'
+  allowedUpstream: '^https?://[a-z]([a-z0-9-]*[a-z0-9])?\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.svc\.cluster\.local:[0-9]{1,5}(/[A-Za-z0-9._~@-]+)*$'
+  deniedUpstream: '^https?://(([a-z0-9-]+-)?(kratos-admin|opa|opal-client|opal-server|redis|redis-master|postgres|postgresql|kubernetes)\.|[^/]*:(4434|8181|7002|6379|5432)(/[^\s]*)?$)'
   # ValidatingAdmissionPolicies (Sites, hosts under a Zone, Ingresses, maester Rules) for
   # the release namespace. Cluster-scoped objects, named after the namespace.
   admission:
