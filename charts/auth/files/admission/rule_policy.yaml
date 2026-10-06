@@ -42,8 +42,14 @@ spec:
         has(object.metadata.ownerReferences) && object.metadata.ownerReferences.exists(o, o.kind == 'Site' && o.apiVersion.startsWith('auth.w6d.io/')))
     message: operator Rules carry the managed-by label and an owner reference to their Site
     reason: Forbidden
+  # The chart's own platform Rules (written by Argo, labelled platform-rule) point at this release's
+  # services, which a namespace-wide deniedUpstream refuses; they come from GitOps, not a tenant Site.
+  # The operator's Rules always get the check.
   - expression: >-
-      variables.del || !has(object.spec.upstream) || (object.spec.upstream.url.matches(params.data.allowedUpstream) &&
+      variables.del || !has(object.spec.upstream) ||
+      (!variables.operator && variables.user in variables.list[0] &&
+        'app.kubernetes.io/component' in variables.labels && variables.labels['app.kubernetes.io/component'] == 'platform-rule') ||
+      (object.spec.upstream.url.matches(params.data.allowedUpstream) &&
         !object.spec.upstream.url.matches(params.data.deniedUpstream))
     message: rule upstream points at a platform-internal or non-cluster address
     reason: Forbidden
