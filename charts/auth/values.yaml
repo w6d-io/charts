@@ -893,13 +893,16 @@ oathkeeper:
             TMP=/etc/rules/.access-rules.next
             INTERVAL={{ .Values.rulesSync.intervalSeconds | default 5 }}
             echo "rules-sync: polling ${URL} every ${INTERVAL}s -> ${DEST}"
+            # The answer is held in memory and compared before anything is written: Oathkeeper watches
+            # /etc/rules, and a temp file written there on every poll woke it (a reload and a bare
+            # "[/etc/rules]" log line) every few seconds. Only a change touches the directory.
             while true; do
-              if curl -fsS --max-time 5 "$URL" -o "$TMP"; then
-                if [ -s "$TMP" ]; then
-                  new=$(sha256sum "$TMP" | cut -d' ' -f1)
+              if body=$(curl -fsS --max-time 5 "$URL"); then
+                if [ -n "$body" ]; then
+                  new=$(printf '%s' "$body" | sha256sum | cut -d' ' -f1)
                   cur=$(sha256sum "$DEST" 2>/dev/null | cut -d' ' -f1 || echo none)
                   if [ "$new" != "$cur" ]; then
-                    mv "$TMP" "$DEST"
+                    printf '%s' "$body" > "$TMP" && mv "$TMP" "$DEST"
                     echo "rules-sync: rules changed -> updated ${DEST} (sha256=${new})"
                   fi
                 fi
