@@ -23,9 +23,14 @@ spec:
   hostnames:
     - {{ include "auth.mcp.host" $ | quote }}
   rules:
-    - backendRefs:
-        - name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
           port: 4455
+          weight: 1
 ---
 {{- end }}
 {{- end }}

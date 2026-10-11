@@ -31,8 +31,11 @@ spec:
             {{- toYaml . | nindent 12 }}
       {{- end }}
       backendRefs:
-        - name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
+        - group: ""
+          kind: Service
+          name: {{ printf "%s-oathkeeper-proxy" $.Release.Name }}
           port: 4455
+          weight: 1
       {{- with .requestTimeout }}
       timeouts:
         request: {{ . }}

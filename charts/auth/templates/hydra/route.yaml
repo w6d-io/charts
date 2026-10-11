@@ -34,8 +34,11 @@ spec:
           path: { type: Exact, value: {{ last $p }} }
         {{- end }}
       backendRefs:
-        - name: {{ $publicSvc }}
+        - group: ""
+          kind: Service
+          name: {{ $publicSvc }}
           port: 4444
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -59,8 +62,11 @@ spec:
         - method: POST
           path: { type: Exact, value: /oauth2/register }
       backendRefs:
-        - name: {{ $proxySvc }}
+        - group: ""
+          kind: Service
+          name: {{ $proxySvc }}
           port: 4455
+          weight: 1
 ---
 {{- end }}
 {{- end }}
