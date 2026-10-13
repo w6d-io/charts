@@ -9,4 +9,13 @@
 .idea
 .cr-release-packages/
 /config.json
-tmp/
+tmp/.agents
+.claude-flow
+.claude
+.swarm
+CLAUDE.md
+ruvector.db
+.agents/
+agentdb.rvf
+agentdb.rvf.lock
+charts/**/charts/**
