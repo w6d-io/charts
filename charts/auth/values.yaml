@@ -394,7 +394,7 @@ kratos:
               default_browser_return_url: https://auth.example.com/login
           login:
             ui_url: https://auth.example.com/auth/login
-            lifespan: 10m
+            lifespan: 15m
             # Audit webhook — emit an auth event to jinbe after every successful
             # login (any method). Reuses the anchored url/method/response/auth
             # defined in the settings flow above; see that block for the payload
@@ -414,7 +414,7 @@ kratos:
                         in: header
                         value: '{{ .Values.global.audit.webhook.secret }}'
           registration:
-            lifespan: 10m
+            lifespan: 15m
             # KC-2: kratos-login-ui serves sign-up at /register (root, as every env sets it)
             ui_url: https://auth.example.com/register
             # Audit webhook — emit an auth event to jinbe after each successful
@@ -1534,7 +1534,7 @@ jinbe:
     codesPerAddress: ""     # SIGN_IN_GATE_CODES_PER_ADDRESS (jinbe default 5 per window)
     codesPerIp: ""          # SIGN_IN_GATE_CODES_PER_IP (jinbe default 20 per window)
     windowSeconds: ""       # SIGN_IN_GATE_WINDOW_S (jinbe default 900)
-    verifiedTtlSeconds: ""  # SIGN_IN_GATE_VERIFIED_TTL_S (jinbe default 300)
+    verifiedTtlSeconds: ""  # SIGN_IN_GATE_VERIFIED_TTL_S (jinbe default 900 = the code and flow lifespans)
 
   # K8S config for m2m authentication
   k8s:
