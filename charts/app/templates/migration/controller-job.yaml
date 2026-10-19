@@ -1,7 +1,5 @@
 {{- if .Values.multiTenantMigration.enabled }}
 {{- $mt := .Values.multiTenantMigration }}
-{{- $kt := "" }}{{- if .Values.kafka }}{{- $kt = .Values.kafka.tenants | default "" }}{{- end }}
-{{- $tenants := $mt.tenants | default $kt }}
 {{- $name := printf "%s-migration" (include "app.names.name" .) }}
 {{- $sa := default $name $mt.controller.serviceAccountName }}
 {{- $runId := (.Values.image.tag | toString | replace "." "-" | replace "+" "-" | lower) | default (printf "r%d" (.Release.Revision | int)) -}}
@@ -42,10 +40,17 @@ spec:
           image: {{ $mt.controller.image | quote }}
           command: ["bash", "/scripts/migrate.sh"]
           env:
-            # Tenant identifiers (comma/space/newline separated). Taken from
-            # multiTenantMigration.tenants, falling back to .Values.kafka.tenants.
+            # Explicit tenant list (scoped / onboarding runs). When empty, the controller
+            # discovers the full fleet from the live tenant CRs below -- no external list
+            # (kafka.tenants / KAFKA_TENANTS_*) is needed.
             - name: TENANTS
-              value: {{ $tenants | quote }}
+              value: {{ $mt.tenants | quote }}
+            {{- if $mt.discovery.enabled }}
+            - name: TENANTS_CR
+              value: {{ printf "%s.%s" $mt.discovery.resource $mt.discovery.apiGroup | quote }}
+            - name: TENANTS_CR_PREFIX
+              value: {{ $mt.discovery.namePrefix | default (include "app.names.name" .) | quote }}
+            {{- end }}
             - name: NAMESPACE
               valueFrom:
                 fieldRef:

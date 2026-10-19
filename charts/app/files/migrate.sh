@@ -15,6 +15,10 @@ NAMESPACE="${NAMESPACE:?}"; CHILD_TPL="${CHILD_TPL:-/scripts/job.tpl.yaml}"
 RUN_ID="${RUN_ID:?}"; BATCH_SIZE="${BATCH_SIZE:-25}"
 FAIL_THRESHOLD_PCT="${FAIL_THRESHOLD_PCT:-10}"; JOB_TIMEOUT="${JOB_TIMEOUT:-600}"
 FAIL_FAST="${FAIL_FAST:-false}"
+# Fleet discovery (used only when TENANTS is empty): list live tenant CRs in NAMESPACE
+# named "<TENANTS_CR_PREFIX>-<tenant>" (e.g. the <app>-kafka ApplicationSet's KafkaTopic
+# CRs, a projection of the MongoDB tenant registry). Replaces the old kafka.tenants list.
+TENANTS_CR="${TENANTS_CR:-}"; TENANTS_CR_PREFIX="${TENANTS_CR_PREFIX:-}"
 
 RESULT_DIR="$(mktemp -d)/r"; mkdir -p "$RESULT_DIR"
 log() { echo "[db-migrator] $*" >&2; }
@@ -28,9 +32,21 @@ ensure_tools() {
 }
 
 discover_tenants() {
-  # Tenant identifiers from the TENANTS env (multiTenantMigration.tenants / kafka.tenants),
-  # separated by commas, whitespace, or newlines.
-  printf '%s' "$TENANTS" | tr -s ' \t\n,' '\n' | sed '/^$/d' | sort -u
+  # 1) Explicit TENANTS (multiTenantMigration.tenants) wins: scoped / onboarding runs.
+  #    Identifiers separated by commas, whitespace, or newlines.
+  if [ -n "$TENANTS" ]; then
+    printf '%s' "$TENANTS" | tr -s ' \t\n,' '\n' | sed '/^$/d' | sort -u
+    return 0
+  fi
+  # 2) Otherwise discover the full fleet from live tenant CRs in this namespace: one CR
+  #    "<TENANTS_CR_PREFIX>-<tenant>" per tenant (the base CR "<TENANTS_CR_PREFIX>" without
+  #    a suffix is excluded). Source of truth = the <app>-kafka ApplicationSet; no external
+  #    tenant list needed. An empty result -> FATAL below (Sync blocked), never a silent skip.
+  if [ -n "$TENANTS_CR" ] && [ -n "$TENANTS_CR_PREFIX" ]; then
+    kubectl get "$TENANTS_CR" -n "$NAMESPACE" \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null \
+      | sed -n "s/^${TENANTS_CR_PREFIX}-//p" | sed '/^$/d' | sort -u
+  fi
 }
 
 migrate_one() {
