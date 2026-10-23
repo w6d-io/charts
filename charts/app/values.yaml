@@ -73,10 +73,20 @@ multiTenantMigration:
   enabled: false
   # Comma-separated list of tenant identifiers to migrate (e.g. "alpha,beta,gamma").
   # Each identifier maps to a database "<tenant>.<database.dbSuffix>" and to Vault
-  # static-creds "<tenant>-<vault.roleSuffix>". Rendered into the migration ConfigMap
-  # as a file (one per line) that the controller reads -- no external call at sync time.
-  # When empty, falls back to .Values.kafka.tenants so both lists can share one source.
+  # static-creds "<tenant>-<vault.roleSuffix>". Use it for scoped / onboarding runs.
+  # When EMPTY, the controller discovers the full fleet from live CRs (see `discovery`)
+  # -- no external tenant list (kafka.tenants / KAFKA_TENANTS_*) is needed.
   tenants: ""
+  # Fleet auto-discovery, used ONLY when `tenants` is empty. The controller lists CRs
+  # named "<namePrefix>-<tenant>" in the release namespace -- e.g. the <app>-kafka
+  # ApplicationSet's KafkaTopic CRs, a live projection of the MongoDB tenant registry.
+  # The base CR "<namePrefix>" (no suffix) is excluded. An empty discovery blocks the
+  # Sync (FATAL), never a silent no-op. enabled=false requires an explicit `tenants`.
+  discovery:
+    enabled: true
+    apiGroup: "kafka.w6d.io"                    # kubectl get <resource>.<apiGroup>
+    resource: "kafkatopics"
+    namePrefix: ""                              # default: the app name (<app>-<tenant>)
   batchSize: 25                                # max concurrent child Jobs
   failThresholdPct: 10                         # controller exits non-zero above this
   failFast: false                              # true = abort at the first failed batch (block Sync immediately)

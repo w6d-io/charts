@@ -29,6 +29,12 @@ rules:
   - apiGroups: [""]
     resources: ["pods/log"]
     verbs: ["get"]
+{{- if .Values.multiTenantMigration.discovery.enabled }}
+  # Fleet auto-discovery: list the <app>-kafka ApplicationSet's CRs in this namespace.
+  - apiGroups: [{{ .Values.multiTenantMigration.discovery.apiGroup | quote }}]
+    resources: [{{ .Values.multiTenantMigration.discovery.resource | quote }}]
+    verbs: ["get", "list"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
