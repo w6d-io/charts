@@ -85,8 +85,14 @@ spec:
             {{- include "auth.jinbe.env" . | nindent 12 }}
             {{- include "auth.oathkeeper.enabledEnv" . | nindent 12 }}
             {{- include "auth.backup.env" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           {{- with .Values.jinbe.bootstrap.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
 {{- end }}

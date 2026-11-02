@@ -1,0 +1,167 @@
+{{- if .Values.siteOperator.enabled }}
+{{/*
+  From site-operator config/rbac. The operator works inside the gateway namespace; reads
+  no Secrets; writes only its own zones ConfigMap (by name); cannot change a Site's spec
+  (status only). Cluster-wide: reading Zones and Ingresses (host collision check).
+*/}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+rules:
+  - apiGroups: [auth.w6d.io]
+    resources: [sites]
+    verbs: [get, list, watch]
+  - apiGroups: [auth.w6d.io]
+    resources: [sites/status]
+    verbs: [get, update, patch]
+  # the Gateway controller always watches Gateways (no Gateway = unmanaged config)
+  - apiGroups: [auth.w6d.io]
+    resources: [gateways]
+    verbs: [get, list, watch]
+  {{- if .Values.siteOperator.gateway.enabled }}
+  - apiGroups: [auth.w6d.io]
+    resources: [gateways/status]
+    verbs: [get, update, patch]
+  {{- end }}
+  - apiGroups: [oathkeeper.ory.sh]
+    resources: [rules]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch, create, update, patch, delete]
+  {{- if .Values.siteOperator.gatewayApi.enabled }}
+  # Gateway API zones: one HTTPRoute per host, the zone ListenerSet (routes admission limits both)
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes, listenersets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  {{- end }}
+  {{- if .Values.siteOperator.enableCertificates }}
+  - apiGroups: [cert-manager.io]
+    resources: [certificates]
+    verbs: [get, list, watch, create, update, patch, delete]
+  {{- end }}
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "auth.siteOperator.zonesConfigMap" . }}]
+    verbs: [get, update, patch]
+  {{- if .Values.siteOperator.gateway.enabled }}
+  # Gateway: read the base config; create/delete the versioned config ConfigMaps (RBAC
+  # cannot scope create/delete by name: site-operator-gateway-config limits both to
+  # <prefix>-<hash8>, created immutable); roll the Oathkeeper Deployment (the rollout
+  # policy allows only the config-hash annotation and the config volume's ConfigMap).
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create, delete]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "auth.oathkeeper.baseConfigMapName" . }}]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [{{ .Release.Name }}-oathkeeper]
+    verbs: [get, patch]
+  {{- end }}
+  - apiGroups: ["", events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+  # RulesLoaded: find the Oathkeeper pods, then read GET :4456/rules on each (no watch)
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "auth.siteOperator.fullname" . }}
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "auth.siteOperator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.siteOperator.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+rules:
+  - apiGroups: [auth.w6d.io]
+    resources: [zones]
+    verbs: [get, list, watch]
+  - apiGroups: [auth.w6d.io]
+    resources: [zones/status]
+    verbs: [get, update, patch]
+  # HostTaken: never create a site Ingress for a host another Ingress in the cluster serves
+  # (read-only; Ingress writes stay in the gateway namespace). Without it the operator
+  # crash-loops on 403.
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch]
+  {{- if .Values.siteOperator.gatewayApi.enabled }}
+  # HostTaken on Gateway API hosts, and the Gateways zones attach to (read-only)
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [gateways, httproutes, listenersets]
+    verbs: [get, list, watch]
+  {{- end }}
+  - apiGroups: ["", events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+  {{- include "auth.clusterResources.annotations" (dict "ctx" .) | trim | nindent 2 }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "auth.sites.clusterName" (dict "ctx" . "name" (printf "%s-zones" (include "auth.siteOperator.fullname" .))) }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "auth.siteOperator.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# Mirror of the Zone domains, written by the operator (get/update by name only) and read
+# by the hosts admission policy. Created empty here because RBAC cannot restrict create
+# by name. Helm must not reset what the operator wrote: data is left out on purpose.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth.siteOperator.zonesConfigMap" . }}
+  namespace: {{ include "auth.sites.namespace" . }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+  annotations:
+    helm.sh/resource-policy: keep
+{{- end }}

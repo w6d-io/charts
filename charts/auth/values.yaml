@@ -20,6 +20,10 @@ global:
     address: http://vault.vault:8200
     role: ""
     envFromPath: ""
+  # Set to jinbe.image.tag (the same value, bumped together): opal-server reads jinbe's
+  # data-source entry list only on start, so a new value rolls opal-server in the same release.
+  # Empty: no annotation (restart opal-server by hand after a jinbe release that changes feeds).
+  jinbeRevision: ""
   audit:
     webhook:
       secret: vault:secret/data/auth#KRATOS_WEBHOOK_SECRET
@@ -52,6 +56,63 @@ kratos:
     extraEnv:
       - name: DSN
         value: "postgresql://kratos:kratos@{{ .Release.Name }}-postgresql:5432/kratos?sslmode=disable"
+    # Secret rendered by this chart (templates/kratos/webhook-env-secret.yaml) and loaded with envFrom
+    # into Kratos and its automigrate init container. It carries one Kratos config override per
+    # web_hook whose auth value is a Vault reference, e.g.
+    #   SELFSERVICE_FLOWS_LOGIN_AFTER_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE=vault:secret/data/auth#KRATOS_WEBHOOK_SECRET
+    # because vault-env substitutes env vars, not the kratos.yaml ConfigMap. References only, never a
+    # secret value. Generated from the final kratos.config hooks, so env overlays need no change.
+    # Empty disables it (then a Vault reference in a hook is sent verbatim and jinbe answers 401).
+    environmentSecretsName: auth-kratos-webhook-env
+    # Admin token sidecar (kratos.adminAuth below, templates/_admin-auth.tpl). Renders nothing
+    # while kratos.adminAuth.enabled is false.
+    extraContainers: |
+      {{- include "auth.adminAuth.sidecar" (dict "root" . "port" .Values.kratos.config.serve.admin.port "key" "KRATOS_ADMIN_TOKEN") }}
+    # Probes on the PUBLIC port: the admin port is behind the token sidecar once adminAuth is on (its
+    # health paths stay open, but a probe there would restart Kratos whenever the sidecar is down).
+    # Same checks as the chart defaults (/health/alive and /health/ready exist on both ports).
+    customReadinessProbe:
+      httpGet:
+        path: /health/alive
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 5
+    customStartupProbe:
+      httpGet:
+        path: /health/ready
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      failureThreshold: 5
+      successThreshold: 1
+      periodSeconds: 1
+      timeoutSeconds: 2
+      initialDelaySeconds: 1
+
+  # The courier StatefulSet falls back to deployment.extraContainers when this is empty; it serves no
+  # admin API, so it gets a template that renders nothing instead of the sidecar.
+  statefulSet:
+    extraContainers: '{{- /* no admin-auth sidecar in the courier */ -}}'
+
+  # Token-checking sidecar in front of the Kratos admin API (P0: NetworkPolicy is not enforced, so
+  # every pod reaches it). Enabled: serve.admin.host becomes 127.0.0.1 and an nginx sidecar on the pod
+  # IP, same port, lets through only `Authorization: Bearer <KRATOS_ADMIN_TOKEN>` (health and metrics
+  # paths open). Every admin caller must send it first: jinbe >= the admin-auth build with
+  # KRATOS_ADMIN_TOKEN in jinbe.extraEnv. Token: `token` (a literal or a vault: reference vault-env
+  # resolves in this Vault-annotated pod) or else Secret `secretName` / `secretKey`
+  # (adminAuthSecret renders one from Vault).
+  adminAuth:
+    enabled: false
+    token: ""
+    secretName: ""        # default <release>-admin-tokens
+    secretKey: KRATOS_ADMIN_TOKEN
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    resources: {}         # default requests 5m/8Mi, limit 32Mi
 
   ingress:
     public:
@@ -109,6 +170,9 @@ kratos:
           - id: default
             url: file:///etc/config/person.schema.json
       serve:
+        admin:
+          # 127.0.0.1 while kratos.adminAuth fronts the admin port, else "" (all interfaces).
+          host: '{{ include "auth.adminAuth.bindHost" . }}'
         public:
           base_url: https://auth.example.com/
           cors:
@@ -116,6 +180,14 @@ kratos:
             allowed_origins:
               - https://auth.example.com
               - https://app.example.com
+      # Account enumeration: Kratos stops telling "no such account" apart where it can (the
+      # identifier-first step renders every method; no fast code send that would reveal the account).
+      # Kratos v26.2 still answers a code sign-in for an unknown address with "account does not exist":
+      # jinbe's sign-in gate (jinbe.signInGate) makes every such submit cost a solved bot check and
+      # counts it against the per-IP code limit.
+      security:
+        account_enumeration:
+          mitigate: true
       session:
         # Session extender: jinbe's whoami calls PATCH /admin/sessions/{id}/extend
         # (best-effort). earliest_possible_extend MUST be < lifespan so active users
@@ -132,6 +204,7 @@ kratos:
         # or WebAuthn — breaking SSO across tenant subdomains. Step-up
         # still happens on privileged self-service flows (settings) via
         # privileged_session_max_age below.
+        # KC-1: override per env to try `highest_available` (sandbox first).
         whoami:
           required_aal: aal1
       selfservice:
@@ -141,7 +214,11 @@ kratos:
         allowed_return_urls:
           - https://*.example.com
           - http://*.example.com
-        default_browser_return_url: https://app.example.com
+        # Where Kratos sends a browser that has no return_to — including signed-in users it
+        # answers directly (e.g. /self-service/registration/browser with a session), bypassing
+        # login-ui. login-ui's /welcome then lands them on the requested page, their site or
+        # the site picker. Keep it on the auth host, never an app host.
+        default_browser_return_url: https://auth.example.com/welcome
         methods:
           password:
             enabled: true
@@ -149,6 +226,15 @@ kratos:
             enabled: false
             config:
               providers: []
+          # Clickable link for recovery and the "send me a sign-in link" flow (SUP-4). The
+          # code method stays on (Kratos default) for verification and passwordless code.
+          link:
+            enabled: true
+          # KC-3: passwordless code sign-in ("email me a code") lets anyone probe which
+          # emails have an account. It is OFF by default in Kratos (and here); envs that set
+          # `passwordless_enabled: true` turn it on — set false to close that enumeration.
+          # code:
+          #   passwordless_enabled: false
         flows:
           error:
             ui_url: https://auth.example.com/auth/error
@@ -176,7 +262,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: &auditWebhookMethod POST
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwYXNzd29yZCIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                       response: &auditWebhookResponse
@@ -187,11 +273,28 @@ kratos:
                           name: X-Kratos-Webhook-Secret
                           in: header
                           value: '{{ .Values.global.audit.webhook.secret }}'
+              # Protected traits (auth-guard): a profile save first passes jinbe's guard, which
+              # refuses any change to a protected trait (response.parse → field message), then
+              # the audit hook. Needs jinbe >= 5297b87 (rollout order: see registration below).
+              # Off: examples/kratos-guard-settings-off-values.yaml.
               profile:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: 'http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos/guard'
+                      method: POST
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogJ3NldHRpbmdzJywKICBtZXRob2Q6ICdwcm9maWxlJywKICB0cmFpdHM6IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAnaWRlbnRpdHknKSAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMgZWxzZSBudWxsLAogIHN0b3JlZF90cmFpdHM6IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAnc2Vzc2lvbicpICYmIGN0eC5zZXNzaW9uICE9IG51bGwgJiYgc3RkLm9iamVjdEhhcyhjdHguc2Vzc2lvbiwgJ2lkZW50aXR5JykgJiYgY3R4LnNlc3Npb24uaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5zZXNzaW9uLmlkZW50aXR5LnRyYWl0cyBlbHNlIG51bGwsCn0K'
+                      response:
+                        parse: true
+                      auth:
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
+                  - hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJwcm9maWxlIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
@@ -205,7 +308,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ0b3RwIiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
@@ -219,7 +322,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJ3ZWJhdXRobiIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                       response: *auditWebhookResponse
@@ -233,7 +336,7 @@ kratos:
                 hooks:
                   - hook: web_hook
                     config:
-                      url: '{{ .Values.global.audit.webhook.url }}'
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
                       method: *auditWebhookMethod
                       body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInNldHRpbmdzIiwKICBtZXRob2Q6ICJsb29rdXBfc2VjcmV0IiwKICBpZGVudGl0eV9pZDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgdGhlbiBjdHguaWRlbnRpdHkuaWQgZWxzZSBudWxsLAogIGlkZW50aXR5X2VtYWlsOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCAmJiAidHJhaXRzIiBpbiBjdHguaWRlbnRpdHkgJiYgImVtYWlsIiBpbiBjdHguaWRlbnRpdHkudHJhaXRzIHRoZW4gY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgaXA6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiWC1Gb3J3YXJkZWQtRm9yIiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siWC1Gb3J3YXJkZWQtRm9yIl1bMF0gZWxzZSBudWxsLAogIHVhOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlVzZXItQWdlbnQiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJVc2VyLUFnZW50Il1bMF0gZWxzZSBudWxsLAp9Cg=='
                       response: *auditWebhookResponse
@@ -245,14 +348,53 @@ kratos:
                           value: '{{ .Values.global.audit.webhook.secret }}'
           recovery:
             enabled: true
+            use: link
+            # Audit webhook — emit an auth event to jinbe after each successful recovery
+            # (a recovery sign-in, e.g. kuma's "Send sign-in link": its session skips login.after). Same url/method/response/auth as the other audit hooks; method = the
+            # flow's active method (link/code).
+            after:
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                    method: *auditWebhookMethod
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlY292ZXJ5IiwKICBtZXRob2Q6IGlmICJmbG93IiBpbiBjdHggJiYgY3R4LmZsb3cgIT0gbnVsbCAmJiAiYWN0aXZlIiBpbiBjdHguZmxvdyB0aGVuIGN0eC5mbG93LmFjdGl2ZSBlbHNlIG51bGwsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                    response: *auditWebhookResponse
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
           verification:
             enabled: true
+            # link, not code: jinbe mails verification links outside any flow the user holds
+            # (resend verification, admin email change); a mailed code would be unusable.
+            use: link
+            # Audit webhook — emit an auth event to jinbe after each successful verification
+            # (an address verified). Same url/method/response/auth as the other audit hooks; method = the
+            # flow's active method (link/code).
+            after:
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                    method: *auditWebhookMethod
+                    body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInZlcmlmaWNhdGlvbiIsCiAgbWV0aG9kOiBpZiAiZmxvdyIgaW4gY3R4ICYmIGN0eC5mbG93ICE9IG51bGwgJiYgImFjdGl2ZSIgaW4gY3R4LmZsb3cgdGhlbiBjdHguZmxvdy5hY3RpdmUgZWxzZSBudWxsLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
+                    response: *auditWebhookResponse
+                    auth:
+                      type: api_key
+                      config:
+                        name: X-Kratos-Webhook-Secret
+                        in: header
+                        value: '{{ .Values.global.audit.webhook.secret }}'
           logout:
             after:
-              default_browser_return_url: https://auth.example.com/auth/login
+              # login-ui serves sign-in at /login (root, as every env sets it)
+              default_browser_return_url: https://auth.example.com/login
           login:
             ui_url: https://auth.example.com/auth/login
-            lifespan: 10m
+            lifespan: 15m
             # Audit webhook — emit an auth event to jinbe after every successful
             # login (any method). Reuses the anchored url/method/response/auth
             # defined in the settings flow above; see that block for the payload
@@ -261,7 +403,7 @@ kratos:
               hooks:
                 - hook: web_hook
                   config:
-                    url: '{{ .Values.global.audit.webhook.url }}'
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
                     method: *auditWebhookMethod
                     body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogImxvZ2luIiwKICBtZXRob2Q6IG51bGwsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
                     response: *auditWebhookResponse
@@ -272,16 +414,98 @@ kratos:
                         in: header
                         value: '{{ .Values.global.audit.webhook.secret }}'
           registration:
-            lifespan: 10m
-            ui_url: https://auth.example.com/auth/registration
+            lifespan: 15m
+            # KC-2: kratos-login-ui serves sign-up at /register (root, as every env sets it)
+            ui_url: https://auth.example.com/register
             # Audit webhook — emit an auth event to jinbe after each successful
             # registration. Reuses the anchored url/method/response/auth from the
             # settings flow above.
+            #
+            # Sign-in protection (auth-guard): every sign-up method (password, code, oidc,
+            # webauthn, passkey) first passes jinbe's guard (POST /api/webhooks/kratos/guard,
+            # response.parse → jinbe may refuse with field messages: bot check, sign-up mode,
+            # allowed/disposable domains, protected traits), then the audit hook. A per-method
+            # list REPLACES the global `hooks` for that method, so each carries its own audit
+            # copy; a list for a method that is off is inert. The guard body sends the traits:
+            # jinbe >= 5297b87 REFUSES a registration body without them (protected traits).
+            # The guard body also sends the flow's return_to: a site whose own sign-up is open (site
+            # intent signUp) takes the registration under its rules (jinbe >= 733c396).
+            # Envs that set their own after.<method>.hooks (e.g. `code: [session]`) must repeat
+            # guard + audit there, session LAST. To run without the guard, override the lists
+            # with the audit hook only (examples/kratos-guard-registration-off-values.yaml).
+            #
+            # ROLLOUT ORDER (protected traits): 1) these guard bodies with traits, 2) jinbe
+            # >= 5297b87, 3) the settings profile guard (an older jinbe answers flow:settings
+            # with 400, which would block every profile save).
             after:
+              password:
+                hooks:
+                  - &kratosGuardRegistration
+                    hook: web_hook
+                    config:
+                      url: 'http://{{ .Release.Name }}-jinbe:8080/api/webhooks/kratos/guard'
+                      method: POST
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgbG9jYWwgdHAgPSBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAndHJhbnNpZW50X3BheWxvYWQnKSAmJiBjdHguZmxvdy50cmFuc2llbnRfcGF5bG9hZCAhPSBudWxsIHRoZW4gY3R4LmZsb3cudHJhbnNpZW50X3BheWxvYWQgZWxzZSB7fSwKICBsb2NhbCBjb29raWVzID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdyZXF1ZXN0X2Nvb2tpZXMnKSAmJiBjdHgucmVxdWVzdF9jb29raWVzICE9IG51bGwgdGhlbiBjdHgucmVxdWVzdF9jb29raWVzIGVsc2Uge30sCiAgbG9jYWwgaGVhZGVycyA9IGlmIHN0ZC5vYmplY3RIYXMoY3R4LCAncmVxdWVzdF9oZWFkZXJzJykgJiYgY3R4LnJlcXVlc3RfaGVhZGVycyAhPSBudWxsIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVycyBlbHNlIHt9LAogIGxvY2FsIGlkZW50aXR5ID0gaWYgc3RkLm9iamVjdEhhcyhjdHgsICdpZGVudGl0eScpICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5IGVsc2UgbnVsbCwKICBmbG93OiAncmVnaXN0cmF0aW9uJywKICBmbG93X3R5cGU6IGN0eC5mbG93LnR5cGUsCiAgbWV0aG9kOiBpZiBzdGQub2JqZWN0SGFzKGN0eC5mbG93LCAnYWN0aXZlJykgdGhlbiBjdHguZmxvdy5hY3RpdmUgZWxzZSBudWxsLAogIGVtYWlsOiBpZiBpZGVudGl0eSAhPSBudWxsICYmIHN0ZC5vYmplY3RIYXMoaWRlbnRpdHkudHJhaXRzLCAnZW1haWwnKSB0aGVuIGlkZW50aXR5LnRyYWl0cy5lbWFpbCBlbHNlIG51bGwsCiAgdHJhaXRzOiBpZiBpZGVudGl0eSAhPSBudWxsIHRoZW4gaWRlbnRpdHkudHJhaXRzIGVsc2UgbnVsbCwKICBjYXB0Y2hhX3Rva2VuOiBpZiBzdGQub2JqZWN0SGFzKHRwLCAnY2FwdGNoYV90b2tlbicpIHRoZW4gdHAuY2FwdGNoYV90b2tlbiBlbHNlIGlmIHN0ZC5vYmplY3RIYXMoY29va2llcywgJ3N0bF9rY2FwJykgdGhlbiBjb29raWVzLnN0bF9rY2FwIGVsc2UgbnVsbCwKICByZXR1cm5fdG86IGlmIHN0ZC5vYmplY3RIYXMoY3R4LmZsb3csICdyZXR1cm5fdG8nKSB0aGVuIGN0eC5mbG93LnJldHVybl90byBlbHNlIG51bGwsCiAgaXA6IGlmIHN0ZC5vYmplY3RIYXMoaGVhZGVycywgJ1RydWUtQ2xpZW50LUlwJykgdGhlbiBoZWFkZXJzWydUcnVlLUNsaWVudC1JcCddWzBdIGVsc2UgaWYgc3RkLm9iamVjdEhhcyhoZWFkZXJzLCAnWC1Gb3J3YXJkZWQtRm9yJykgdGhlbiBoZWFkZXJzWydYLUZvcndhcmRlZC1Gb3InXVswXSBlbHNlIG51bGwsCn0K'
+                      response:
+                        parse: true
+                      auth: &kratosWebhookAuth
+                        type: api_key
+                        config:
+                          name: X-Kratos-Webhook-Secret
+                          in: header
+                          value: '{{ .Values.global.audit.webhook.secret }}'
+                  - &kratosRegistrationAudit
+                    hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc3dvcmQiLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
+              code:
+                hooks:
+                  - *kratosGuardRegistration
+                  - hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAiY29kZSIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
+              oidc:
+                hooks:
+                  - *kratosGuardRegistration
+                  - hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAib2lkYyIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
+              webauthn:
+                hooks:
+                  - *kratosGuardRegistration
+                  - hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAid2ViYXV0aG4iLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
+              passkey:
+                hooks:
+                  - *kratosGuardRegistration
+                  - hook: web_hook
+                    config:
+                      url: '{{ tpl .Values.global.audit.webhook.url . }}'
+                      method: *auditWebhookMethod
+                      body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc2tleSIsCiAgaWRlbnRpdHlfaWQ6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsIHRoZW4gY3R4LmlkZW50aXR5LmlkIGVsc2UgbnVsbCwKICBpZGVudGl0eV9lbWFpbDogaWYgImlkZW50aXR5IiBpbiBjdHggJiYgY3R4LmlkZW50aXR5ICE9IG51bGwgJiYgInRyYWl0cyIgaW4gY3R4LmlkZW50aXR5ICYmICJlbWFpbCIgaW4gY3R4LmlkZW50aXR5LnRyYWl0cyB0aGVuIGN0eC5pZGVudGl0eS50cmFpdHMuZW1haWwgZWxzZSBudWxsLAogIGlwOiBpZiAicmVxdWVzdF9oZWFkZXJzIiBpbiBjdHggJiYgIlgtRm9yd2FyZGVkLUZvciIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlgtRm9yd2FyZGVkLUZvciJdWzBdIGVsc2UgbnVsbCwKICB1YTogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJVc2VyLUFnZW50IiBpbiBjdHgucmVxdWVzdF9oZWFkZXJzIHRoZW4gY3R4LnJlcXVlc3RfaGVhZGVyc1siVXNlci1BZ2VudCJdWzBdIGVsc2UgbnVsbCwKfQo='
+                      response: *auditWebhookResponse
+                      auth: *kratosWebhookAuth
               hooks:
                 - hook: web_hook
                   config:
-                    url: '{{ .Values.global.audit.webhook.url }}'
+                    url: '{{ tpl .Values.global.audit.webhook.url . }}'
                     method: *auditWebhookMethod
                     body: 'base64://ZnVuY3Rpb24oY3R4KSB7CiAgZmxvdzogInJlZ2lzdHJhdGlvbiIsCiAgbWV0aG9kOiAicGFzc3dvcmQiLAogIGlkZW50aXR5X2lkOiBpZiAiaWRlbnRpdHkiIGluIGN0eCAmJiBjdHguaWRlbnRpdHkgIT0gbnVsbCB0aGVuIGN0eC5pZGVudGl0eS5pZCBlbHNlIG51bGwsCiAgaWRlbnRpdHlfZW1haWw6IGlmICJpZGVudGl0eSIgaW4gY3R4ICYmIGN0eC5pZGVudGl0eSAhPSBudWxsICYmICJ0cmFpdHMiIGluIGN0eC5pZGVudGl0eSAmJiAiZW1haWwiIGluIGN0eC5pZGVudGl0eS50cmFpdHMgdGhlbiBjdHguaWRlbnRpdHkudHJhaXRzLmVtYWlsIGVsc2UgbnVsbCwKICBpcDogaWYgInJlcXVlc3RfaGVhZGVycyIgaW4gY3R4ICYmICJYLUZvcndhcmRlZC1Gb3IiIGluIGN0eC5yZXF1ZXN0X2hlYWRlcnMgdGhlbiBjdHgucmVxdWVzdF9oZWFkZXJzWyJYLUZvcndhcmRlZC1Gb3IiXVswXSBlbHNlIG51bGwsCiAgdWE6IGlmICJyZXF1ZXN0X2hlYWRlcnMiIGluIGN0eCAmJiAiVXNlci1BZ2VudCIgaW4gY3R4LnJlcXVlc3RfaGVhZGVycyB0aGVuIGN0eC5yZXF1ZXN0X2hlYWRlcnNbIlVzZXItQWdlbnQiXVswXSBlbHNlIG51bGwsCn0K'
                     response: *auditWebhookResponse
@@ -291,9 +515,43 @@ kratos:
                         name: X-Kratos-Webhook-Secret
                         in: header
                         value: '{{ .Values.global.audit.webhook.secret }}'
+      # Request headers Kratos forwards to web hooks. Setting it REPLACES Kratos' default list,
+      # so this is that default + X-Forwarded-For (the guard's and the audit hook's client ip;
+      # without it the audit ip was always null).
+      clients:
+        web_hook:
+          header_allowlist:
+            - Accept
+            - Accept-Encoding
+            - Accept-Language
+            - Content-Length
+            - Content-Type
+            - Origin
+            - Priority
+            - Referer
+            - Sec-Ch-Ua
+            - Sec-Ch-Ua-Mobile
+            - Sec-Ch-Ua-Platform
+            - Sec-Fetch-Dest
+            - Sec-Fetch-Mode
+            - Sec-Fetch-Site
+            - Sec-Fetch-User
+            - True-Client-Ip
+            - User-Agent
+            - X-Forwarded-For
       log:
         level: info
         format: json
+        leak_sensitive_values: false
+      # Native OpenTelemetry (OBS-2.2). Off until `provider: otel` is set; OTLP/HTTP host:port.
+      tracing:
+        service_name: kratos
+        providers:
+          otlp:
+            server_url: otel-collector.otel:4318
+            insecure: true
+            sampling:
+              sampling_ratio: 1.0
       ciphers:
         algorithm: xchacha20-poly1305
       hashers:
@@ -310,6 +568,8 @@ kratos:
     # hook that runs BEFORE chart resources, deadlocking fresh installs that
     # bundle their own postgres (hook waits for DB, DB hasn't been deployed
     # yet). InitContainer is idempotent and safe for already-migrated DBs.
+    # Keep it: with `type: job` Argo CD runs the hook as PreSync and a fresh sync hangs forever
+    # (hydra.hydra.automigration has the same default for the same reason).
     automigration:
       enabled: true
       type: initContainer
@@ -345,7 +605,8 @@ kratos:
                     "recovery": { "via": "email" }
                   }
                 },
-                "name": { "type": "string", "title": "Name" }
+                "name": { "type": "string", "title": "Name" },
+                "company": { "type": "string", "title": "Company", "maxLength": 80 }
               },
               "required": ["email"],
               "additionalProperties": false
@@ -412,11 +673,122 @@ oathkeeper:
     initRetries: 30
     image: "curlimages/curl:8.11.1"
 
+  # Platform hosts on a Gateway API Gateway (templates/oathkeeper/route.yaml), the twin of
+  # ingress.proxy: hosts default to ingress.proxy.hosts[].host; cors is an HTTPRoute CORS filter
+  # (allowOrigins, allowMethods, allowHeaders, exposeHeaders, allowCredentials, maxAge).
+  edge:
+    httpRoute:
+      enabled: false
+      parentRefs: []
+      hosts: []
+      cors: {}
+      requestTimeout: ""    # e.g. 300s (long polls, SSE)
+
+  # Send the Hydra admin token on token introspection (needed once hydra.adminAuth is on).
+  #  - tokenRef: a vault: reference resolved by vault-env in the Oathkeeper pod (no Secret). Needs
+  #    deployment.podMetadata.annotations with the Bank-Vaults role annotations, a ServiceAccount
+  #    bound to that role (deployment.serviceAccount / oathkeeper.serviceAccount) and
+  #    deployment.automountServiceAccountToken: true.
+  #  - else Secret secretName (default <release>-admin-tokens) / secretKey, rendered by
+  #    adminAuthSecret (environments where the secrets webhook can resolve it).
+  adminAuth:
+    enabled: false
+    tokenRef: ""          # e.g. vault:infra/data/<env>#HYDRA_ADMIN_TOKEN
+    secretName: ""
+    secretKey: HYDRA_ADMIN_TOKEN
+
+  # Where Oathkeeper reads its access rules from (Sites cut-over, docs/SERVICE_PLUG.md):
+  #   legacy  — rules-sync file only (/etc/rules/access-rules.json). Default; unchanged behaviour.
+  #   maester — oathkeeper-maester in sidecar mode (native sidecar, API watch of Rule CRs in this
+  #             namespace) writes /etc/rules/access-rules.json; rules-sync is not run.
+  #   dual    — both run; maester writes /etc/rules/maester.json next to rules-sync's
+  #             access-rules.json (one writer per file) and Oathkeeper loads BOTH, so legacy
+  #             routes and Site rules are enforced side by side. A request matched by a rule
+  #             in each file is a 500 (no priority): Sites must not cover legacy routes (the
+  #             operator's overlap check / gatekit parity), and a route moves by being removed
+  #             from one side as it lands on the other.
+  # A user-supplied oathkeeper.oathkeeper.config.access_rules.repositories overrides all of this.
+  rules:
+    source: legacy
+    # Ship the maester Rule CRD (rules.oathkeeper.ory.sh) when source != legacy or
+    # siteOperator.enabled. Set false where another release already owns it.
+    installCRD: true
+    # Platform Rule CRs shipped with source maester|dual. Oathkeeper with 0 rules is NotReady,
+    # so at least `ready` (GET <authDomain>/.oathkeeper/ready → error-page, anonymous) always
+    # ships. Extra entries are maester Rule specs keyed by name, e.g.
+    #   kuma: {match: {url: "<https?>://kuma.example.com/<.*>", methods: [GET]}, upstream: {url: ...},
+    #          authenticators: [{handler: cookie_session}], authorizer: {handler: remote_json}}
+    platformRules: {}
+    # Anonymous GET <authDomain>/api/public/sites/<.*> → jinbe (by-host branding, :name/logo,
+    # :name/access-reason). On the AUTH host on purpose: no built-in rule covers /api/ there
+    # (gatekit: 0 overlaps vs jinbe's built-in rules), while app/api hosts have catch-all
+    # jinbe rules. Oathkeeper forwards the Cookie header, so access-reason can read the session
+    # inside jinbe. Legacy: an extra inline:// repository next to the rules-sync file;
+    # maester/dual: platform Rule `platform-public-sites` (dual loads maester.json too, so
+    # never both). noop is used because `anonymous` is
+    # not enabled globally (enable it first to switch). Off by default (new public route).
+    publicSites:
+      enabled: false
+      authenticator: noop
+      # empty: http://<release>-jinbe.<namespace>.svc.cluster.local:8080
+      upstream: ""
+
+  # oathkeeper-maester sidecar (rules.source maester|dual). Runs as a native sidecar
+  # (initContainer, restartPolicy Always) so it starts before Oathkeeper and keeps running.
+  # Upstream v0.1.14 writes the file non-atomically (0-rule 404 blips on every change) and
+  # can keep a deleted Rule on one of N pods: use the patched build
+  # (site-operator hack/maester-sidecar.patch, e.g. v0.1.14-w6d.1) until it is upstreamed.
+  # Oathkeeper with 0 rules is NotReady: rules.source=maester needs at least one platform Rule.
+  # PLACEHOLDER IMAGE — must be built: upstream v0.1.14 writes the rules file non-atomically
+  # (0-rule 404 blips on every change) and can keep a deleted Rule live on one of N pods.
+  # Build v0.1.14 + ~/.ghq/github.com/auth/site-operator/hack/maester-sidecar.patch and push it
+  # under this name (or override per env) until the fix is upstreamed.
+  maesterSidecar:
+    image: "ghcr.io/w6d-io/oathkeeper-maester:v0.1.14-w6d.1"
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits:   { memory: 128Mi }
+
+  # Graceful rollout: every Gateway change (and every config change) rolls Oathkeeper; a
+  # single-replica swap dropped requests with 502 on the sandbox. Two replicas, surge-only
+  # rolling update, a PDB, and a preStop pause so ingress-nginx stops sending to a pod before
+  # it gets SIGTERM. Oathkeeper then waits at most 5 s (ory/graceful default, not
+  # configurable) for open requests; longer streams (kuma SSE) are cut and reconnect.
+  # terminationGracePeriodSeconds must stay above preStop + 5 s.
+  replicaCount: 2
+  pdb:
+    enabled: true
+    spec:
+      maxUnavailable: 1
+
   deployment:
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+    # native sleep action (k8s >= 1.30): the image needs no shell
+    lifecycle:
+      preStop:
+        sleep:
+          seconds: 10
+    terminationGracePeriodSeconds: 30
+    # oauth2_introspection -> Hydra admin with the Hydra admin token (oathkeeper.adminAuth below).
+    # Disabled: the Secret is optional and the header override is `{}`, Oathkeeper's default.
+    extraEnv:
+      - name: HYDRA_ADMIN_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: '{{ include "auth.adminAuth.secretName" . }}'
+            key: '{{ .Values.adminAuth.secretKey | default "HYDRA_ADMIN_TOKEN" }}'
+            optional: true
+      - name: AUTHENTICATORS_OAUTH2_INTROSPECTION_CONFIG_INTROSPECTION_REQUEST_HEADERS
+        value: '{{ include "auth.adminAuth.introspectionHeaders" . }}'
     # Blocking first fetch: guarantees /etc/rules/access-rules.json exists (seeds "[]"
     # fail-closed after initRetries). tpl-rendered in the subchart context.
     extraInitContainers: |
-      {{- if .Values.rulesSync.enabled }}
+      {{- $source := .Values.rules.source | default "legacy" }}
+      {{- if and .Values.rulesSync.enabled (ne $source "maester") }}
       - name: rules-sync-init
         image: {{ .Values.rulesSync.image | quote }}
         imagePullPolicy: IfNotPresent
@@ -452,10 +824,63 @@ oathkeeper:
           capabilities: { drop: ["ALL"] }
           seccompProfile: { type: RuntimeDefault }
       {{- end }}
+      {{- if or (eq $source "maester") (eq $source "dual") }}
+      {{- $rulesFile := ternary "maester.json" "access-rules.json" (eq $source "dual") }}
+      {{- if eq $source "dual" }}
+      # dual: maester.json is maester's own file; seed it empty (fail-closed) so Oathkeeper can
+      # load it before the first reconcile; 666 because maester runs as another UID. (maester
+      # mode uses access-rules.json, created 666 by the subchart's init container.)
+      - name: maester-seed
+        image: {{ .Values.rulesSync.image | quote }}
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            [ -s /etc/rules/maester.json ] || printf '[]' > /etc/rules/maester.json
+            chmod 666 /etc/rules/maester.json
+        volumeMounts:
+          - name: {{ include "oathkeeper.name" . }}-rules-volume
+            mountPath: /etc/rules
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+      {{- end }}
+      - name: maester
+        image: {{ .Values.maesterSidecar.image | quote }}
+        imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        command: ["/manager"]
+        args:
+          - --metrics-addr=0.0.0.0:8080
+          - sidecar
+          - --rulesFilePath=/etc/rules/{{ $rulesFile }}
+        env:
+          # watch Rules in this namespace only (Role, not ClusterRole)
+          - name: NAMESPACE
+            value: {{ .Release.Namespace | quote }}
+          # no *Available allow-lists: maester's defaults allow every handler; the
+          # site-operator (and the Gateway CR) gate handlers, so ones enabled live work here too
+        ports:
+          - { name: maester-metrics, containerPort: 8080 }
+        volumeMounts:
+          - name: {{ include "oathkeeper.name" . }}-rules-volume
+            mountPath: /etc/rules
+        resources:
+          {{- toYaml .Values.maesterSidecar.resources | nindent 10 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+      {{- end }}
     # Sidecar: poll jinbe every intervalSeconds; atomically mv only on sha256 change
     # (no fsnotify churn / needless reloads). Logs on change.
     extraContainers: |
-      {{- if .Values.rulesSync.enabled }}
+      {{- if and .Values.rulesSync.enabled (ne (.Values.rules.source | default "legacy") "maester") }}
       - name: rules-sync
         image: {{ .Values.rulesSync.image | quote }}
         imagePullPolicy: IfNotPresent
@@ -468,13 +893,16 @@ oathkeeper:
             TMP=/etc/rules/.access-rules.next
             INTERVAL={{ .Values.rulesSync.intervalSeconds | default 5 }}
             echo "rules-sync: polling ${URL} every ${INTERVAL}s -> ${DEST}"
+            # The answer is held in memory and compared before anything is written: Oathkeeper watches
+            # /etc/rules, and a temp file written there on every poll woke it (a reload and a bare
+            # "[/etc/rules]" log line) every few seconds. Only a change touches the directory.
             while true; do
-              if curl -fsS --max-time 5 "$URL" -o "$TMP"; then
-                if [ -s "$TMP" ]; then
-                  new=$(sha256sum "$TMP" | cut -d' ' -f1)
+              if body=$(curl -fsS --max-time 5 "$URL"); then
+                if [ -n "$body" ]; then
+                  new=$(printf '%s' "$body" | sha256sum | cut -d' ' -f1)
                   cur=$(sha256sum "$DEST" 2>/dev/null | cut -d' ' -f1 || echo none)
                   if [ "$new" != "$cur" ]; then
-                    mv "$TMP" "$DEST"
+                    printf '%s' "$body" > "$TMP" && mv "$TMP" "$DEST"
                     echo "rules-sync: rules changed -> updated ${DEST} (sha256=${new})"
                   fi
                 fi
@@ -487,6 +915,12 @@ oathkeeper:
           - name: {{ include "oathkeeper.name" . }}-rules-volume
             mountPath: /etc/rules
             readOnly: false
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
         livenessProbe:
           exec: { command: ["/bin/sh", "-c", "test -f /etc/rules/access-rules.json"] }
           initialDelaySeconds: 10
@@ -515,14 +949,38 @@ oathkeeper:
         proxy:
           cors:
             enabled: false
+          # The default write timeout (120s) cuts every response stream at 2 min, kuma's SSE
+          # included. 0s = no write deadline (as live on the sandbox); read/idle keep their
+          # defaults (5s / 120s).
+          timeout:
+            write: 0s
       access_rules:
         matching_strategy: regexp
         # File mode + fsnotify hot-reload. The rules-sync sidecar (oathkeeper.rulesSync
         # below) polls jinbe and atomically rewrites this file on change, so Oathkeeper
         # reloads rules with NO pod restart. (An HTTP repo is fetched ONCE at boot,
         # which is why serving rules over HTTP required an Oathkeeper restart.)
+        # The file follows oathkeeper.rules.source/active (see above); legacy renders
+        # file:///etc/rules/access-rules.json exactly as before.
         repositories:
-          - file:///etc/rules/access-rules.json
+          # (with rules.publicSites the helper also emits a second inline:// item)
+          - '{{ include "auth.oathkeeper.repositories" . }}'
+      # Never log cookies, session tokens or Authorization (CONTROL S12/S15). trace/debug
+      # dump full request headers; keep info outside a debugging session.
+      log:
+        level: info
+        format: json
+        leak_sensitive_values: false
+      # Native OpenTelemetry (OBS-2.2). Off until `provider: otel` is set; the collector
+      # endpoint is OTLP/HTTP host:port. Spans continue nginx's traceparent (parent-based).
+      tracing:
+        service_name: oathkeeper
+        providers:
+          otlp:
+            server_url: otel-collector.otel:4318
+            insecure: true
+            sampling:
+              sampling_ratio: 1.0
       authenticators:
         cookie_session:
           enabled: true
@@ -551,6 +1009,10 @@ oathkeeper:
             subject_from: "identity.id"
             token_from:
               header: X-Session-Token
+            # v25.4.0 does not pass the token to whoami unless told to: without this every
+            # bearer call gets a 401 (the sandbox live config carries it)
+            forward_http_headers:
+              - X-Session-Token
         # OAuth2 access tokens (Authorization: Bearer) — third-party apps and
         # M2M API keys issued by Hydra, validated via token introspection.
         # Requires hydra.enabled=true; the "introspection" sign-in method in
@@ -590,7 +1052,9 @@ oathkeeper:
                   "sub": "{{ "{{" }} print .Subject {{ "}}" }}",
                   "email": "{{ "{{" }} if .Extra.identity {{ "}}" }}{{ "{{" }} index .Extra.identity.traits "email" {{ "}}" }}{{ "{{" }} end {{ "}}" }}",
                   "object": "{{ "{{" }} .MatchContext.URL.Path {{ "}}" }}",
-                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}"
+                  "action": "{{ "{{" }} .MatchContext.Method {{ "}}" }}",
+                  "aal": "{{ "{{" }} if .Extra {{ "}}" }}{{ "{{" }} print .Extra.authenticator_assurance_level {{ "}}" }}{{ "{{" }} end {{ "}}" }}",
+                  "client": {{ "{{" }} if .Extra {{ "}}" }}{{ "{{" }} if .Extra.client_id {{ "}}" }}true{{ "{{" }} else {{ "}}" }}false{{ "{{" }} end {{ "}}" }}{{ "{{" }} else {{ "}}" }}false{{ "{{" }} end {{ "}}" }}
                 }
               }
             forward_response_headers_to_upstream:
@@ -698,6 +1162,23 @@ oathkeeper:
   # externalAccessRulesConfigMap: "my-access-rules-configmap"
   accessRules: ""
 
+# Admin API tokens, rendered as Secret <release>-admin-tokens (templates/admin-auth/secret.yaml) with
+# vault: references the Bank-Vaults secrets webhook rewrites (role vaultRole, through the namespace's
+# default ServiceAccount). Read by kratos/hydra/oathkeeper.adminAuth. jinbe takes the same values
+# through vault-env, e.g. jinbe.extraEnv:
+#   KRATOS_ADMIN_TOKEN: vault:infra/data/<env>-jinbe#KRATOS_ADMIN_TOKEN
+#   HYDRA_ADMIN_TOKEN:  vault:infra/data/<env>-jinbe#HYDRA_ADMIN_TOKEN
+# Roll out in this order: jinbe with the tokens (harmless before any sidecar) -> oathkeeper.adminAuth
+# -> kratos.adminAuth -> hydra.adminAuth.
+# The Secret route needs the Bank-Vaults webhook's own identity to be accepted by vaultRole; where it is
+# not (auth-dev), leave this empty and use vault: references in the pods themselves:
+# kratos/hydra.adminAuth.token and oathkeeper.adminAuth.tokenRef.
+adminAuthSecret:
+  name: ""                # default <release>-admin-tokens
+  vaultRole: ""
+  kratosTokenRef: ""      # e.g. vault:infra/data/<env>#KRATOS_ADMIN_TOKEN
+  hydraTokenRef: ""       # e.g. vault:infra/data/<env>#HYDRA_ADMIN_TOKEN
+
 # =============================================================================
 # Hydra - OAuth2 / OpenID Connect server (M2M client_credentials API keys)
 # =============================================================================
@@ -719,23 +1200,111 @@ hydra:
   maester:
     enabled: false
 
+  # Public edge for the issuer host (templates/hydra/route.yaml): Hydra's own public paths go to
+  # <release>-hydra-public:4444; jinbe's RFC 8414 metadata and /oauth2/register go through the
+  # Oathkeeper proxy (rule mcp-oauth-as). Everything else on the host is a 404.
+  # host: default the issuer's host. Gateway API (httpRoute) or nginx (ingress), as mcp. Not under
+  # hydra.ingress, which is the Ory chart's own (whole-port) ingress.
+  edge:
+    host: ""
+    httpRoute:
+      enabled: false
+      parentRefs: []
+      labels: {}          # e.g. what an admission policy on routes expects
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      tls: []
+
+  # Token-checking sidecar in front of the Hydra admin API, as kratos.adminAuth: serve.admin.host
+  # 127.0.0.1, nginx on the pod IP:4445 requiring `Authorization: Bearer <HYDRA_ADMIN_TOKEN>`. Callers:
+  # jinbe (HYDRA_ADMIN_TOKEN) and Oathkeeper's oauth2_introspection (oathkeeper.adminAuth) — enable
+  # both first.
+  adminAuth:
+    enabled: false
+    token: ""
+    secretName: ""        # default <release>-admin-tokens
+    secretKey: HYDRA_ADMIN_TOKEN
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    resources: {}
+
+  deployment:
+    extraContainers: |
+      {{- include "auth.adminAuth.sidecar" (dict "root" . "port" .Values.hydra.config.serve.admin.port "key" "HYDRA_ADMIN_TOKEN") }}
+    # Probes on the public port (see kratos.deployment.customReadinessProbe).
+    customReadinessProbe:
+      httpGet:
+        path: /health/alive
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 5
+    customStartupProbe:
+      httpGet:
+        path: /health/ready
+        port: http-public
+        httpHeaders:
+          - name: Host
+            value: "127.0.0.1"
+      failureThreshold: 5
+      successThreshold: 1
+      periodSeconds: 1
+      timeoutSeconds: 2
+      initialDelaySeconds: 1
+
   hydra:
+    # initContainer, not the subchart's default `job`: the job is a Helm pre-install/pre-upgrade hook
+    # (Argo CD PreSync) that runs before anything else in the release, so on a fresh install it waits
+    # for a Postgres that does not exist yet and the install or sync hangs. As an init container the
+    # migration runs in each Hydra pod once Postgres is up (the database and its role come from
+    # postgresqlSimple.appRoles' initdb script); it is idempotent.
     automigration:
       enabled: true
+      type: initContainer
     config:
       # dsn and secrets.system are intentionally empty here; supply them via
       # the environment overlay (extraEnv -> Vault) so they are never committed.
       dsn: ""
       secrets: {}
+      serve:
+        admin:
+          # 127.0.0.1 while hydra.adminAuth fronts the admin port, else "" (all interfaces).
+          host: '{{ include "auth.adminAuth.bindHost" . }}'
+        cookies:
+          same_site_mode: Lax
+      # OAuth sign-in (MCP clients): the login and consent pages are login-ui's, backed by jinbe.
+      # Templated from global.authDomain / global.domain (tpl-rendered by the Ory chart).
       urls:
         self:
+          # Keep the trailing slash: the same string goes to auth-mcp, jinbe and login-ui
+          # (auth.oauth.issuer), and the render fails without it.
           issuer: ""
+        login: 'https://{{ include "auth.authDomain" . }}/oauth2/login'
+        consent: 'https://{{ include "auth.authDomain" . }}/oauth2/consent'
+        error: 'https://{{ include "auth.authDomain" . }}/error'
+        logout: 'https://{{ include "auth.authDomain" . }}/logout'
+        post_logout_redirect: 'https://{{ include "auth.authDomain" . }}/login'
       oauth2:
         expose_internal_errors: false
+        pkce:
+          enforced: true                 # every auth-code client; client_credentials unaffected
+        grant:
+          refresh_token:
+            rotation_grace_period: 10s   # parallel refreshes from one client don't trip reuse detection
+      oidc:
+        dynamic_client_registration:
+          enabled: false                 # jinbe's /oauth2/register is the only registration
       strategies:
         access_token: opaque
       ttl:
         access_token: 15m
+        refresh_token: 168h              # 7-day idle, sliding with rotation
+        login_consent_request: 15m
+        auth_code: 5m
       log:
         level: info
         format: json
@@ -748,6 +1317,18 @@ opal:
 
   server:
     port: 7002
+    # The opal images run as `opal` (uid 1000); runAsNonRoot needs the numeric uid.
+    # No read-only root: the server clones the policy repo into the image filesystem.
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
     # The RBAC policy repo. The policy uses the `import rego.v1` BRIDGE syntax:
     # it parses on pre-1.0 OPA engines AND OPA >= 1.0 strict mode, so the
     # opal-client/OPA image can be upgraded independently of the policy.
@@ -783,10 +1364,28 @@ opal:
       url: ""  # Required when enabled — set per-release to the jinbe datasource URL
       image: "curlimages/curl:8.10.1"
       maxAttempts: 120  # 120 * 2s = 4 minutes total wait
+      bearerToken: ""  # jinbe's OPAL client token (vault: ref) — required once jinbe guards its OPAL routes
+      # curl writes nothing: read-only root, unlike the server container (default: server.containerSecurityContext)
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
 
   client:
     port: 7000
     opaPort: 8181
+    # uid 1000 as for the server; no read-only root (the inline OPA writes bundles locally).
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
     replicas: 1
     # NOTE: Must be overridden per-release since OPAL subchart doesn't support tpl
     # Use: --set opal.client.serverUrl=http://{release}-opal-server:7002
@@ -848,7 +1447,6 @@ jinbe:
     # OPA_URL: auto-computed as http://<release>-opal-client:8181
     # OPAL_SERVER_URL: auto-computed as http://<release>-opal-server:7002
     # JINBE_INTERNAL_URL: auto-computed as http://<release>-jinbe:8080
-    # OPA_DATA_URL: auto-computed as http://<release>-opal-client:8181
     # OPA_AUTHZ_REMOTE: auto-computed as http://<release>-opa-authz-proxy:<port>/v1/data/rbac/allow
     # SERVICE_DEFAULT_NAMESPACE: auto-computed as .Release.Namespace
     # SERVICE_DEFAULT_DOMAIN: auto-computed as the chart's app domain (global.appDomain or app.<global.domain>)
@@ -856,13 +1454,9 @@ jinbe:
     # CORS_ORIGIN: auto-computed from global.appDomain and global.authDomain
     # ENABLE_SWAGGER: "false"
     # LOG_LEVEL: info
-    # DATABASE_URL: set if Jinbe needs a database
     # ADMIN_EMAIL: auto-created on first boot with super_admin access
     # ADMIN_PASSWORD: password for default admin (default: changeme123!)
     # ADMIN_NAME: display name for default admin
-    # BACKUP_IMAGE_MONGO / BACKUP_IMAGE_POSTGRES: private-registry images
-    #   for the /backups feature. Unset = backups disabled.
-    # BACKUP_GCP_PROJECT_ID: GCP project ID injected into backup job env
     # REDIS_AUDIT_MAXLEN: cap for the audit event stream (Redis XADD MAXLEN ~).
     #   Default 100000. Bounds retention of the audit log (Redis-only store).
     # KRATOS_WEBHOOK_SECRET: shared secret authenticating the Kratos auth-event
@@ -870,6 +1464,77 @@ jinbe:
     #   (vault:secret/data/auth#KRATOS_WEBHOOK_SECRET); it MUST resolve to the
     #   same value as the api_key set on the Kratos after-hooks above. Provide
     #   the secret via Vault (never a literal) and rotate both sides together.
+    # OPA_TOKEN: bearer for OPA (the opal-client's OPAL_POLICY_STORE_AUTH_TOKEN), used by the
+    #   admin access check. Vault ref, e.g. vault:secret/data/jinbe#OPA_TOKEN. Unset: the access
+    #   check answers 503.
+    # PROMETHEUS_URL: optional, e.g. http://prometheus-operated.monitoring:9090 — the kuma
+    #   Home certificate panel reads cert-manager expiry metrics through jinbe. Unset: hidden.
+    # AUDIT_HMAC_KEY: >= 32 chars, keys the HMACs that stand in for IPs / session ids in audit/v1.
+    #   Vault ref, e.g. vault:secret/data/jinbe#AUDIT_HMAC_KEY. Unset: those fields are left out.
+
+  # Prometheus metrics on their own port (never the app port Oathkeeper fronts). The container
+  # port is always declared; a separate <release>-jinbe-metrics Service is rendered only for
+  # the ServiceMonitor (observability.serviceMonitors.enabled). `token` (>= 16 chars, may be a
+  # Vault ref) makes jinbe require it as a bearer; the ServiceMonitor then needs
+  # observability.serviceMonitors.jinbe.bearerTokenSecret.
+  metrics:
+    port: 9464
+    token: ""
+
+  # OpenTelemetry traces (OBS-2.1): preloads jinbe's OTel SDK (http, fastify, pg, ioredis, undici).
+  otel:
+    enabled: false
+    endpoint: "http://otel-collector.otel:4317"
+    protocol: grpc          # grpc | http/protobuf (then use the collector's :4318)
+    serviceName: jinbe
+    # extra OTEL_RESOURCE_ATTRIBUTES, e.g. deployment.environment=auth-dev
+    resourceAttributes: ""
+
+  # Observability backends jinbe queries server-side for kuma (audit tab from Loki, ops logs,
+  # Grafana deep links). Every key unset by default = feature off.
+  observability:
+    lokiUrl: ""                   # LOKI_URL, e.g. http://loki-gateway.loki
+    lokiNamespace: ""             # LOKI_NAMESPACE: namespace label to scope ops-log queries
+    lokiAuditSelector: ""         # LOKI_AUDIT_SELECTOR: json (jinbe default) | label
+    grafanaUrl: ""                # GRAFANA_URL (browser links)
+
+  # Vault KV path jinbe's Vault role reads (e.g. infra/data/jinbe-dev), used to build default
+  # secret references such as captcha.secretKey. Empty: those secrets must be set explicitly.
+  vaultPath: ""
+
+  # PROTECTED_TRAITS: Kratos traits only an admin (or jinbe via the admin API) may set; the
+  # gateway forwards them as trusted headers. Empty: jinbe default (person_uuid,applicant_uuid).
+  # `email` is refused by jinbe.
+  protectedTraits: []
+
+  # Sign-in protection bot check (auth-guard). Which flows ask for it is a console setting;
+  # this is WHO checks the answer. Rendered once `provider` or `siteKey` is set; unset = not
+  # configured (a flow that asks for the check then follows the captcha fail mode).
+  captcha:
+    provider: ""            # CAPTCHA_PROVIDER: turnstile | hcaptcha | recaptcha
+    siteKey: ""             # CAPTCHA_SITE_KEY (public)
+    # CAPTCHA_SECRET_KEY: a Vault reference, never a literal. Empty:
+    # vault:<jinbe.vaultPath>#CAPTCHA_SECRET_KEY (jinbe's own path, not the auth one).
+    secretKey: ""
+    # CAPTCHA_EXPECTED_HOSTNAMES (comma-separated). Empty: the auth domain (login-ui's host).
+    expectedHostnames: ""
+    verifyTimeoutMs: ""     # CAPTCHA_VERIFY_TIMEOUT_MS (jinbe default 3000)
+    recaptchaMinScore: ""   # CAPTCHA_RECAPTCHA_MIN_SCORE (reCAPTCHA v3, jinbe default 0.5)
+    allowTestKeys: ""       # CAPTCHA_ALLOW_TEST_KEYS: "true" lets provider test keys through
+
+  # Sign-in gate (jinbe sign-in-protection/gate.ts). Kratos looks an address up and emails a code the
+  # moment it is submitted, before any hook runs; enabled, jinbe's bootstrap routes POST
+  # /self-service/{login,registration,recovery,verification,settings} on the auth domain through
+  # jinbe, which requires the bot-check token (X-Captcha-Token, sent by login-ui) on every submit of a
+  # checked flow, and applies the code limits, before Kratos. The bot check is on for every flow once
+  # jinbe.captcha is configured (console toggles still switch flows off). Deploy the login-ui that
+  # sends the header BEFORE enabling this.
+  signInGate:
+    enabled: false
+    codesPerAddress: ""     # SIGN_IN_GATE_CODES_PER_ADDRESS (jinbe default 5 per window)
+    codesPerIp: ""          # SIGN_IN_GATE_CODES_PER_IP (jinbe default 20 per window)
+    windowSeconds: ""       # SIGN_IN_GATE_WINDOW_S (jinbe default 900)
+    verifiedTtlSeconds: ""  # SIGN_IN_GATE_VERIFIED_TTL_S (jinbe default 900 = the code and flow lifespans)
 
   # K8S config for m2m authentication
   k8s:
@@ -892,27 +1557,27 @@ jinbe:
   podAnnotations: {}
 
   # Pod-level securityContext applied to BOTH the jinbe Deployment pod and the
-  # bootstrap Job pod. Empty by default so nothing is assumed about the image.
-  # Uncomment fields you need cluster-wide (e.g. fsGroup for a mounted volume).
-  podSecurityContext: {}
-    # fsGroup: 1000
+  # bootstrap Job pod. The image runs as `nodejs` (uid 1001, gid 65533); the uid
+  # is spelled out because runAsNonRoot cannot verify a non-numeric image USER.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 65533
+    seccompProfile:
+      type: RuntimeDefault
 
   # Container-level securityContext applied to the jinbe container, the inline
   # bootstrap initContainer, and the standalone bootstrap Job container.
-  # SAFE hardening defaults that do NOT assume a particular image user, so they
-  # will not break boot. runAsNonRoot and readOnlyRootFilesystem are left
-  # COMMENTED on purpose: the jinbe image's runtime user and its writable-path
-  # requirements are unverified, and enabling either blind can crash the pod.
-  # Verify against the image, then uncomment.
+  # Read-only root: jinbe writes only /tmp (an emptyDir the template mounts) and,
+  # when KRATOS_CONFIG_PATH is set, that file — mount it writable if you use it.
   securityContext:
     allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
     capabilities:
       drop:
         - ALL
     seccompProfile:
       type: RuntimeDefault
-    # runAsNonRoot: true
-    # readOnlyRootFilesystem: true
 
   resources:
     requests:
@@ -1016,6 +1681,20 @@ redis:
 # OUT of the redis.* block so it does not collide with the bitnami subchart's
 # networkPolicy schema. Set enabled=false if your CNI doesn't support
 # NetworkPolicy. Only rendered when redis.enabled.
+# Render redis.auth.existingSecret holding a vault: reference AS-IS (label mutate=skip). The redis
+# POD resolves it with vault-env: the Bank-Vaults pod webhook follows secretKeyRef values (checked
+# with a server dry-run on dev-aws-1), so the redis pod needs, in the bitnami values:
+#   master.podAnnotations: the vault-addr / vault-role / vault-skip-verify annotations
+#   serviceAccount: {create: false, name: <SA bound to the role>}, master.automountServiceAccountToken: true
+#   master.livenessProbe/readinessProbe.enabled: false + master.customLivenessProbe/customReadinessProbe
+#     exec `redis-cli -h localhost -p 6379 ping | grep -qE '^(PONG|NOAUTH)'` — the stock probes send the
+#     raw reference (kubelet exec env) and redis-server overwrites /proc/1/environ.
+# jinbe: set jinbe.env.REDIS_PASSWORD to a vault: ref its own role can read (otherwise it gets this
+# Secret, whose reference jinbe's role may not be allowed to resolve). The OPAL broadcaster needs its
+# own URL with the password (opal.server.broadcastUri).
+redisAuthSecret:
+  vaultRef: ""
+
 redisNetworkPolicy:
   enabled: true
   # extraIngress: additional NetworkPolicyPeer entries appended to the rule.
@@ -1026,7 +1705,13 @@ redisNetworkPolicy:
 # =============================================================================
 opaAuthzProxy:
   enabled: true
-  replicaCount: 1
+  # Every gateway decision goes through the proxy: one pod down = 500 for everyone after
+  # 4 s (site-operator research R5). Two replicas + a PDB keep a rollout or a node drain
+  # from taking the gateway down.
+  replicaCount: 2
+  pdb:
+    enabled: true   # rendered only when replicaCount > 1
+    minAvailable: 1
 
   image:
     repository: ghcr.io/w6d-io/infra/opa-authz-proxy
@@ -1036,11 +1721,26 @@ opaAuthzProxy:
     # (oathkeeper's remote_json authorizer rejects any other status), and the
     # rego's decision.reason rides along as an `X-Authz-Reason` header for
     # upstreams that want to distinguish a route_map miss from a denial.
-    tag: "v0.4.0"
+    # v0.7.0 also emits X-Org-Id, X-Org-Roles and X-Client-Id from the decision (organization
+    # context, org API keys); v0.6.0 the caller's X-User-Roles / X-User-Permissions and OPA_TOKEN.
+    tag: "v0.7.0"
     pullPolicy: IfNotPresent
 
   # Auto-computed from opal client service if empty
   opaUpstreamUrl: ""
+
+  # Bearer token the proxy sends to OPA as OPA_TOKEN (>= 32 characters, or the proxy refuses to
+  # start). OPA must accept it for POST /v1/data/rbac/decision (system.authz rule reading
+  # OPA_DECISION_TOKEN, see opal.client.opaStartupData). Unset: no token is sent.
+  #   opaToken: a literal or a vault: reference. A vault: reference is resolved by vault-env in
+  #     this pod: it needs the webhook podAnnotations, an SA bound to the Vault role
+  #     (serviceAccountName) and automountServiceAccountToken: true.
+  #   opaTokenSecretRef: {name, key} of an existing Secret, used when opaToken is empty.
+  opaToken: ""
+  opaTokenSecretRef: {}
+  serviceAccountName: ""          # the namespace's default SA when empty
+  automountServiceAccountToken: false
+  podAnnotations: {}
 
   service:
     type: ClusterIP
@@ -1079,12 +1779,38 @@ kratosLoginUi:
     darkMode: true
     backgroundColor: "111827"
 
+  # Cluster-internal jinbe URL (server-side only). The login UI calls jinbe on every sign-in:
+  # the /two-step second-factor gate, the /welcome site list, /access reasons, branding.
+  # Empty: http://<release>-jinbe:<port> whenever jinbe.enabled; set it for an external jinbe.
+  jinbePublicUrl: ""
+
+  # HYDRA_PUBLIC_URL (OAuth sign-in pages). Empty: the OAuth issuer (auth.oauth.issuer) whenever
+  # mcp.enabled; set it to render it without mcp.
+  hydraPublicUrl: ""
+
+  # NAME: value, appended to the container env.
+  extraEnv: {}
+
+  # NEXT_PUBLIC_SECOND_FACTOR_GATE. Unset (default) = on: after sign-in, users who must have a
+  # second factor (per jinbe) and have none are sent to /two-step to enrol. "false" turns the
+  # gate off (e.g. while rolling out 2FA).
+  secondFactorGate: ""
+
+  # Admin console (kuma), linked from /welcome. Empty: https://<appDomain> (where the chart
+  # serves kuma); set it when kuma has its own host (e.g. https://kuma.example.org).
+  consoleUrl: ""
+
   kratos:
     browserUrl: "https://auth.example.com"
     publicUrl: ""  # Auto: http://<release>-kratos-public:80
+    sessionCookie: ""  # KRATOS_SESSION_COOKIE: set with a non-default kratos session.cookie.name
 
   redirects:
     defaultReturnUrl: "https://app.example.com"
+    # Comma-separated. In the login UI a `*` matches exactly ONE DNS label:
+    # https://*.example.com covers app.example.com but not a.b.example.com — list deeper
+    # zones explicitly (https://*.b.example.com). Kratos' own allowed_return_urls (above) is
+    # a separate list and is not affected.
     allowedReturnUrls: "https://*.example.com"
 
   texts:
@@ -1134,8 +1860,21 @@ kratosLoginUi:
     periodSeconds: 5
 
   podAnnotations: {}
-  podSecurityContext: {}
-  securityContext: {}
+  # The image runs as `nextjs` (uid 1001). Read-only root works with the two
+  # emptyDirs the template mounts (/app/.next/cache, /tmp) — checked against
+  # kratos-login-ui:develop: /, /login, /api/health identical to a default run.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 65533
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -1151,8 +1890,74 @@ postgresqlSimple:
     tag: "16"
   auth:
     username: kratos
+    # Only read at initdb (first start on an empty volume). In order of preference:
+    #  - passwordVaultRef: a `vault:` reference put straight into POSTGRES_PASSWORD, resolved by
+    #    vault-env in the pod (set podAnnotations to the Bank-Vaults role annotations, a
+    #    serviceAccountName bound to that role and automountServiceAccountToken: true — vault-env
+    #    logs in with the SA token). Do NOT rely on the Bank-Vaults secrets webhook rewriting a
+    #    Secret: it logs into Vault with its own identity, which per-env roles do not accept.
+    #  - existingSecret / existingSecretPasswordKey: a plain Secret.
+    #  - password: literal placeholder for local use only.
     password: kratos
+    passwordVaultRef: ""   # e.g. vault:infra/data/<env>#PG_SUPERUSER_PASSWORD
+    existingSecret: ""
+    existingSecretPasswordKey: postgres-password
     database: kratos
+  podAnnotations: {}
+  serviceAccountName: ""
+  # No API access needed unless vault-env is used (passwordVaultRef): then true.
+  automountServiceAccountToken: false
+  # TLS: an init container generates a fresh self-signed P-256 certificate into a
+  # memory emptyDir at every start (nothing to renew); postgres runs ssl=on, TLS>=1.2.
+  # Clients use sslmode=require. hba (when set) replaces pg_hba.conf through
+  # hba_file; `hostnossl all all all reject` makes TLS mandatory for network logins.
+  tls:
+    enabled: false
+  hba: ""
+  #  local   all all              trust
+  #  host    all all 127.0.0.1/32 trust
+  #  host    all all ::1/128      trust
+  #  hostssl all all all          scram-sha-256
+  #  hostnossl all all all        reject
+  # Runs as the image's postgres user (uid 999, the owner of PGDATA) with no
+  # capabilities and a read-only root (socket dir and /tmp are emptyDirs).
+  # fsGroup 999: a fresh volume (e.g. EBS) is root-owned, and postgres cannot create PGDATA in it
+  # ("mkdir: cannot create directory '/var/lib/postgresql/data/pgdata': Permission denied").
+  # OnRootMismatch: kubelet fixes ownership only while the volume root does not match, i.e. on the
+  # first mount, before initdb creates pgdata 0700; later mounts are left alone, so PGDATA's mode holds.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    fsGroupChangePolicy: OnRootMismatch
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  # Non-superuser app roles, each owning its database, so no app logs in as the superuser.
+  # Created by an initdb script on an empty volume, and by a post-install/upgrade hook Job
+  # (Argo CD PostSync) on existing ones. Idempotent: CREATE ROLE/DATABASE when missing, then
+  # password, ownership of the database and of every relation in its public schema, and
+  # CONNECT limited to the role. Point the app DSNs at these roles.
+  #   password: >= 16 characters; a literal or a vault: reference (resolved by vault-env with
+  #   podAnnotations / serviceAccountName / automountServiceAccountToken above).
+  appRoles:
+    enabled: false
+    roles: []
+    #  - name: kratos_app
+    #    database: kratos
+    #    password: vault:infra/data/<env>#KRATOS_APP_PASSWORD
+    #  - name: hydra_app
+    #    database: hydra
+    #    password: vault:infra/data/<env>#HYDRA_APP_PASSWORD
+    job:
+      enabled: true
+      backoffLimit: 6
   persistence:
     size: 5Gi
   resources:
@@ -1187,6 +1992,20 @@ errorPage:
     textColor: "#F9FAFB"
     homeUrl: ""           # defaults to https://{appDomain}
     supportEmail: ""
+  # nginx as its `nginx` user (uid 101) on a read-only root; cache/run/tmp are
+  # emptyDirs. Same responses as the root default (checked on 1.27-alpine).
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
   resources:
     requests:
       cpu: 5m
@@ -1219,6 +2038,12 @@ adminUi:
     AUTH_DOMAIN: ""
   extraEnv: {}
   podAnnotations: {}
+  # kuma's image rewrites /usr/share/nginx/html/index.html at start (envsubst),
+  # which needs root and a writable image. With readOnlyRootFilesystem an init
+  # container (same image, same env) renders the html tree into an emptyDir and
+  # nginx serves it as uid 101 (restricted profile). Checked on kuma:develop:
+  # index.html byte-identical, /, /healthz and SPA routes unchanged.
+  readOnlyRootFilesystem: true
   service:
     type: ClusterIP
     port: 80
@@ -1235,7 +2060,7 @@ adminUi:
 # to s3://<bucket>/<prefix>/{timestamp}.json + a rolling latest.json (no external
 # CronJob — jinbe is self-authenticated and holds the S3 creds). jinbe also reads
 # the bucket so the kuma Backup tab can list snapshots + one-click restore, and a
-# fresh install auto-restores from latest.json before seeding defaults.
+# fresh install auto-restores from latest.json right after seeding the model (before the default admin).
 #
 # IAM (IRSA): annotate jinbe.serviceAccount.annotations with a role-arn granting
 # s3:PutObject + s3:GetObject + s3:ListBucket on the bucket, e.g.:
@@ -1245,8 +2070,353 @@ adminUi:
 #         eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/auth-backup-role
 backup:
   enabled: false
+  # First bootstrap run only (no marker in Redis): what to do with the backup's latest.json.
+  #   auto  — restore it when backup is on and one exists; else keep the freshly seeded model
+  #   false — never restore: a deliberate blank rebuild
+  #   true  — disaster recovery: restore, or fail the bootstrap (exit 9: backup off, no latest.json, or a
+  #           failed import; no marker is written, so the next run tries again)
+  restoreOnFirstInit: auto
   schedule: "0 2 * * *"        # Daily at 02:00 UTC (jinbe-run, cron in UTC)
   s3:
     bucket: ""                  # Required when enabled=true
     prefix: "auth-backup"
     region: "eu-west-3"
+
+# =============================================================================
+# Sign-in protection (auth-guard) — gateway side
+# =============================================================================
+# The Kratos guard hooks live in kratos.kratos.config (registration: on; login: opt-in via
+# examples/kratos-guard-login-values.yaml — it makes jinbe a hard dependency of sign-in).
+kratosGuard:
+  # A second Ingress for <authDomain>/self-service with an ingress-nginx per-client rate
+  # limit (more specific than the Oathkeeper Ingress's `/`, same backend: the Oathkeeper
+  # proxy). Needs ingress-nginx to see the real client IP (use-forwarded-headers /
+  # proxy-protocol behind a load balancer), or every client shares one bucket.
+  selfServiceRateLimit:
+    enabled: false
+    rpm: 30                  # nginx.ingress.kubernetes.io/limit-rpm, per client IP
+    burstMultiplier: 5       # nginx.ingress.kubernetes.io/limit-burst-multiplier
+    className: ""            # empty: oathkeeper.ingress.proxy.className
+    tls: []                  # empty: the Oathkeeper proxy Ingress TLS entries covering the host
+
+# =============================================================================
+# Sites — plug a site from kuma (docs/SERVICE_PLUG.md). All OFF by default.
+# =============================================================================
+# jinbe keeps the Site intent and writes only `sites.auth.w6d.io` in its namespace;
+# gatekit checks every pattern/overlap with the real Oathkeeper matcher; the
+# site-operator turns Sites into maester Rule CRs (+ vanity Ingress/Certificate) and
+# admission policies pin what those objects may contain.
+sites:
+  # jinbe side: SITES_KUBE=in-cluster, SITES_NAMESPACE, GATEKIT_URL, SITES_ZONES…, plus the
+  # jinbe ServiceAccount RBAC (Role on sites, ClusterRole get/list/watch on zones).
+  enabled: false
+  # gatekit base URL for jinbe and the operator. Empty: http://<release>-gatekit:<port>
+  # when gatekit.enabled.
+  gatekitUrl: ""
+  # Admin-defined wildcard zones. Rendered as cluster-scoped Zone CRs (siteOperator.enabled)
+  # and as jinbe's SITES_ZONES. A site host must be exactly one DNS label under a zone.
+  #   - name: dev
+  #     domain: dev.example.com
+  #     ingressClass: nginx            # optional, operator default otherwise
+  #     tls: {mode: default}           # default | secret (secretName) | issuer (issuer)
+  #     cookieDomain: .example.com   # optional, jinbe only (SSO coverage hint)
+  # Every Zone the site policies accept hosts under (and, with siteOperator.installZones, the Zone CRs
+  # the chart renders). Set tls as the Zone has it: the hosts policy derives the Zone TLS Secret from it.
+  zones: []
+  # jinbe's cluster-wide grant on Zone CRs (<namespace>-<release>-jinbe-zone-reader). The default
+  # lets admins create and delete zones from kuma. Drop create/delete to keep zones GitOps-only;
+  # resourceNames limits update/patch/delete to the listed zones (get/list/watch and create
+  # cannot be limited by name, Kubernetes ignores resourceNames for them).
+  zoneRbac:
+    verbs: [get, list, watch, create, update, delete]
+    resourceNames: []
+  # Hosts only system sites may use, on top of every oathkeeper.ingress.proxy host.
+  reservedHosts: []
+  # Kratos session cookie domain, for jinbe's SSO-coverage warning (SITES_COOKIE_DOMAIN).
+  cookieDomain: ""
+  # Namespaces no site upstream may point into (jinbe SITES_PLATFORM_NAMESPACES). Empty: jinbe default.
+  platformNamespaces: []
+  # Branded "no access / step up" page of kratos-login-ui (per-site 2FA, PX-1). Empty:
+  # https://<authDomain>/access. Exposed to jinbe as SITES_ACCESS_URL for the per-rule
+  # error handlers it renders into Site gates (Oathkeeper has a single global redirect
+  # target, so the reason-based redirect can only be per rule).
+  accessUrl: ""
+  # Which applies need a second super_admin: off | high-risk | all (SITES_FOUR_EYES).
+  fourEyes: "off"
+  # Re-create missing/drifted Site CRs from the intent every … ms (0 = off).
+  syncIntervalMs: 60000
+  # How long an apply waits for RulesLoaded before rolling back.
+  rulesLoadedTimeoutMs: 120000
+  # Exact `namespace/service` exceptions to the platform-namespace upstream ban
+  # (SITES_UPSTREAM_ALLOW), e.g. [auth-dev/echo]. Keep it short: each entry is a service
+  # any site may expose.
+  upstreamAllow: []
+  # Environment name shown in kuma (SITES_ENV). Empty: jinbe uses NODE_ENV.
+  env: ""
+  # SITES_PRODUCTION: "true" on a production environment (stricter guards in kuma).
+  # Empty: jinbe default (false).
+  production: ""
+  # SITES_MIXED_GATEWAY: "true" ONLY while the gateway loads the legacy rules AND the site
+  # (maester) rules side by side (oathkeeper.rules.source=dual), so jinbe checks site routes
+  # against legacy ones. jinbe refuses to start with it and SITES_PRODUCTION=true. Empty: false.
+  mixedGateway: ""
+  # Sites may set upstream.path (prepended after stripPath). Needs site-operator >= 25d0e11, whose
+  # Site CRD carries the field; "false" refuses it at render instead. Empty: false.
+  upstreamPath: "true"
+
+# gatekit — stateless rule checker (compile · overlap · match · render). No egress.
+gatekit:
+  enabled: false
+  replicaCount: 2
+  image:
+    repository: ghcr.io/w6d-io/gatekit
+    tag: ""          # REQUIRED when enabled (no published release yet)
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+  metricsPort: 9090
+  maxBodyBytes: 1048576
+  requestTimeout: 10s
+  pdb:
+    enabled: true    # rendered only when replicaCount > 1
+    minAvailable: 1
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# hydrator — the endpoint Oathkeeper's `hydrator` mutator calls (and Kratos's /resolve-org
+# registration hook), in this release's namespace: set
+# oathkeeper.oathkeeper.config.mutators.hydrator.config.api.url to http://<release>-hydrator/hydrate.
+hydrator:
+  enabled: false
+  replicaCount: 1
+  image: node:22-alpine
+  tenantUrl: ""             # tenant service for /resolve-org; empty = never assigns an organization
+  # Admin API tokens when kratos/hydra.adminAuth is on: vault: references resolved by vault-env
+  # (then podAnnotations = the Bank-Vaults role annotations, serviceAccountName = an SA bound to
+  # the role, automountServiceAccountToken: true).
+  kratosAdminToken: ""
+  hydraAdminToken: ""
+  podAnnotations: {}
+  serviceAccountName: ""    # default <release>-hydrator
+  automountServiceAccountToken: false
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
+# mcp — auth-mcp, the admin MCP server: people use the console from an AI client, as themselves
+# (a Hydra token narrowed to their permissions and one org). It holds no credential: its projected
+# ServiceAccount token (audience jinbe.k8s.audience) goes to jinbe beside the user's token, and jinbe
+# + OPA decide every call. Enabling it also sets on jinbe (every jinbe container):
+#   K8S_SA_AUTH_ENABLED=true (+ <namespace>:<serviceAccount> appended to jinbe.k8s.subjects when set),
+#   DELEGATED_TOKENS_ENABLED=true (the ceiling; MCP stays off until an administrator turns it on in
+#   Settings -> AI assistants), DELEGATED_TOKEN_AUDIENCE and MCP_PUBLIC_URL = https://<host><path>,
+#   DELEGATED_ACTOR_SUBJECTS=<namespace>:<serviceAccount>, MCP_UPSTREAM_URL = the Service below.
+# jinbe's bootstrap then writes the Oathkeeper rule `mcp` (pass-through on <path> and
+# /.well-known/oauth-protected-resource[<path>]); attach the host to the edge with httpRoute or ingress.
+mcp:
+  enabled: false
+  host: ""            # default mcp.<global.domain>; DNS + certificate must cover it
+  path: /mcp
+  # The OAuth issuer (helper auth.oauth.issuer): auth-mcp HYDRA_ISSUER (protected-resource metadata),
+  # jinbe MCP_OAUTH_ISSUER and login-ui HYDRA_PUBLIC_URL. Default: hydra.hydra.config.urls.self.issuer.
+  # Must end with "/" like Hydra's `iss`.
+  authorizationServer: ""
+  # OAuth sign-in from MCP clients (jinbe /oauth2/register and the consent pages).
+  oauth:
+    dcrRate: ""           # MCP_OAUTH_DCR_RATE, jinbe default 10/h/ip,200/d
+    providerCeiling: ""   # MCP_OAUTH_PROVIDER_CEILING, jinbe default 3000 calls/min per replica
+  replicaCount: 2
+  image:
+    repository: ghcr.io/w6d-io/auth-mcp
+    tag: ""           # REQUIRED when enabled (no published release yet)
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    name: auth-mcp    # jinbe's DELEGATED_ACTOR_SUBJECTS names it
+  service:
+    port: 3100
+  readOnly: true      # write tools hidden and refused (MCP_READ_ONLY)
+  allowedOrigins: []  # browser Origins allowed to call /mcp; native clients send none
+  logLevel: info
+  extraEnv: {}        # NAME: value (e.g. RATE_READS_PER_MIN, KILL_SWITCH_FILE)
+  # jinbe verifies the actor token with TokenReview: bind jinbe's ServiceAccount to
+  # system:auth-delegator. false where another release already does.
+  tokenReviewBinding: true
+  networkPolicy:
+    enabled: true
+  # Gateway API attachment (to the Oathkeeper proxy Service), e.g.
+  #   parentRefs: [{kind: ListenerSet, name: zone-example, sectionName: https}]
+  httpRoute:
+    enabled: false
+    parentRefs: []
+  # nginx attachment. Keep custom-http-errors off this host (see templates/mcp/route.yaml).
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    tls: []
+  pdb:
+    enabled: true     # rendered only when replicaCount > 1
+    minAvailable: 1
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits:   { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Annotations added to every cluster-scoped object the chart renders (ClusterRoles,
+# ClusterRoleBindings, ValidatingAdmissionPolicies and bindings, Zones, CRDs). Names already carry
+# <namespace>-, so releases never collide. Under Argo CD, e.g.
+#   argocd.argoproj.io/sync-options: Prune=false,Delete=false
+# keeps them when the app is pruned or deleted.
+clusterResources:
+  annotations: {}
+
+# site-operator — reconciles Site/Zone CRs into maester Rules, Ingresses, Certificates.
+siteOperator:
+  enabled: false
+  replicaCount: 2    # leader election; the second pod is a warm standby
+  # Reconcile only the Zones named in sites.zones (SITE_OPERATOR_ZONES): Zones are cluster-scoped, so
+  # without it every release's operator reconciles every Zone (status fights, another release's
+  # ListenerSet/Certificate written into this namespace). Needs a site-operator image with --zones
+  # (feat/zone-scope); an older one ignores the variable and reconciles every Zone. Empty sites.zones:
+  # nothing is rendered (every Zone, as before).
+  zoneScope: true
+  image:
+    repository: ghcr.io/w6d-io/site-operator
+    tag: ""          # REQUIRED when enabled (no published release yet)
+    pullPolicy: IfNotPresent
+  # Ship the Site and Zone CRDs (auth.w6d.io). Set false where another release owns them.
+  installCRDs: true
+  # Render sites.zones as Zone objects (cluster-scoped). false: Zones are managed elsewhere (e.g. a
+  # GitOps manifest); sites.zones still feeds jinbe's SITES_ZONES.
+  installZones: true
+  # Gateway settings CRD (gateways.auth.w6d.io) + operator RBAC on it. files/crds holds a
+  # SNAPSHOT of site-operator's in-progress CRD (wave4/op3, uncommitted 2026-09-26): re-copy
+  # once it lands. jinbe's Gateway RBAC comes with sites.enabled regardless.
+  # When on, the operator owns Oathkeeper's handler sections (authenticators, authorizers,
+  # mutators, errors) through the Gateway CR `default`:
+  #   - the chart renders the full Oathkeeper config into <release>-oathkeeper-config-base
+  #     (serve, log, access_rules, tracing…; handler sections there are replaced);
+  #   - the subchart's <release>-oathkeeper-config stays the SEED: mounted before any Gateway,
+  #     first rollback target, never touched by the operator;
+  #   - the operator creates immutable <release>-oathkeeper-config-<hash8> ConfigMaps (keeps 3;
+  #     not in the chart — Argo: IgnoreExtraneous / exclude label auth.w6d.io/gateway-config)
+  #     and rolls auth-oathkeeper by changing the config volume's configMap.name and the
+  #     pod-template annotation auth.w6d.io/gateway-config-hash (never templated here) →
+  #     Argo needs ignoreDifferences on both (jqPathExpression selecting the volume
+  #     oathkeeper-config-volume by name) + RespectIgnoreDifferences=true.
+  # Requires oathkeeper.configmap.hashSumEnabled=false (no checksum tied to the seed). Handler
+  # secrets stay in oathkeeper.deployment.extraEnv from a Secret (e.g.
+  # AUTHENTICATORS_OAUTH2_INTROSPECTION_CONFIG_PRE_AUTHORIZATION_CLIENT_SECRET); the Gateway
+  # refuses secret-looking keys.
+  gateway:
+    enabled: false
+  # Zones on a Gateway API Gateway (site-operator >= 0d0cc6b): one HTTPRoute per host on the zone's
+  # ListenerSet, routes admission (files/admission/route_policy.yaml). gateways: namespace/name of
+  # the Gateways routes and ListenerSets may attach to (their policies run the WAF and CrowdSec).
+  gatewayApi:
+    enabled: false
+    gateways: []                          # e.g. [envoy-gateway-system/eg]
+    routeRequestTimeout: ""               # --route-request-timeout, e.g. 300s
+  ingressClasses: [nginx]                 # first is the default
+  # stamped on every Ingress the operator writes (must stay in the admission allow-list)
+  ingressAnnotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/custom-http-errors: "599"
+  issuers: [letsencrypt-prod]             # allowed ClusterIssuers, first is the default
+  enableCertificates: true                # needs the cert-manager CRDs
+  pausedRedirectUrl: ""
+  # RulesLoaded condition: the operator reads GET /rules on every Oathkeeper pod of this
+  # release (pods get/list RBAC; TCP 4456 from the operator). Needs an operator build with
+  # --gateway-pod-selector/--gateway-api-port (site-operator OP-3); turn off for older images.
+  rulesLoaded:
+    enabled: true
+  # NetworkPolicy on the Oathkeeper pods (rendered with siteOperator.enabled): proxy port open
+  # to all, API port (GET /rules) only from the site-operator, metrics from Prometheus.
+  # Not enforced on dev/prod today (aws-node network policy off).
+  gatewayNetworkPolicy:
+    enabled: true
+    extraApiIngress: []
+  extraArgs: []
+  # Same regexes feed the operator flags and the admission params (kept in step).
+  allowedUpstream: '^https?://[a-z]([a-z0-9-]*[a-z0-9])?\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.svc\.cluster\.local:[0-9]{1,5}(/[A-Za-z0-9._~@-]+)*$'
+  deniedUpstream: '^https?://(([a-z0-9-]+-)?(kratos-admin|opa|opal-client|opal-server|redis|redis-master|postgres|postgresql|kubernetes)\.|[^/]*:(4434|8181|7002|6379|5432)(/[^\s]*)?$)'
+  # ValidatingAdmissionPolicies (Sites, hosts under a Zone, Ingresses, maester Rules) for
+  # the release namespace. Cluster-scoped objects, named after the namespace.
+  admission:
+    enabled: true
+    # extra Rule writers besides the operator: whoever applies this chart's platform Rules
+    # (oathkeeper.rules.source maester|dual), e.g. the cluster's Argo CD application controller,
+    # system:serviceaccount:<argo namespace>:argocd-application-controller. Without it the
+    # rules policy refuses them (system:masters excepted).
+    ruleWriters: []
+    ruleDeleters:
+      - system:serviceaccount:kube-system:generic-garbage-collector
+      - system:serviceaccount:kube-system:namespace-controller
+    # Who may delete the policies' params ConfigMaps (<release>-site-operator-policy, -zones) while the
+    # namespace is active (system:masters always may; a namespace being deleted always does). E.g. the
+    # Argo CD controller if you delete the app without deleting the namespace. The bindings use
+    # parameterNotFoundAction: Allow so a namespace delete cannot deadlock; this guard is what keeps
+    # the params from being removed to switch the policies off.
+    paramDeleters: []
+    # The policies carry their parameters inline: the chart's own settings, and the Zone domains and
+    # TLS Secrets from sites.zones (list every Zone there, with its tls, even with installZones: false).
+    # true also reads the operator's Zone mirror (ConfigMap <release>-site-operator-zones), in ADDITION
+    # to sites.zones, for Zones created at runtime (kuma, SITES_ZONE_ALLOWED_PARENTS). The API server
+    # can keep evaluating with a stale or missing copy of that ConfigMap after the namespace is deleted
+    # and recreated, so leave it off where every Zone is in values.
+    zoneParams: false
+    # Ingress annotations accepted in the gateway namespace, on top of the operator's own
+    # (ingressAnnotations) and every key the chart's Ingresses use.
+    allowedIngressAnnotations:
+      - auth.w6d.io/spec-hash
+      - auth.w6d.io/host
+      - cert-manager.io/cluster-issuer
+      - kubectl.kubernetes.io/last-applied-configuration
+      - nginx.ingress.kubernetes.io/enable-cors
+      - nginx.ingress.kubernetes.io/cors-allow-origin
+      - nginx.ingress.kubernetes.io/cors-allow-credentials
+      - nginx.ingress.kubernetes.io/cors-allow-methods
+      - nginx.ingress.kubernetes.io/cors-allow-headers
+      - nginx.ingress.kubernetes.io/cors-expose-headers
+      - nginx.ingress.kubernetes.io/cors-max-age
+      - nginx.ingress.kubernetes.io/custom-http-errors
+      - nginx.ingress.kubernetes.io/proxy-read-timeout
+      - nginx.ingress.kubernetes.io/proxy-send-timeout
+      - nginx.ingress.kubernetes.io/proxy-body-size
+      - nginx.ingress.kubernetes.io/default-backend
+    allowedIngressAnnotationPrefixes: ["meta.helm.sh/", "argocd.argoproj.io/"]
+    allowedDefaultBackend: error-page
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# =============================================================================
+# Observability — Prometheus Operator objects (kube-prometheus-stack)
+# =============================================================================
+observability:
+  serviceMonitors:
+    # ServiceMonitors for oathkeeper, kratos (admin), jinbe (metrics port), gatekit and
+    # site-operator — each only when its component is enabled.
+    enabled: false
+    labels:
+      release: monitoring
+    interval: 30s
+    scrapeTimeout: 10s
+    # Namespace Prometheus scrapes from (jinbe NetworkPolicy opens the metrics port to it).
+    prometheusNamespace: monitoring
+    jinbe:
+      # Secret holding jinbe.metrics.token, when set: {name: ..., key: ...}
+      bearerTokenSecret: {}

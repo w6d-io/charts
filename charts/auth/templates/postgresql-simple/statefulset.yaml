@@ -17,24 +17,121 @@ spec:
       labels:
         app.kubernetes.io/component: postgresql
         app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- with .Values.postgresqlSimple.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.postgresqlSimple.serviceAccountName }}
+      serviceAccountName: {{ . }}
+      {{- end }}
+      automountServiceAccountToken: {{ .Values.postgresqlSimple.automountServiceAccountToken }}
+      {{- with .Values.postgresqlSimple.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresqlSimple.tls.enabled }}
+      initContainers:
+        # A fresh self-signed certificate at every start: clients use sslmode=require (encryption, no CA).
+        - name: pg-tls
+          image: "{{ .Values.postgresqlSimple.image.repository }}:{{ .Values.postgresqlSimple.image.tag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
+                -subj /CN={{ .Release.Name }}-postgresql \
+                -addext subjectAltName=DNS:{{ .Release.Name }}-postgresql,DNS:{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc,DNS:{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local \
+                -keyout /tls/tls.key -out /tls/tls.crt 2>/dev/null
+              chmod 600 /tls/tls.key
+              echo "pg-tls: self-signed certificate generated"
+          env:
+            - name: HOME
+              value: /tmp
+          {{- with .Values.postgresqlSimple.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          volumeMounts:
+            - name: pg-tls
+              mountPath: /tls
+            - name: pg-tmp
+              mountPath: /tmp
+      {{- end }}
       containers:
         - name: postgresql
           image: "{{ .Values.postgresqlSimple.image.repository }}:{{ .Values.postgresqlSimple.image.tag }}"
+          # explicit, so the Bank-Vaults webhook can wrap it without a registry lookup
+          command: ["docker-entrypoint.sh"]
+          {{- if not (or .Values.postgresqlSimple.tls.enabled .Values.postgresqlSimple.hba) }}
+          args: ["postgres"]
+          {{- end }}
+          {{- if or .Values.postgresqlSimple.tls.enabled .Values.postgresqlSimple.hba }}
+          args:
+            {{- if .Values.postgresqlSimple.tls.enabled }}
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/tls/tls.crt
+            - -c
+            - ssl_key_file=/tls/tls.key
+            - -c
+            - ssl_min_protocol_version=TLSv1.2
+            {{- end }}
+            {{- if .Values.postgresqlSimple.hba }}
+            - -c
+            - hba_file=/etc/postgresql-hba/pg_hba.conf
+            {{- end }}
+          {{- end }}
+          {{- with .Values.postgresqlSimple.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 5432
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgresqlSimple.auth.username | quote }}
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.postgresqlSimple.auth.password | quote }}
+              {{- include "auth.postgresqlSimple.passwordValue" . | trim | nindent 14 }}
             - name: POSTGRES_DB
               value: {{ .Values.postgresqlSimple.auth.database | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+            {{- if .Values.postgresqlSimple.appRoles.enabled }}
+            # initdb (empty volume only): app roles and databases, see app-roles-configmap.yaml
+            {{- include "auth.postgresqlSimple.appRolesEnv" . | trim | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            # writable paths under the read-only root filesystem
+            - name: pg-run
+              mountPath: /var/run/postgresql
+            - name: pg-tmp
+              mountPath: /tmp
+            {{- if .Values.postgresqlSimple.tls.enabled }}
+            - name: pg-tls
+              mountPath: /tls
+              readOnly: true
+            {{- end }}
+            {{- if .Values.postgresqlSimple.hba }}
+            - name: pg-hba
+              mountPath: /etc/postgresql-hba
+              readOnly: true
+            {{- end }}
+            {{- if .Values.postgresqlSimple.appRoles.enabled }}
+            - name: app-roles-initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: app-roles
+              mountPath: /app-roles
+              readOnly: true
+            {{- end }}
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "{{ .Values.postgresqlSimple.auth.username }}"]
@@ -47,8 +144,43 @@ spec:
             periodSeconds: 10
           resources:
             {{- toYaml .Values.postgresqlSimple.resources | nindent 12 }}
+      volumes:
+        - name: pg-run
+          emptyDir: {}
+        - name: pg-tmp
+          emptyDir: {}
+        {{- if .Values.postgresqlSimple.tls.enabled }}
+        - name: pg-tls
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        {{- end }}
+        {{- if .Values.postgresqlSimple.hba }}
+        - name: pg-hba
+          configMap:
+            name: {{ .Release.Name }}-postgresql-hba
+        {{- end }}
+        {{- if .Values.postgresqlSimple.appRoles.enabled }}
+        # only the script in the initdb dir: the entrypoint would run a bare .sql file without its variables
+        - name: app-roles-initdb
+          configMap:
+            name: {{ .Release.Name }}-postgresql-app-roles
+            defaultMode: 0555
+            items:
+              - key: app-roles.sh
+                path: 50-app-roles.sh
+        - name: app-roles
+          configMap:
+            name: {{ .Release.Name }}-postgresql-app-roles
+            defaultMode: 0444
+            items:
+              - key: app-roles.sql
+                path: app-roles.sql
+        {{- end }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]

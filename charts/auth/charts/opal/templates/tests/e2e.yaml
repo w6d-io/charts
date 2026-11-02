@@ -1,4 +1,4 @@
-{{- if .Values.client }}
+{{- if and .Values.client (.Values.client.e2eTest | default dict).enabled }}
 {{- $url := printf "http://%v:%v/v1/data" (include "opal.clientName" .) .Values.client.opaPort -}}
 apiVersion: v1
 kind: Pod

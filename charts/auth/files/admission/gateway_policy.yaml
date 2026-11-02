@@ -1,0 +1,175 @@
+# Versioned Oathkeeper config ConfigMaps (<gatewayConfigPrefix>-<hash8>): only the
+# operator creates them (immutable) and deletes them; nobody updates them; the
+# operator creates or deletes no other ConfigMap. Cluster admins may do anything;
+# the namespace controller and the GC may delete.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-gateway-config
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: [v1]
+      operations: [CREATE, UPDATE, DELETE]
+      resources: [configmaps]
+  variables:
+  - name: name
+    expression: "request.operation == 'DELETE' ? oldObject.metadata.name : object.metadata.name"
+  - name: versioned
+    expression: "variables.name.matches('^' + params.data.gatewayConfigPrefix + '-[0-9a-f]{8}$')"
+  - name: user
+    expression: request.userInfo.username
+  - name: operator
+    expression: variables.user == params.data.operatorUser
+  - name: admin
+    expression: "has(request.userInfo.groups) && 'system:masters' in request.userInfo.groups"
+  validations:
+  - expression: >-
+      !variables.versioned || variables.admin ||
+      (variables.operator && request.operation == 'CREATE' && has(object.immutable) && object.immutable) ||
+      (variables.operator && request.operation == 'DELETE') ||
+      (request.operation == 'DELETE' && variables.user in
+        ['system:serviceaccount:kube-system:namespace-controller', 'system:serviceaccount:kube-system:generic-garbage-collector'])
+    messageExpression: "'user ' + variables.user + ' may not ' + request.operation + ' the versioned Oathkeeper config ' + variables.name + '; edit the Gateway instead'"
+    reason: Forbidden
+  - expression: "!variables.operator || variables.versioned || request.operation == 'UPDATE'"
+    messageExpression: "'the operator may create or delete only versioned Oathkeeper config ConfigMaps, not ' + variables.name"
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-gateway-config
+spec:
+  policyName: site-operator-gateway-config
+  validationActions: [Deny]
+  paramRef: {name: site-operator-policy, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}
+---
+# The operator may roll the Oathkeeper Deployment and nothing more: it may change
+# only (a) the pod-template annotation auth.w6d.io/gateway-config-hash and (b) the
+# configMap name of the config volume, to a versioned config name (or back to
+# the chart's seed config, the first rollback target). Every other
+# field is compared (test/policy checks the list covers every PodSpec field).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-gateway-rollout
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [apps]
+      apiVersions: [v1]
+      operations: [UPDATE]
+      resources: [deployments]
+  variables:
+  - name: operator
+    expression: request.userInfo.username == params.data.operatorUser
+  - name: key
+    expression: "'auth.w6d.io/gateway-config-hash'"
+  - name: newAnn
+    expression: "object.spec.template.metadata.?annotations.orValue({})"
+  - name: oldAnn
+    expression: "oldObject.spec.template.metadata.?annotations.orValue({})"
+  - name: ps
+    expression: object.spec.template.spec
+  - name: ops
+    expression: oldObject.spec.template.spec
+  - name: vols
+    expression: "variables.ps.?volumes.orValue([])"
+  - name: oldVols
+    expression: "variables.ops.?volumes.orValue([])"
+  validations:
+  - expression: "!variables.operator || object.metadata.name == params.data.gatewayDeployment"
+    message: the operator may only roll the Oathkeeper Deployment
+    reason: Forbidden
+  - expression: >-
+      !variables.operator || (
+      object.spec.selector == oldObject.spec.selector &&
+      object.spec.?replicas == oldObject.spec.?replicas &&
+      object.spec.?strategy == oldObject.spec.?strategy &&
+      object.spec.?minReadySeconds == oldObject.spec.?minReadySeconds &&
+      object.spec.?revisionHistoryLimit == oldObject.spec.?revisionHistoryLimit &&
+      object.spec.?progressDeadlineSeconds == oldObject.spec.?progressDeadlineSeconds &&
+      object.spec.?paused == oldObject.spec.?paused &&
+      object.metadata.?labels == oldObject.metadata.?labels &&
+      object.metadata.?annotations == oldObject.metadata.?annotations &&
+      object.spec.template.metadata.?labels == oldObject.spec.template.metadata.?labels &&
+      variables.newAnn.all(k, k == variables.key || (k in variables.oldAnn && variables.oldAnn[k] == variables.newAnn[k])) &&
+      variables.oldAnn.all(k, k == variables.key || k in variables.newAnn))
+    message: the operator may only change the pod-template annotation auth.w6d.io/gateway-config-hash and the config volume
+    reason: Forbidden
+  - expression: >-
+      !variables.operator || (
+      variables.ps.?initContainers == variables.ops.?initContainers &&
+      variables.ps.?containers == variables.ops.?containers &&
+      variables.ps.?ephemeralContainers == variables.ops.?ephemeralContainers &&
+      variables.ps.?restartPolicy == variables.ops.?restartPolicy &&
+      variables.ps.?terminationGracePeriodSeconds == variables.ops.?terminationGracePeriodSeconds &&
+      variables.ps.?activeDeadlineSeconds == variables.ops.?activeDeadlineSeconds &&
+      variables.ps.?dnsPolicy == variables.ops.?dnsPolicy &&
+      variables.ps.?nodeSelector == variables.ops.?nodeSelector &&
+      variables.ps.?serviceAccountName == variables.ops.?serviceAccountName &&
+      variables.ps.?serviceAccount == variables.ops.?serviceAccount &&
+      variables.ps.?automountServiceAccountToken == variables.ops.?automountServiceAccountToken &&
+      variables.ps.?nodeName == variables.ops.?nodeName &&
+      variables.ps.?hostNetwork == variables.ops.?hostNetwork &&
+      variables.ps.?hostPID == variables.ops.?hostPID &&
+      variables.ps.?hostIPC == variables.ops.?hostIPC &&
+      variables.ps.?shareProcessNamespace == variables.ops.?shareProcessNamespace &&
+      variables.ps.?securityContext == variables.ops.?securityContext &&
+      variables.ps.?imagePullSecrets == variables.ops.?imagePullSecrets &&
+      variables.ps.?hostname == variables.ops.?hostname &&
+      variables.ps.?subdomain == variables.ops.?subdomain &&
+      variables.ps.?affinity == variables.ops.?affinity &&
+      variables.ps.?schedulerName == variables.ops.?schedulerName &&
+      variables.ps.?tolerations == variables.ops.?tolerations &&
+      variables.ps.?hostAliases == variables.ops.?hostAliases &&
+      variables.ps.?priorityClassName == variables.ops.?priorityClassName &&
+      variables.ps.?priority == variables.ops.?priority &&
+      variables.ps.?dnsConfig == variables.ops.?dnsConfig &&
+      variables.ps.?readinessGates == variables.ops.?readinessGates &&
+      variables.ps.?runtimeClassName == variables.ops.?runtimeClassName &&
+      variables.ps.?enableServiceLinks == variables.ops.?enableServiceLinks &&
+      variables.ps.?preemptionPolicy == variables.ops.?preemptionPolicy &&
+      variables.ps.?overhead == variables.ops.?overhead &&
+      variables.ps.?topologySpreadConstraints == variables.ops.?topologySpreadConstraints &&
+      variables.ps.?setHostnameAsFQDN == variables.ops.?setHostnameAsFQDN &&
+      variables.ps.?os == variables.ops.?os &&
+      variables.ps.?hostUsers == variables.ops.?hostUsers &&
+      variables.ps.?schedulingGates == variables.ops.?schedulingGates &&
+      variables.ps.?resourceClaims == variables.ops.?resourceClaims &&
+      variables.ps.?resources == variables.ops.?resources &&
+      variables.ps.?hostnameOverride == variables.ops.?hostnameOverride)
+    message: the operator may not change the Oathkeeper pod spec (only the config volume's ConfigMap)
+    reason: Forbidden
+  - expression: >-
+      !variables.operator || (
+      size(variables.vols) == size(variables.oldVols) &&
+      variables.vols.all(v, variables.oldVols.exists(o, o.name == v.name && (o == v || (
+        v.name == params.data.gatewayConfigVolume && has(v.configMap) && has(o.configMap) &&
+        (v.configMap.name.matches('^' + params.data.gatewayConfigPrefix + '-[0-9a-f]{8}$') || v.configMap.name == params.data.gatewayConfigSeed) &&
+        v.configMap.?items == o.configMap.?items &&
+        v.configMap.?defaultMode == o.configMap.?defaultMode &&
+        v.configMap.?optional == o.configMap.?optional)))))
+    message: the operator may only point the config volume at a versioned Oathkeeper config ConfigMap (or the seed)
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-gateway-rollout
+spec:
+  policyName: site-operator-gateway-rollout
+  validationActions: [Deny]
+  paramRef: {name: site-operator-policy, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}

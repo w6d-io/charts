@@ -1,0 +1,50 @@
+{{- if .Values.observability.serviceMonitors.enabled }}
+{{- $sm := .Values.observability.serviceMonitors }}
+{{- $targets := list }}
+{{- if .Values.oathkeeper.enabled }}
+{{- $targets = append $targets (dict "name" "oathkeeper" "path" "/metrics" "port" "http" "selector" (dict "app.kubernetes.io/name" "oathkeeper" "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/component" "metrics")) }}
+{{- end }}
+{{- if .Values.kratos.enabled }}
+{{- $targets = append $targets (dict "name" "kratos" "path" "/admin/metrics/prometheus" "port" "http" "selector" (dict "app.kubernetes.io/name" "kratos" "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/component" "admin")) }}
+{{- end }}
+{{- if .Values.jinbe.enabled }}
+{{- $targets = append $targets (dict "name" "jinbe" "path" "/metrics" "port" "metrics" "bearer" $sm.jinbe.bearerTokenSecret "selector" (merge (dict "app.kubernetes.io/part-of" "metrics") (include "auth.jinbe.selectorLabels" . | fromYaml))) }}
+{{- end }}
+{{- if .Values.gatekit.enabled }}
+{{- $targets = append $targets (dict "name" "gatekit" "path" "/metrics" "port" "metrics" "selector" (dict "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/component" "gatekit")) }}
+{{- end }}
+{{- if .Values.siteOperator.enabled }}
+{{- $targets = append $targets (dict "name" "site-operator" "path" "/metrics" "port" "metrics" "selector" (dict "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/component" "site-operator")) }}
+{{- end }}
+{{- range $targets }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "auth.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "auth.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+    {{- with $sm.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames: [{{ $.Release.Namespace }}]
+  selector:
+    matchLabels:
+      {{- toYaml .selector | nindent 6 }}
+  endpoints:
+    - port: {{ .port }}
+      path: {{ .path }}
+      interval: {{ $sm.interval }}
+      scrapeTimeout: {{ $sm.scrapeTimeout }}
+      {{- with .bearer }}
+      authorization:
+        type: Bearer
+        credentials:
+          name: {{ .name }}
+          key: {{ .key }}
+      {{- end }}
+{{- end }}
+{{- end }}

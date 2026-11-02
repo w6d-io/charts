@@ -1,0 +1,13 @@
+{{- if and .Values.postgresqlSimple.enabled .Values.postgresqlSimple.appRoles.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgresql-app-roles
+  labels:
+    app.kubernetes.io/component: postgresql
+data:
+  app-roles.sh: |
+    {{- .Files.Get "files/postgresql/app-roles.sh" | nindent 4 }}
+  app-roles.sql: |
+    {{- .Files.Get "files/postgresql/app-roles.sql" | nindent 4 }}
+{{- end }}

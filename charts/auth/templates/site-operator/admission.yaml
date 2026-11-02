@@ -1,0 +1,82 @@
+{{- if and .Values.siteOperator.enabled .Values.siteOperator.admission.enabled }}
+{{- $adm := .Values.siteOperator.admission }}
+{{- $ns := include "auth.sites.namespace" . }}
+# Parameters shared by every site ValidatingAdmissionPolicy; the same values feed the
+# operator flags (reserved hosts, upstream regexes, gateway Service).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth.siteOperator.policyConfigMap" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+    app.kubernetes.io/component: site-operator
+data:
+  {{- include "auth.siteOperator.policyParams" . | nindent 2 }}
+{{- $files := list "site_policy.yaml" "hosts_policy.yaml" "ingress_policy.yaml" "rule_policy.yaml" }}
+{{- if .Values.siteOperator.gateway.enabled }}{{ $files = append $files "gateway_policy.yaml" }}{{ end }}
+{{- if .Values.siteOperator.gatewayApi.enabled }}{{ $files = append $files "route_policy.yaml" }}{{ end }}
+{{- /* Every policy carries its parameters inline (C9): after a namespace delete and recreate, the API
+     server kept evaluating params-based policies against a stale copy of the params ConfigMap, or none
+     at all, and recreating the bindings did not refresh it. Only the hosts policy may still read the
+     operator's Zone mirror, as an addition to sites.zones, with siteOperator.admission.zoneParams. */}}
+{{- $pdata := include "auth.siteOperator.policyParams" . | fromYaml }}
+{{- $zdata := include "auth.siteOperator.zoneParams" . | fromYaml }}
+{{- $zoneParams := $adm.zoneParams | default false }}
+{{- range $file := $files }}
+{{- range $doc := splitList "\n---\n" ($.Files.Get (printf "files/admission/%s" $file)) }}
+{{- $obj := fromYaml $doc }}
+{{- if $obj.kind }}
+{{- $orig := $obj.metadata.name }}
+{{- $name := include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.metadata.name) }}
+{{- $_ := set $obj "metadata" (dict "name" $name "labels" (include "auth.labels" $ | fromYaml)) }}
+{{- with (include "auth.clusterResources.annotations" (dict "ctx" $) | fromYaml).annotations }}
+{{- $_ := set $obj.metadata "annotations" . }}
+{{- end }}
+{{- if eq $obj.kind "ValidatingAdmissionPolicy" }}
+{{- $keepParams := and (eq $orig "site-operator-hosts") $zoneParams }}
+{{- if eq $orig "site-operator-hosts" }}
+{{- range $v := $obj.spec.variables }}
+{{- if has $v.name (list "domains" "secrets") }}
+{{- $inline := include "auth.cel.list" (index $zdata $v.name) }}
+{{- $_ := set $v "expression" (ternary (printf "%s + %s" $inline $v.expression) $inline $keepParams) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $keepParams }}
+{{- $_ := unset $obj.spec "paramKind" }}
+{{- range $list := list "variables" "validations" "matchConditions" "auditAnnotations" }}
+{{- range $item := (index $obj.spec $list | default list) }}
+{{- range $f := list "expression" "messageExpression" "valueExpression" }}
+{{- if hasKey $item $f }}
+{{- $_ := set $item $f (include "auth.siteOperator.inlineExpr" (dict "expr" (index $item $f) "params" $pdata)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if contains "params" (toJson $obj.spec) }}
+{{- fail (printf "site-operator policy %s still reads params after inlining (a key the chart does not render?)" $orig) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if eq $obj.kind "ValidatingAdmissionPolicyBinding" }}
+{{- $_ := set $obj.spec "policyName" (include "auth.sites.clusterName" (dict "ctx" $ "name" $obj.spec.policyName)) }}
+{{- if and $obj.spec.paramRef (not (and (eq $obj.spec.paramRef.name "site-operator-zones") $zoneParams)) }}
+{{- $_ := unset $obj.spec "paramRef" }}
+{{- end }}
+{{- if $obj.spec.paramRef }}
+{{- $param := include "auth.siteOperator.zonesConfigMap" $ }}
+{{- /* Allow, not Deny: a namespace being deleted loses its params ConfigMaps first, and with Deny every
+     remaining delete in it (ingresses, rules, sites, configmaps) was refused, so it stuck in Terminating.
+     The params can only go away while the namespace is deleted: <ns>-site-operator-params refuses their
+     DELETE otherwise (admission-params-guard.yaml). */}}
+{{- $_ := set $obj.spec "paramRef" (dict "name" $param "namespace" $ns "parameterNotFoundAction" "Allow") }}
+{{- end }}
+{{- $_ := set $obj.spec "matchResources" (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" $ns))) }}
+{{- end }}
+---
+{{ toYaml $obj }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

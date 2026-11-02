@@ -60,6 +60,31 @@ spec:
               value: {{ .Values.kratosLoginUi.kratos.browserUrl | quote }}
             - name: KRATOS_PUBLIC_URL
               value: {{ .Values.kratosLoginUi.kratos.publicUrl | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
+            {{- if or .Values.kratosLoginUi.jinbePublicUrl .Values.jinbe.enabled }}
+            # server-side only: second-factor gate, /welcome sites, /access reasons, branding
+            - name: JINBE_PUBLIC_URL
+              value: {{ .Values.kratosLoginUi.jinbePublicUrl | default (printf "http://%s:%v" (include "auth.jinbe.fullname" .) .Values.jinbe.service.port) | quote }}
+            {{- end }}
+            {{- with .Values.kratosLoginUi.kratos.sessionCookie }}
+            # the Kratos session cookie name, when kratos session.cookie.name is not the default
+            - name: KRATOS_SESSION_COOKIE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if or .Values.kratosLoginUi.hydraPublicUrl .Values.mcp.enabled }}
+            # OAuth sign-in (/oauth2/login|consent): Hydra's origin for the redirect allow-list; the
+            # same issuer string as jinbe MCP_OAUTH_ISSUER and auth-mcp HYDRA_ISSUER
+            - name: HYDRA_PUBLIC_URL
+              value: {{ .Values.kratosLoginUi.hydraPublicUrl | default (include "auth.oauth.issuer" .) | quote }}
+            {{- end }}
+            {{- $gate := toString .Values.kratosLoginUi.secondFactorGate }}
+            {{- if not (has $gate (list "" "<nil>")) }}
+            # "false" turns the /two-step second-factor gate off (unset = on)
+            - name: NEXT_PUBLIC_SECOND_FACTOR_GATE
+              value: {{ $gate | quote }}
+            {{- end }}
+            # admin console (kuma), linked from /welcome
+            - name: NEXT_PUBLIC_CONSOLE_URL
+              value: {{ .Values.kratosLoginUi.consoleUrl | default (printf "https://%s" (include "auth.appDomain" .)) | quote }}
             - name: NEXT_PUBLIC_DEFAULT_RETURN_URL
               value: {{ .Values.kratosLoginUi.redirects.defaultReturnUrl | quote }}
             - name: NEXT_PUBLIC_ALLOWED_RETURN_URLS
@@ -82,12 +107,30 @@ spec:
             - name: NEXT_PUBLIC_FOOTER_LINKS
               value: {{ .Values.kratosLoginUi.footer.links | toJson | quote }}
             {{- end }}
+            {{- range $name, $value := .Values.kratosLoginUi.extraEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.kratosLoginUi.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.kratosLoginUi.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.kratosLoginUi.resources | nindent 12 }}
+          # Next.js writes only its image/fetch cache and /tmp: the writable paths
+          # a read-only root filesystem needs.
+          volumeMounts:
+            - name: next-cache
+              mountPath: /app/.next/cache
+            - name: tmp
+              mountPath: /tmp
+      # login-ui never calls the Kubernetes API.
+      automountServiceAccountToken: false
+      volumes:
+        - name: next-cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
       {{- with .Values.kratosLoginUi.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

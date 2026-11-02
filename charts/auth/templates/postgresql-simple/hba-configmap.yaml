@@ -1,0 +1,12 @@
+{{- if and .Values.postgresqlSimple.enabled .Values.postgresqlSimple.hba }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgresql-hba
+  labels:
+    app.kubernetes.io/component: postgresql
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  pg_hba.conf: |
+    {{- .Values.postgresqlSimple.hba | nindent 4 }}
+{{- end }}
