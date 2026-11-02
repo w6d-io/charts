@@ -21,9 +21,16 @@ spec:
     metadata:
       labels:
         {{- include "opal.serverLabels" . | nindent 8 }}
-      {{- with .Values.server.podAnnotations }}
+      {{- $jinbeRev := (.Values.global | default dict).jinbeRevision | default "" }}
+      {{- if or .Values.server.podAnnotations $jinbeRev }}
       annotations:
+        {{- with .Values.server.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $jinbeRev }}
+        # opal-server reads jinbe's data-source entry list only on start: a new jinbe rolls it
+        checksum/jinbe-revision: {{ $jinbeRev | toString | sha256sum | trunc 16 | quote }}
+        {{- end }}
       {{- end }}
     spec:
       {{- with .Values.image.server.pullSecrets }}
@@ -61,6 +68,15 @@ spec:
           # an empty dataset, and silently leaving OPA without bindings.
           # Configured via .Values.server.waitForDataSource.url.
           image: {{ .Values.server.waitForDataSource.image | default "curlimages/curl:8.10.1" | quote }}
+          {{- with (.Values.server.waitForDataSource.securityContext | default .Values.server.containerSecurityContext) }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.server.waitForDataSource.bearerToken }}
+          env:
+            - name: DATA_SOURCE_TOKEN
+              value: {{ . | quote }}
+          {{- end }}
           command:
             - /bin/sh
             - -c
@@ -73,7 +89,9 @@ spec:
               echo "waiting for data source: $URL"
               attempts=0
               max={{ .Values.server.waitForDataSource.maxAttempts | default 120 }}
-              until curl --silent --fail --max-time 5 "$URL" > /dev/null; do
+              set --
+              if [ -n "${DATA_SOURCE_TOKEN:-}" ]; then set -- -H "Authorization: Bearer $DATA_SOURCE_TOKEN"; fi
+              until curl --silent --fail --max-time 5 "$@" "$URL" > /dev/null; do
                 attempts=$((attempts+1))
                 if [ "$attempts" -ge "$max" ]; then
                   echo "data source still unreachable after $max attempts — giving up"

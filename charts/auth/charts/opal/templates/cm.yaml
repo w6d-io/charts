@@ -21,7 +21,7 @@ metadata:
 data:
   {{- range $name, $value := .Values.client.opaStartupData }}
   {{ $name }}: |
-    {{ $value |  nindent 4 }}
+    {{- $value | nindent 4 }}
   {{- end }}
 {{- end }}
 {{- end }}

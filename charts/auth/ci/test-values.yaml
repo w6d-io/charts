@@ -47,3 +47,7 @@ kratos:
 # Disable oathkeeper (depends on kratos)
 oathkeeper:
   enabled: false
+
+# Postgres only backs Kratos, which is off in CI; on the CI kind (k8s 1.21) its initdb fails under the restricted securityContext
+postgresqlSimple:
+  enabled: false

@@ -1,0 +1,165 @@
+# Gateway API objects in the gateway namespace, whoever writes them: every
+# HTTPRoute goes to the oathkeeper proxy and attaches only to an allowed Gateway
+# (params allowedGateways: Gateways whose Gateway-level policies run the WAF and
+# CrowdSec) or a ListenerSet of this namespace; no RequestMirror (copies requests,
+# cookies included, elsewhere) or ExtensionRef filter; every ListenerSet attaches
+# to an allowed Gateway. Objects the operator writes must match its templates
+# (HTTPRoute host-<hash8> without filters, ListenerSet zone-<name> taking routes
+# from this namespace only) and the operator deletes only its own.
+# Host rules: site-operator-hosts.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-routes
+spec:
+  failurePolicy: Fail
+  paramKind: {apiVersion: v1, kind: ConfigMap}
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [gateway.networking.k8s.io]
+      apiVersions: ["*"]
+      operations: [CREATE, UPDATE, DELETE]
+      resources: [httproutes, listenersets]
+  variables:
+  - name: del
+    expression: request.operation == 'DELETE'
+  - name: operator
+    expression: request.userInfo.username == params.data.operatorUser
+  - name: obj
+    expression: "variables.del ? oldObject : object"
+  - name: labels
+    expression: "has(variables.obj.metadata.labels) ? variables.obj.metadata.labels : {}"
+  - name: managed
+    expression: >-
+      'app.kubernetes.io/managed-by' in variables.labels && variables.labels['app.kubernetes.io/managed-by'] == 'site-operator'
+  - name: isRoute
+    expression: request.resource.resource == 'httproutes'
+  - name: gateways
+    expression: "params.data.?allowedGateways.orValue('').split(',').map(s, s.trim()).filter(s, s != '')"
+  - name: rules
+    expression: "variables.del || !variables.isRoute ? [] : object.spec.?rules.orValue([])"
+  # The OAuth issuer host's public route (params oauth2PublicRoute, chart hydra.edge): the one
+  # HTTPRoute allowed to reach Hydra's public Service, on Exact paths only.
+  - name: oauth2
+    expression: >-
+      !variables.del && variables.isRoute && !variables.managed && params.data.?oauth2PublicRoute.orValue('') != '' &&
+      object.metadata.name == params.data.oauth2PublicRoute
+  validations:
+  - expression: >-
+      variables.del || !variables.isRoute || object.spec.?parentRefs.orValue([]).all(p,
+        p.?group.orValue('gateway.networking.k8s.io') == 'gateway.networking.k8s.io' && (
+          (p.?kind.orValue('Gateway') == 'Gateway' &&
+            p.?namespace.orValue(request.namespace) + '/' + p.name in variables.gateways) ||
+          (p.?kind.orValue('') == 'ListenerSet' && p.?namespace.orValue(request.namespace) == request.namespace)))
+    messageExpression: "'an HTTPRoute here attaches only to ' + params.data.?allowedGateways.orValue('(none allowed)') + ' or a ListenerSet of this namespace'"
+    reason: Forbidden
+  - expression: >-
+      variables.rules.all(r, r.?backendRefs.orValue([]).all(b,
+        b.?group.orValue('') == '' && b.?kind.orValue('Service') == 'Service' &&
+        (b.name == params.data.gatewayService ||
+          (variables.oauth2 && b.name == params.data.oauth2PublicService && string(b.?port.orValue(0)) == params.data.oauth2PublicPort)) &&
+        b.?namespace.orValue(request.namespace) == request.namespace &&
+        !has(b.filters)))
+    messageExpression: "'every HTTPRoute backend here must be the Service ' + params.data.gatewayService + ', without filters (only the route ' + params.data.?oauth2PublicRoute.orValue('(none)') + ' may use ' + params.data.?oauth2PublicService.orValue('(none)') + ')'"
+    reason: Forbidden
+  - expression: >-
+      variables.rules.all(r, r.?filters.orValue([]).all(f, !(f.type in ['RequestMirror', 'ExtensionRef'])))
+    message: RequestMirror and ExtensionRef filters are not allowed in the gateway namespace
+    reason: Forbidden
+  - expression: >-
+      variables.del || variables.isRoute || (
+        object.spec.parentRef.?group.orValue('gateway.networking.k8s.io') == 'gateway.networking.k8s.io' &&
+        object.spec.parentRef.?kind.orValue('Gateway') == 'Gateway' &&
+        object.spec.parentRef.?namespace.orValue(request.namespace) + '/' + object.spec.parentRef.name in variables.gateways)
+    messageExpression: "'a ListenerSet here attaches only to ' + params.data.?allowedGateways.orValue('(none allowed)')"
+    reason: Forbidden
+  - expression: >-
+      !(variables.operator || variables.managed) || (variables.managed && (variables.isRoute ?
+        variables.obj.metadata.name.startsWith('host-') : variables.obj.metadata.name.startsWith('zone-')))
+    message: operator HTTPRoutes are named host-<hash>, its ListenerSets zone-<name>, both labelled app.kubernetes.io/managed-by=site-operator
+    reason: Forbidden
+  - expression: >-
+      variables.del || !variables.managed || !variables.isRoute || variables.rules.all(r, !has(r.filters))
+    message: an operator HTTPRoute has no filters
+    reason: Forbidden
+  - expression: >-
+      variables.del || !variables.managed || variables.isRoute ||
+      object.spec.listeners.all(l, l.?allowedRoutes.namespaces.from.orValue('Same') == 'Same')
+    message: an operator ListenerSet takes routes from its own namespace only
+    reason: Forbidden
+  - expression: >-
+      !variables.oauth2 || (
+        object.spec.?hostnames.orValue([]) == [params.data.oauth2PublicHost] &&
+        variables.rules.all(r, !has(r.filters) &&
+          r.?backendRefs.orValue([]).all(b, b.name == params.data.oauth2PublicService) &&
+          size(r.?matches.orValue([])) > 0 &&
+          r.matches.all(m, m.?path.type.orValue('PathPrefix') == 'Exact' &&
+            m.?path.value.orValue('') in params.data.oauth2PublicPaths.split(','))))
+    messageExpression: "'the route ' + params.data.oauth2PublicRoute + ' serves only ' + params.data.oauth2PublicHost + ', Exact paths ' + params.data.oauth2PublicPaths + ', to ' + params.data.oauth2PublicService + ', without filters'"
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-routes
+spec:
+  policyName: site-operator-routes
+  validationActions: [Deny]
+  paramRef: {name: site-operator-policy, namespace: auth, parameterNotFoundAction: Deny}
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}
+---
+# Nothing in the gateway namespace may take a route out from under the Gateway's
+# WAF and CrowdSec. Envoy Gateway replaces, not merges, a Gateway-level policy
+# with a route- or listener-level one of the same kind: an EnvoyExtensionPolicy
+# here would drop Coraza (none is allowed), a SecurityPolicy without mergeType
+# would drop the denylist and the CrowdSec ext_authz. A SecurityPolicy never
+# targets the operator's routes or ListenerSets, nor selects by label. Cluster
+# admins are exempt.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: site-operator-route-policies
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [gateway.envoyproxy.io]
+      apiVersions: ["*"]
+      operations: [CREATE, UPDATE]
+      resources: [envoyextensionpolicies, securitypolicies]
+  variables:
+  - name: admin
+    expression: "has(request.userInfo.groups) && 'system:masters' in request.userInfo.groups"
+  - name: isSecurity
+    expression: request.resource.resource == 'securitypolicies'
+  - name: targets
+    expression: >-
+      object.spec.?targetRefs.orValue([]) + (has(object.spec.targetRef) ? [object.spec.targetRef] : [])
+  validations:
+  - expression: "variables.admin || variables.isSecurity"
+    message: no EnvoyExtensionPolicy in the gateway namespace (a route-level one replaces the Gateway's WAF)
+    reason: Forbidden
+  - expression: "variables.admin || !variables.isSecurity || object.spec.?mergeType.orValue('') != ''"
+    message: a SecurityPolicy in the gateway namespace sets mergeType (without it, it replaces the Gateway's denylist and CrowdSec ext_authz)
+    reason: Forbidden
+  - expression: "variables.admin || !variables.isSecurity || !has(object.spec.targetSelectors)"
+    message: a SecurityPolicy in the gateway namespace names its targets (no targetSelectors)
+    reason: Forbidden
+  - expression: >-
+      variables.admin || !variables.isSecurity || variables.targets.all(t,
+        !(t.kind == 'HTTPRoute' && t.name.startsWith('host-')) && !(t.kind == 'ListenerSet' && t.name.startsWith('zone-')))
+    message: a SecurityPolicy may not target the site-operator's routes or ListenerSets
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: site-operator-route-policies
+spec:
+  policyName: site-operator-route-policies
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: auth}

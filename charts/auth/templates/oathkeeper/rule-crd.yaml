@@ -1,0 +1,5 @@
+{{- $source := include "auth.oathkeeper.rulesSource" . }}
+{{- if and .Values.oathkeeper.enabled .Values.oathkeeper.rules.installCRD (or (ne $source "legacy") .Values.siteOperator.enabled) }}
+---
+{{ include "auth.sites.crd" (dict "ctx" . "file" "oathkeeper.ory.sh_rules.yaml") }}
+{{- end }}

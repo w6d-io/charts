@@ -195,12 +195,22 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   (jinbe's ioredis also reads REDIS_PASSWORD directly, which takes precedence).
 */}}
 {{- $redisPass := "" -}}
+{{- $redisSecret := "" -}}
 {{- if .Values.jinbe.env.REDIS_PASSWORD -}}
 {{- $redisPass = .Values.jinbe.env.REDIS_PASSWORD -}}
+{{- else if and .Values.redis.enabled .Values.redis.auth.enabled .Values.redis.auth.existingSecret -}}
+{{- $redisSecret = .Values.redis.auth.existingSecret -}}
+{{- $redisPass = "from-secret" -}}
 {{- else if and .Values.redis.enabled .Values.redis.auth.enabled -}}
 {{- $redisPass = (.Values.redis.auth.password | default "") -}}
 {{- end -}}
-{{- if $redisPass }}
+{{- if $redisSecret }}
+- name: REDIS_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ $redisSecret }}
+      key: {{ .Values.redis.auth.existingSecretPasswordKey | default "redis-password" }}
+{{- else if $redisPass }}
 - name: REDIS_PASSWORD
   value: {{ $redisPass | quote }}
 {{- end }}
@@ -208,6 +218,18 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.REDIS_URL | default (printf "redis://%s%s-redis-master:6379" (ternary ":$(REDIS_PASSWORD)@" "" (ne $redisPass "")) .Release.Name) | quote }}
 - name: KRATOS_PUBLIC_URL
   value: {{ .Values.jinbe.env.KRATOS_PUBLIC_URL | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
+{{- /* Sign-in gate: the bootstrap (init container, Job) emits the Oathkeeper rules that send
+     self-service POSTs through jinbe, so it needs this as much as the server does. */}}
+{{- $gate := .Values.jinbe.signInGate | default dict }}
+- name: SIGN_IN_GATE_ENABLED
+  value: {{ ternary "true" "false" (eq (toString $gate.enabled) "true") | quote }}
+{{- range $name, $v := dict "SIGN_IN_GATE_CODES_PER_ADDRESS" $gate.codesPerAddress "SIGN_IN_GATE_CODES_PER_IP" $gate.codesPerIp "SIGN_IN_GATE_WINDOW_S" $gate.windowSeconds "SIGN_IN_GATE_VERIFIED_TTL_S" $gate.verifiedTtlSeconds }}
+{{- $s := toString $v }}
+{{- if not (has $s (list "" "<nil>")) }}
+- name: {{ $name }}
+  value: {{ $s | quote }}
+{{- end }}
+{{- end }}
 - name: KRATOS_ADMIN_URL
   value: {{ .Values.jinbe.env.KRATOS_ADMIN_URL | default (printf "http://%s-kratos-admin:80" .Release.Name) | quote }}
 - name: JINBE_INTERNAL_URL
@@ -216,6 +238,9 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
 - name: APP_DOMAIN
   value: {{ .Values.jinbe.env.APP_DOMAIN | default (include "auth.appDomain" .) | quote }}
+# The login-ui page an organization invitation link opens (jinbe appends ?token=…).
+- name: INVITATION_URL
+  value: {{ .Values.jinbe.env.INVITATION_URL | default (printf "https://%s/invitation" (include "auth.authDomain" .)) | quote }}
 {{- /* API_DOMAIN deliberately has NO appDomain fallback: defaulting it to the
 app domain made jinbe's bootstrap emit a catch-all gateway rule on the SAME
 host as the kuma-* rules — Oathkeeper then 500s the whole host on every
@@ -247,16 +272,18 @@ the deployer explicitly serves the jinbe API on its own domain. */}}
 - name: ADMIN_NAME
   value: {{ .Values.jinbe.env.ADMIN_NAME | quote }}
 {{- end }}
-{{- if .Values.jinbe.k8s.enabled }}
+{{- /* mcp.enabled needs ServiceAccount auth too: auth-mcp's actor token is verified by TokenReview */}}
+{{- if or .Values.jinbe.k8s.enabled .Values.mcp.enabled }}
 - name: K8S_SA_AUTH_ENABLED
-  value: {{.Values.jinbe.k8s.enabled | quote }}
+  value: "true"
 - name: K8S_SA_TOKEN_AUDIENCE
   value: {{ .Values.jinbe.k8s.audience }}
 - name: K8S_SA_EMAIL_DOMAIN
   value: {{ .Values.jinbe.k8s.email_domain }}
 - name: K8S_SA_ALLOWED_SUBJECTS
-  value: {{ .Values.jinbe.k8s.subjects }}
+  value: {{ include "auth.jinbe.k8sSubjects" . | quote }}
 {{- end }}
+{{- include "auth.mcp.jinbeEnv" . }}
 {{- range $name, $value := .Values.jinbe.extraEnv }}
 - name: {{ $name }}
   value: {{ $value | quote }}
@@ -275,10 +302,12 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
   value: "0.0.0.0"
 - name: OPA_URL
   value: {{ .Values.jinbe.env.OPA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+{{- /* jinbe pushes data-change notices to OPAL: only where there is one (else a failure
+log per burst) */}}
+{{- if or .Values.opal.enabled .Values.jinbe.env.OPAL_SERVER_URL }}
 - name: OPAL_SERVER_URL
   value: {{ .Values.jinbe.env.OPAL_SERVER_URL | default (printf "http://%s-opal-server:7002" .Release.Name) | quote }}
-- name: OPA_DATA_URL
-  value: {{ .Values.jinbe.env.OPA_DATA_URL | default (printf "http://%s-opal-client:8181" .Release.Name) | quote }}
+{{- end }}
 - name: OPA_AUTHZ_REMOTE
   value: {{ .Values.jinbe.env.OPA_AUTHZ_REMOTE | default (printf "http://%s:%s/v1/data/rbac/allow" (include "auth.opaAuthzProxy.fullname" .) (.Values.opaAuthzProxy.service.port | toString)) | quote }}
 - name: SERVICE_DEFAULT_NAMESPACE
@@ -299,22 +328,6 @@ API server needs but the Bootstrap Job does NOT. Included by deployment.yaml.
 # override jinbe.env.KRATOS_WEBHOOK_SECRET and the Kratos hooks together.
 - name: KRATOS_WEBHOOK_SECRET
   value: {{ .Values.jinbe.env.KRATOS_WEBHOOK_SECRET | default "vault:secret/data/auth#KRATOS_WEBHOOK_SECRET" | quote }}
-{{- if .Values.jinbe.env.DATABASE_URL }}
-- name: DATABASE_URL
-  value: {{ .Values.jinbe.env.DATABASE_URL | quote }}
-{{- end }}
-{{- if .Values.jinbe.env.BACKUP_IMAGE_MONGO }}
-- name: BACKUP_IMAGE_MONGO
-  value: {{ .Values.jinbe.env.BACKUP_IMAGE_MONGO | quote }}
-{{- end }}
-{{- if .Values.jinbe.env.BACKUP_IMAGE_POSTGRES }}
-- name: BACKUP_IMAGE_POSTGRES
-  value: {{ .Values.jinbe.env.BACKUP_IMAGE_POSTGRES | quote }}
-{{- end }}
-{{- if .Values.jinbe.env.BACKUP_GCP_PROJECT_ID }}
-- name: BACKUP_GCP_PROJECT_ID
-  value: {{ .Values.jinbe.env.BACKUP_GCP_PROJECT_ID | quote }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -340,6 +353,13 @@ ServiceAccount's IRSA annotation (no static keys).
 {{- define "auth.backup.env" -}}
 - name: BACKUP_ENABLED
   value: {{ .Values.backup.enabled | quote }}
+{{- /* not `default`: a YAML false must stay "false", not become "auto" */}}
+{{- $restore := "auto" }}
+{{- if hasKey .Values.backup "restoreOnFirstInit" }}{{ if not (kindIs "invalid" .Values.backup.restoreOnFirstInit) }}{{ $restore = toString .Values.backup.restoreOnFirstInit }}{{ end }}{{ end }}
+{{- if eq $restore "" }}{{ $restore = "auto" }}{{ end }}
+{{- if not (has $restore (list "auto" "true" "false")) }}{{ fail "backup.restoreOnFirstInit must be \"auto\", \"true\" or \"false\"" }}{{ end }}
+- name: BACKUP_RESTORE_ON_FIRST_INIT
+  value: {{ $restore | quote }}
 {{- if .Values.backup.enabled }}
 - name: BACKUP_S3_BUCKET
   value: {{ required "backup.s3.bucket is required when backup.enabled=true" .Values.backup.s3.bucket | quote }}
@@ -399,4 +419,58 @@ templates/jinbe/deployment.yaml and templates/jinbe/bootstrap-job.yaml.
 - name: OATHKEEPER_ENABLED_ERROR_HANDLERS
   value: {{ include "auth.oathkeeper.enabledKeys" ($errors.handlers | default dict) | quote }}
 {{- end -}}
+{{- end }}
+
+{{/*
+kuma runtime env: substituted into index.html (by the image CMD, or by the render-html
+init container when adminUi.readOnlyRootFilesystem is on).
+*/}}
+{{- define "auth.adminUi.env" -}}
+- name: API_BASE
+  value: {{ .Values.adminUi.env.API_BASE | default "" | quote }}
+# AUTH_DOMAIN is substituted into kuma's index.html at container start
+# (envsubst → window.__AUTH_DOMAIN__). Drives the 401 redirect target.
+- name: AUTH_DOMAIN
+  value: {{ .Values.adminUi.env.AUTH_DOMAIN | default (include "auth.authDomain" .) | quote }}
+# BACKUP_ENABLED → window.__BACKUP_ENABLED__ (gates the Backup tab).
+- name: BACKUP_ENABLED
+  value: {{ .Values.backup.enabled | quote }}
+{{- range $name, $value := .Values.adminUi.extraEnv }}
+- name: {{ $name }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+The OAuth issuer: Hydra's urls.self.issuer, byte for byte, in every place that names it — auth-mcp
+HYDRA_ISSUER (its protected-resource metadata), jinbe MCP_OAUTH_ISSUER (the RFC 8414 document) and
+login-ui HYDRA_PUBLIC_URL. mcp.authorizationServer overrides it. Hydra issues `iss` with the trailing
+slash, so one without it is refused here rather than at the first token.
+*/}}
+{{- define "auth.oauth.issuer" -}}
+{{- $issuer := .Values.mcp.authorizationServer | default (tpl (toString .Values.hydra.hydra.config.urls.self.issuer) .) -}}
+{{- $issuer = required "hydra.hydra.config.urls.self.issuer (or mcp.authorizationServer) is required" $issuer -}}
+{{- if not (hasSuffix "/" $issuer) -}}
+{{- fail (printf "the OAuth issuer %q must end with / (Hydra's iss keeps the slash)" $issuer) -}}
+{{- end -}}
+{{- $issuer -}}
+{{- end }}
+
+{{/*
+Annotations for every cluster-scoped object the chart renders (ClusterRole, ClusterRoleBinding,
+ValidatingAdmissionPolicy[Binding], Zone, CRD): clusterResources.annotations, as a dict merged into
+the object's own (the object's win; Argo sync-options are joined). E.g. argocd.argoproj.io/sync-options: Prune=false,Delete=false.
+*/}}
+{{- define "auth.clusterResources.annotations" -}}
+{{- $own := .own | default dict -}}
+{{- $common := .ctx.Values.clusterResources.annotations | default dict -}}
+{{- $all := merge (deepCopy $own) $common -}}
+{{- $k := "argocd.argoproj.io/sync-options" -}}
+{{- if and (hasKey $own $k) (hasKey $common $k) -}}
+{{- $_ := set $all $k (printf "%s,%s" (index $own $k) (index $common $k)) -}}
+{{- end -}}
+{{- with $all }}
+annotations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 {{- end }}
