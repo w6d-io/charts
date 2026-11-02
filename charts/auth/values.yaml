@@ -746,8 +746,8 @@ oathkeeper:
   maesterSidecar:
     image: "ghcr.io/w6d-io/oathkeeper-maester:v0.1.14-w6d.1"
     resources:
-      requests: { cpu: 10m, memory: 32Mi }
-      limits:   { memory: 128Mi }
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 128Mi}
 
   # Graceful rollout: every Gateway change (and every config change) rolls Oathkeeper; a
   # single-replica swap dropped requests with 502 on the sandbox. Two replicas, surge-only
@@ -2181,8 +2181,8 @@ gatekit:
     enabled: true    # rendered only when replicaCount > 1
     minAvailable: 1
   resources:
-    requests: { cpu: 20m, memory: 64Mi }
-    limits:   { memory: 256Mi }
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
   podAnnotations: {}
   nodeSelector: {}
   tolerations: []
@@ -2205,8 +2205,8 @@ hydrator:
   serviceAccountName: ""    # default <release>-hydrator
   automountServiceAccountToken: false
   resources:
-    requests: { cpu: 25m, memory: 32Mi }
-    limits: { cpu: 100m, memory: 64Mi }
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 100m, memory: 64Mi}
 
 # mcp — auth-mcp, the admin MCP server: people use the console from an AI client, as themselves
 # (a Hydra token narrowed to their permissions and one org). It holds no credential: its projected
@@ -2263,8 +2263,8 @@ mcp:
     enabled: true     # rendered only when replicaCount > 1
     minAvailable: 1
   resources:
-    requests: { cpu: 20m, memory: 96Mi }
-    limits:   { memory: 256Mi }
+    requests: {cpu: 20m, memory: 96Mi}
+    limits: {memory: 256Mi}
   podAnnotations: {}
   nodeSelector: {}
   tolerations: []
@@ -2396,8 +2396,8 @@ siteOperator:
     allowedIngressAnnotationPrefixes: ["meta.helm.sh/", "argocd.argoproj.io/"]
     allowedDefaultBackend: error-page
   resources:
-    requests: { cpu: 20m, memory: 64Mi }
-    limits:   { memory: 256Mi }
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
   podAnnotations: {}
   nodeSelector: {}
   tolerations: []
