@@ -134,7 +134,7 @@ Jinbe env for Sites and observability (runtime only).
 - name: OTEL_SERVICE_NAME
   value: {{ .Values.jinbe.otel.serviceName | default "jinbe" | quote }}
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: {{ printf "service.version=%s%s" (.Values.jinbe.image.tag | default .Chart.AppVersion) (ternary (printf ",%s" .Values.jinbe.otel.resourceAttributes) "" (ne (.Values.jinbe.otel.resourceAttributes | default "") "")) | quote }}
+  value: {{ printf "service.version=%s%s" (include "auth.jinbe.version" .) (ternary (printf ",%s" .Values.jinbe.otel.resourceAttributes) "" (ne (.Values.jinbe.otel.resourceAttributes | default "") "")) | quote }}
 {{- end }}
 {{- if .Values.sites.enabled }}
 - name: SITES_KUBE

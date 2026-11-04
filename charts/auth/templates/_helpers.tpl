@@ -116,6 +116,14 @@ Kratos Login UI image
 {{- end }}
 
 {{/*
+Jinbe version: jinbe.env.APP_VERSION, else the image tag without its digest.
+A tag pinned as `<tag>@sha256:...` must not reach the version: jinbe's audit/v1 schema refuses any line with an `@`.
+*/}}
+{{- define "auth.jinbe.version" -}}
+{{- .Values.jinbe.env.APP_VERSION | default (.Values.jinbe.image.tag | default .Chart.AppVersion | splitList "@" | first) -}}
+{{- end }}
+
+{{/*
 Jinbe fullname
 */}}
 {{- define "auth.jinbe.fullname" -}}
@@ -185,9 +193,9 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
 - name: RELEASE_NAME
   value: {{ .Release.Name | quote }}
 - name: APP_VERSION
-  value: {{ .Values.jinbe.image.tag | default .Chart.AppVersion | quote }}
+  value: {{ include "auth.jinbe.version" . | quote }}
 - name: COMMIT_SHA
-  value: {{ .Values.jinbe.env.COMMIT_SHA | default (.Values.jinbe.image.tag | default .Chart.AppVersion) | quote }}
+  value: {{ .Values.jinbe.env.COMMIT_SHA | default (include "auth.jinbe.version" .) | quote }}
 {{/*
   Redis password: explicit jinbe.env.REDIS_PASSWORD wins; otherwise sourced
   from redis.auth.password when the bundled redis has auth enabled. Emitted
