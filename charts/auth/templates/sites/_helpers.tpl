@@ -168,6 +168,20 @@ Jinbe env for Sites and observability (runtime only).
 - name: SITES_PLATFORM_NAMESPACES
   value: {{ join "," . | quote }}
 {{- end }}
+{{- with .Values.sites.impersonation }}
+{{- if .enabled }}
+- name: IMPERSONATION_ENABLED
+  value: "true"
+- name: IMPERSONATION_CHECK_URL
+  value: {{ .checkUrl | default (printf "http://%s:%s/api/oathkeeper/impersonation/session" (include "auth.jinbe.fullname" $) ($.Values.jinbe.service.port | toString)) | quote }}
+- name: IMPERSONATION_MAX_MINUTES
+  value: {{ .maxMinutes | default 30 | int | toString | quote }}
+{{- with .cookieName }}
+- name: IMPERSONATION_COOKIE_NAME
+  value: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
 - name: SITES_ACCESS_URL
   value: {{ .Values.sites.accessUrl | default (printf "https://%s/access" (include "auth.authDomain" .)) | quote }}
 - name: GATEWAY_OATHKEEPER_CONFIGMAP

@@ -2141,6 +2141,19 @@ sites:
   # error handlers it renders into Site gates (Oathkeeper has a single global redirect
   # target, so the reason-based redirect can only be per rule).
   accessUrl: ""
+  # Impersonation: a console user holding users:impersonate browses the sites as one user, read-only,
+  # for a bounded time (jinbe IMPERSONATION_*). Off by default. The gateway asks jinbe only for
+  # requests carrying the impersonation cookie; the global cookie_session config must keep no
+  # force_method, since jinbe refuses writes on the method the gateway forwards.
+  impersonation:
+    enabled: false
+    # Cookie name, [A-Za-z0-9_-], not starting with ory_kratos_session. Give each environment sharing
+    # a cookie domain its own name. Empty: jinbe default (platform_impersonation).
+    cookieName: ""
+    # Longest impersonation, in minutes (5..60).
+    maxMinutes: 30
+    # Where the gateway asks. Empty: http://<release>-jinbe:<port>/api/oathkeeper/impersonation/session
+    checkUrl: ""
   # Which applies need a second super_admin: off | high-risk | all (SITES_FOUR_EYES).
   fourEyes: "off"
   # Re-create missing/drifted Site CRs from the intent every … ms (0 = off).
