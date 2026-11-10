@@ -40,51 +40,6 @@ spec:
       timeouts:
         request: {{ . }}
       {{- end }}
-{{- $imp := ($.Values.sites | default dict).impersonation | default dict }}
-{{- if and $imp.enabled $.Values.jinbe.enabled }}
----
-{{/*
-  Impersonation: a site front end asking the auth host "who am I" (/sessions/whoami) while the
-  browser carries the impersonation cookie is answered by jinbe — the impersonated user for a site
-  origin, Kratos' own answer for everything else. Requests without the cookie never match and keep
-  going to the gateway above.
-*/}}
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: {{ printf "%s-impersonation-whoami" (include "auth.fullname" $) | trunc 63 | trimSuffix "-" }}
-  labels:
-    {{- include "auth.labels" $ | nindent 4 }}
-    app.kubernetes.io/component: platform-route
-spec:
-  parentRefs:
-    {{- .parentRefs | toYaml | nindent 4 }}
-  hostnames:
-    - {{ include "auth.authDomain" $ | quote }}
-  rules:
-    - matches:
-        - path: { type: Exact, value: /sessions/whoami }
-          method: GET
-          headers:
-            - type: RegularExpression
-              name: cookie
-              value: {{ printf "(^|.*;\\s*)%s=.+" (regexQuoteMeta ($imp.cookieName | default "platform_impersonation")) | quote }}
-      filters:
-        {{- with .cors }}
-        - type: CORS
-          cors:
-            {{- toYaml . | nindent 12 }}
-        {{- end }}
-        - type: URLRewrite
-          urlRewrite:
-            path: { type: ReplaceFullPath, replaceFullPath: /api/public/impersonation/whoami }
-      backendRefs:
-        - group: ""
-          kind: Service
-          name: {{ include "auth.jinbe.fullname" $ }}
-          port: {{ $.Values.jinbe.service.port }}
-          weight: 1
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
