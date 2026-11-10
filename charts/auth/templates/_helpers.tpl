@@ -220,6 +220,21 @@ Bootstrap-only env (ADMIN_EMAIL/PASSWORD/NAME) is gated by
   value: {{ .Values.jinbe.env.KRATOS_PUBLIC_URL | default (printf "http://%s-kratos-public:80" .Release.Name) | quote }}
 {{- /* Sign-in gate: the bootstrap (init container, Job) emits the Oathkeeper rules that send
      self-service POSTs through jinbe, so it needs this as much as the server does. */}}
+{{- /* Impersonation: here and not with the Sites variables because the bootstrap (init container,
+     Job) emits the rule that sends the auth host's /sessions/whoami through jinbe. */}}
+{{- $imp := (.Values.sites | default dict).impersonation | default dict }}
+{{- if eq (toString $imp.enabled) "true" }}
+- name: IMPERSONATION_ENABLED
+  value: "true"
+- name: IMPERSONATION_CHECK_URL
+  value: {{ $imp.checkUrl | default (printf "http://%s:%s/api/oathkeeper/impersonation/session" (include "auth.jinbe.fullname" .) (.Values.jinbe.service.port | toString)) | quote }}
+- name: IMPERSONATION_MAX_MINUTES
+  value: {{ $imp.maxMinutes | default 30 | int | toString | quote }}
+{{- with $imp.cookieName }}
+- name: IMPERSONATION_COOKIE_NAME
+  value: {{ . | quote }}
+{{- end }}
+{{- end }}
 {{- $gate := .Values.jinbe.signInGate | default dict }}
 - name: SIGN_IN_GATE_ENABLED
   value: {{ ternary "true" "false" (eq (toString $gate.enabled) "true") | quote }}
